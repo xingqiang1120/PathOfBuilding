@@ -17,6 +17,7 @@ Usage:
   python tools/library.py show <id prefix | name>
   python tools/library.py search [--ascendancy X] [--skill X] [--item X] [--passive X] [--tag X] [--text X]
   python tools/library.py common [--item X] [--skill X] [--ascendancy X] [--passive X] [--tag X] [--top N]
+  python tools/library.py usage --item X  how often an item appears, by ascendancy, skill and slot
   python tools/library.py note <id prefix | name> TEXT
   python tools/library.py rebuild          re-summarise every raw build (after a PoB or data update)
 """
@@ -289,10 +290,12 @@ FILTERS = {
 }
 
 
-def where_clause(args):
+def where_clause(filters):
+    """filters: argparse namespace or dict with any of the FILTERS keys."""
+    get = filters.get if isinstance(filters, dict) else (lambda k: getattr(filters, k, None))
     clauses, params = [], []
     for key, (sql, count) in FILTERS.items():
-        value = getattr(args, key, None)
+        value = get(key)
         if value:
             v = value.lower() if key == "tag" else f"%{value}%"
             clauses.append(sql)
@@ -300,26 +303,28 @@ def where_clause(args):
     return (" WHERE " + " AND ".join(clauses)) if clauses else "", params
 
 
-def cmd_search(args):
+def query_search(filters):
     db = connect()
-    where, params = where_clause(args)
+    where, params = where_clause(filters)
     rows = db.execute(f"SELECT b.* FROM builds b{where} ORDER BY b.primary_dps DESC", params).fetchall()
-    print(f"{len(rows)} build(s)")
+    out = []
     for r in rows:
-        print(f"{r['id'][:10]}  {r['name']:<30} {r['ascendancy'] or '-':<14} {(r['primary_skill'] or '-'):<28} {fmt(r['primary_dps']):>12}")
+        tags = [t[0] for t in db.execute("SELECT DISTINCT tag FROM build_tags WHERE build_id = ? ORDER BY tag", (r["id"],))]
+        out.append({"id": r["id"][:10], "name": r["name"], "class": r["class"], "ascendancy": r["ascendancy"], "level": r["level"],
+                    "primarySkill": r["primary_skill"], "primaryDPS": r["primary_dps"], "dpsIsPerMinion": bool(r["primary_is_minion"]),
+                    "source": r["source"], "note": r["note"], "tags": tags})
+    return out
 
 
-def cmd_common(args):
-    """What do builds matching the filters have in common? Counts across the matching builds."""
+def query_common(filters, top=10):
+    """What builds matching the filters have in common: share of matching builds per entry."""
     db = connect()
-    where, params = where_clause(args)
+    where, params = where_clause(filters)
     ids = [r[0] for r in db.execute(f"SELECT b.id FROM builds b{where}", params)]
+    result = {"matchingBuilds": len(ids), "groups": {}}
     if not ids:
-        print("no matching builds")
-        return
+        return result
     marks = ",".join("?" * len(ids))
-    total = len(ids)
-    print(f"{total} matching build(s)\n")
     queries = [
         ("Unique items", f"SELECT title AS name, COUNT(DISTINCT build_id) n FROM items WHERE build_id IN ({marks}) AND rarity IN ('UNIQUE','RELIC') GROUP BY title"),
         ("Gems", f"SELECT gem AS name, COUNT(DISTINCT build_id) n FROM gems WHERE build_id IN ({marks}) GROUP BY gem"),
@@ -328,11 +333,57 @@ def cmd_common(args):
         ("Build tags", f"SELECT tag AS name, COUNT(DISTINCT build_id) n FROM build_tags WHERE build_id IN ({marks}) GROUP BY tag"),
     ]
     for title, sql in queries:
-        rows = db.execute(sql + " ORDER BY n DESC, name LIMIT ?", ids + [args.top]).fetchall()
+        rows = db.execute(sql + " ORDER BY n DESC, name LIMIT ?", ids + [top]).fetchall()
+        result["groups"][title] = [{"name": r["name"], "builds": r["n"], "share": round(r["n"] / len(ids), 3)} for r in rows]
+    return result
+
+
+def query_item_usage(item, top=10):
+    """How often an item (unique title or item name, partial match) appears, and in which builds."""
+    db = connect()
+    total = db.execute("SELECT COUNT(*) FROM builds").fetchone()[0]
+    like = f"%{item}%"
+    match = "(i.title LIKE ? OR i.name LIKE ?)"
+    using = db.execute(f"SELECT COUNT(DISTINCT i.build_id) FROM items i WHERE {match}", (like, like)).fetchone()[0]
+    def grouped(column):
+        rows = db.execute(f"""SELECT {column} AS name, COUNT(DISTINCT i.build_id) n FROM items i JOIN builds b ON b.id = i.build_id
+                              WHERE {match} GROUP BY {column} ORDER BY n DESC LIMIT ?""", (like, like, top)).fetchall()
+        return [{"name": r["name"], "builds": r["n"]} for r in rows]
+    builds = db.execute(f"""SELECT DISTINCT b.id, b.name, b.ascendancy, b.primary_skill, i.slot, i.name AS item FROM items i JOIN builds b ON b.id = i.build_id
+                            WHERE {match} ORDER BY b.name LIMIT 50""", (like, like)).fetchall()
+    return {"item": item, "librarySize": total, "buildsUsing": using, "share": round(using / total, 3) if total else 0,
+            "byAscendancy": grouped("b.ascendancy"), "byPrimarySkill": grouped("b.primary_skill"), "bySlot": grouped("i.slot"),
+            "builds": [{"id": r["id"][:10], "name": r["name"], "ascendancy": r["ascendancy"], "primarySkill": r["primary_skill"],
+                        "slot": r["slot"], "item": r["item"]} for r in builds]}
+
+
+def cmd_search(args):
+    rows = query_search(args)
+    print(f"{len(rows)} build(s)")
+    for r in rows:
+        print(f"{r['id']}  {r['name']:<30} {r['ascendancy'] or '-':<14} {(r['primarySkill'] or '-'):<28} {fmt(r['primaryDPS']):>12}")
+
+
+def cmd_common(args):
+    result = query_common(args, args.top)
+    if not result["matchingBuilds"]:
+        print("no matching builds")
+        return
+    print(f"{result['matchingBuilds']} matching build(s)\n")
+    for title, rows in result["groups"].items():
         print(title)
         for r in rows:
-            print(f"  {r['n'] / total:>5.0%}  {r['name']}")
+            print(f"  {r['share']:>5.0%}  {r['name']}")
         print()
+
+
+def cmd_usage(args):
+    u = query_item_usage(args.item, args.top)
+    print(f"{args.item}: {u['buildsUsing']} of {u['librarySize']} build(s) ({u['share']:.0%})")
+    for title, key in (("by ascendancy", "byAscendancy"), ("by primary skill", "byPrimarySkill"), ("by slot", "bySlot")):
+        print("  " + title + ": " + ", ".join(f"{g['name']} {g['builds']}" for g in u[key]))
+    for b in u["builds"]:
+        print(f"    {b['id']}  {b['name']:<30} {b['ascendancy'] or '-':<14} {b['slot']:<12} {b['item']}")
 
 
 def cmd_note(args):
@@ -360,6 +411,9 @@ def main(argv=None):
     p = sub.add_parser("note")
     p.add_argument("key")
     p.add_argument("text")
+    p = sub.add_parser("usage")
+    p.add_argument("--item", required=True)
+    p.add_argument("--top", type=int, default=10)
     for name in ("search", "common"):
         p = sub.add_parser(name)
         for key in FILTERS:
@@ -370,7 +424,7 @@ def main(argv=None):
     if args.cmd == "add" and not args.paths and not args.code:
         parser.error("add needs a file, folder or --code")
     {"add": cmd_add, "list": cmd_list, "rebuild": cmd_rebuild, "show": cmd_show, "search": cmd_search,
-     "common": cmd_common, "note": cmd_note}[args.cmd](args)
+     "common": cmd_common, "note": cmd_note, "usage": cmd_usage}[args.cmd](args)
 
 
 if __name__ == "__main__":

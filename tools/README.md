@@ -58,6 +58,35 @@ python tools/runlua.py tools/BuildSummary.lua "path/to/build.xml" "C:/absolute/p
 
 Tests: `python -m unittest discover tools/tests`
 
+## AI tools (MCP server)
+
+`tools/pob_mcp.py` lets an AI assistant such as Claude use Path of Building and the build library
+through the Model Context Protocol. It needs no extra packages. Path of Building stays loaded in a
+background worker (`tools/PobWorker.lua`), so after the first call (~4 s) a simulation takes about
+a second.
+
+Claude Code picks it up from `.mcp.json` at the repository root (approve it when asked):
+
+```json
+{"mcpServers": {"path-of-building": {"command": "python", "args": ["tools/pob_mcp.py"]}}}
+```
+
+| Tool | What it does |
+|---|---|
+| `pob_list_builds` | List or filter library builds |
+| `pob_build_summary` | Full structured summary of a build |
+| `pob_metrics` | Key numbers (DPS, minion DPS, life, ES, EHP, max hits, resistances) |
+| `pob_simulate` | Apply gem / item / passive / config changes to a copy and compare before and after |
+| `pob_find_uniques` | Uniques by tags and slot |
+| `pob_find_passives` | Passive nodes by tags |
+| `pob_list_tags` | All tags |
+| `library_common` | What matching builds have in common |
+| `library_item_usage` | How often an item appears, by ascendancy, skill and slot |
+
+Builds are named by library id prefix or name, or by a path to a `.xml` file. Every summary lists
+the modifiers PoB does not calculate and the Config assumptions, so advice can say how far the
+numbers can be trusted.
+
 ## Running Lua scripts and tests
 
 ```

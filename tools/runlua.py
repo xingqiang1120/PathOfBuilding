@@ -40,6 +40,7 @@ lua.luaL_openlibs(L)
 boot = "\n".join([
     "package.path = '../runtime/lua/?.lua;../runtime/lua/?/init.lua;' .. package.path",
     "package.cpath = " + lua_string(runtime.replace("\\", "/") + "/?.dll;") + " .. package.cpath",
+    "SCRIPT_DIR = " + lua_string(os.path.dirname(script).replace("\\", "/")),
     "SCRIPT_ARGS = { " + ", ".join(lua_string(a.replace("\\", "/")) for a in args) + " }",
     "arg = { }",
     "io.stdout:setvbuf('no')",

@@ -1358,6 +1358,23 @@ function PassiveTreeViewClass:DoesNodeMatchSearchParams(node)
 		return need
 	end
 
+	-- Check auto tags ("tag:minion", "tag:fire,ignite")
+	local nodeTags
+	for i = #needMatches, 1, -1 do
+		local query = needMatches[i]:match("^tag:(.*)$")
+		if query then
+			nodeTags = nodeTags or autoTags.GetNodeTags(node)
+			local ids, unknown = autoTags.ParseQuery(query)
+			if #unknown > 0 or #ids == 0 or not autoTags.HasAll(nodeTags, ids) then
+				return false
+			end
+			table.remove(needMatches, i)
+		end
+	end
+	if nodeTags and #needMatches == 0 then
+		return true
+	end
+
 	-- Check recipes
 	if needMatches[1] == "oil:" then
 		if node.recipe then
@@ -1670,6 +1687,15 @@ function PassiveTreeViewClass:AddNodeTooltip(tooltip, node, build, returnEarly)
 		tooltip:AddSeparator(14)
 		for _, line in ipairs(node.flavourText) do
 			tooltip:AddLine(fontSizeBig, colorCodes.UNIQUE..line, "FONTIN ITALIC")
+		end
+	end
+
+	-- Auto tags
+	if node.type ~= "ClassStart" and node.type ~= "AscendClassStart" then
+		local tagLabels = autoTags.Describe(autoTags.GetNodeTags(node))
+		if #tagLabels > 0 then
+			tooltip:AddSeparator(14)
+			tooltip:AddLine(14, "^8Tags: "..table.concat(tagLabels, ", ").." ^8(search with tag:<name>)")
 		end
 	end
 

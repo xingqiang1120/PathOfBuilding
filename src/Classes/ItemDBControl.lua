@@ -43,7 +43,7 @@ function ItemDBClass:ItemDBControl(anchor, rect, itemsTab, db, dbType)
 		-- Wickerman (3.30)
 		"Head", "Body", "Arm", "Leg"
 	}
-	local baseY = dbType == "RARE" and -22 or -62
+	local baseY = dbType == "RARE" and -42 or -82
 	self.controls.slot = new("DropDownControl"):DropDownControl({"BOTTOMLEFT",self,"TOPLEFT"}, {0, baseY, 179, 18}, self.slotList, function(index, value)
 		self.listBuildFlag = true
 	end)
@@ -64,12 +64,25 @@ function ItemDBClass:ItemDBControl(anchor, rect, itemsTab, db, dbType)
 			self.listBuildFlag = true
 		end)
 	end
-	self.controls.search = new("EditControl"):EditControl({"BOTTOMLEFT",self,"TOPLEFT"}, {0, -2, 258, 18}, "", "Search", "%c", 100, function()
+	self.controls.search = new("EditControl"):EditControl({"BOTTOMLEFT",self,"TOPLEFT"}, {0, -22, 258, 18}, "", "Search", "%c", 100, function()
 		self.listBuildFlag = true
 	end, nil, nil, true)
 	self.controls.searchMode = new("DropDownControl"):DropDownControl({"LEFT",self.controls.search,"RIGHT"}, {2, 0, 100, 18}, { "Anywhere", "Names", "Modifiers" }, function(index, value)
 		self.listBuildFlag = true
 	end)
+	-- Auto tag filters (two, combined with AND)
+	self.tagList = { { label = "Any tag" } }
+	for _, def in ipairs(autoTags.GetTagList()) do
+		t_insert(self.tagList, { label = def.category .. ": " .. def.label, tagId = def.id })
+	end
+	self.controls.tag = new("DropDownControl"):DropDownControl({"BOTTOMLEFT",self,"TOPLEFT"}, {0, -2, 179, 18}, self.tagList, function(index, value)
+		self.listBuildFlag = true
+	end)
+	self.controls.tag.tooltipText = "Filter by automatically derived build tags (e.g. Minion, Totem, Fire, Life).\nTags come from the parsed modifiers of the item's selected variant."
+	self.controls.tag2 = new("DropDownControl"):DropDownControl({"LEFT",self.controls.tag,"RIGHT"}, {2, 0, 179, 18}, self.tagList, function(index, value)
+		self.listBuildFlag = true
+	end)
+	self.controls.tag2.tooltipText = "Second tag filter; items must match both tags."
 	self:BuildSortOrder()
 	self.listBuildFlag = true
 	return self
@@ -96,6 +109,14 @@ function ItemDBClass:LoadLeaguesAndTypes()
 end
 
 function ItemDBClass:DoesItemMatchFilters(item)
+	local tagId = self.tagList[self.controls.tag.selIndex].tagId
+	local tagId2 = self.tagList[self.controls.tag2.selIndex].tagId
+	if tagId or tagId2 then
+		local tags = autoTags.GetItemTags(item)
+		if (tagId and not tags[tagId]) or (tagId2 and not tags[tagId2]) then
+			return false
+		end
+	end
 	if self.controls.slot.selIndex > 1 then
 		local primarySlot = item:GetPrimarySlot()
 		if primarySlot ~= self.slotList[self.controls.slot.selIndex] and primarySlot:gsub(" %d","") ~= self.slotList[self.controls.slot.selIndex] then

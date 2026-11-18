@@ -49,3 +49,6 @@ runtime/SimpleGraphic/Screenshots
 
 # Per-build coverage reports
 reports/build-*
+
+# Build library (contains account and character names)
+library/

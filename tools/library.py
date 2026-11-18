@@ -1,0 +1,379 @@
+"""Build library: collect builds, summarise them with Path of Building, and query them.
+
+Builds come in by hand (no scraping):
+  * a PoB build file (.xml) or a folder of them, e.g. src/Builds after importing your character
+    with the official account import, or after clicking the PoB button on a poe.ninja page
+  * a PoB share code (pasted text) or a text file holding one
+
+Layout (all local; library/ is git-ignored because builds contain account and character names):
+  library/raw/<id>.xml        original build, never changed; <id> = sha1 of its content
+  library/summary/<id>.json   structured summary written by tools/BuildSummary.lua
+  library/builds.db           SQLite index over all summaries
+
+Usage:
+  python tools/library.py add <file.xml | folder | code.txt> [--source TEXT] [--note TEXT] [--tag TAG ...]
+  python tools/library.py add --code <share code> [--name NAME] [--source ...] [--note ...]
+  python tools/library.py list
+  python tools/library.py show <id prefix | name>
+  python tools/library.py search [--ascendancy X] [--skill X] [--item X] [--passive X] [--tag X] [--text X]
+  python tools/library.py common [--item X] [--skill X] [--ascendancy X] [--passive X] [--tag X] [--top N]
+  python tools/library.py note <id prefix | name> TEXT
+  python tools/library.py rebuild          re-summarise every raw build (after a PoB or data update)
+"""
+import argparse
+import base64
+import datetime
+import hashlib
+import json
+import os
+import sqlite3
+import subprocess
+import sys
+import zlib
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+LIBRARY = os.environ.get("POB_LIBRARY", os.path.join(ROOT, "library"))
+RUNLUA = os.path.join(ROOT, "tools", "runlua.py")
+SUMMARY_SCRIPT = os.path.join(ROOT, "tools", "BuildSummary.lua")
+
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS builds (
+    id TEXT PRIMARY KEY, name TEXT, source TEXT, note TEXT, added_at TEXT, summarised_at TEXT, pob_version TEXT,
+    class TEXT, ascendancy TEXT, level INTEGER, tree_version TEXT,
+    primary_skill TEXT, primary_dps REAL, primary_is_minion INTEGER, error TEXT
+);
+CREATE TABLE IF NOT EXISTS build_tags (build_id TEXT, tag TEXT, origin TEXT);
+CREATE TABLE IF NOT EXISTS gems (build_id TEXT, grp INTEGER, slot TEXT, gem TEXT, support INTEGER, level INTEGER, quality INTEGER, enabled INTEGER, group_dps REAL);
+CREATE TABLE IF NOT EXISTS items (build_id TEXT, slot TEXT, name TEXT, title TEXT, rarity TEXT, base TEXT);
+CREATE TABLE IF NOT EXISTS item_tags (build_id TEXT, slot TEXT, tag TEXT);
+CREATE TABLE IF NOT EXISTS passives (build_id TEXT, kind TEXT, name TEXT);
+CREATE TABLE IF NOT EXISTS stats (build_id TEXT, key TEXT, value REAL);
+CREATE TABLE IF NOT EXISTS config (build_id TEXT, key TEXT, value TEXT);
+CREATE TABLE IF NOT EXISTS unsupported (build_id TEXT, kind TEXT, source TEXT, line TEXT, impact TEXT, stat_ids TEXT);
+CREATE INDEX IF NOT EXISTS idx_gems ON gems(gem);
+CREATE INDEX IF NOT EXISTS idx_items ON items(title, name);
+CREATE INDEX IF NOT EXISTS idx_passives ON passives(name);
+CREATE INDEX IF NOT EXISTS idx_tags ON build_tags(tag);
+"""
+BUILD_TAG_THRESHOLD = {"Archetype": 4, "Damage": 6, "Ailment": 4, "Minion Type": 2, "Defence": 20, "Utility": 20, "Custom": 1}
+DETAIL_TABLES = ("build_tags", "gems", "items", "item_tags", "passives", "stats", "config", "unsupported")
+
+
+def paths():
+    raw = os.path.join(LIBRARY, "raw")
+    summary = os.path.join(LIBRARY, "summary")
+    os.makedirs(raw, exist_ok=True)
+    os.makedirs(summary, exist_ok=True)
+    return raw, summary
+
+
+def connect():
+    paths()
+    db = sqlite3.connect(os.path.join(LIBRARY, "builds.db"))
+    db.row_factory = sqlite3.Row
+    db.executescript(SCHEMA)
+    return db
+
+
+def decode_share_code(code):
+    """PoB share code = URL-safe base64 of zlib-compressed build XML."""
+    code = "".join(code.split())
+    data = base64.urlsafe_b64decode(code + "=" * (-len(code) % 4))
+    return zlib.decompress(data).decode("utf-8")
+
+
+def encode_share_code(xml_text):
+    return base64.urlsafe_b64encode(zlib.compress(xml_text.encode("utf-8"), 9)).decode("ascii")
+
+
+def summarise(ids):
+    """Run BuildSummary.lua once for many raw builds (PoB loads once)."""
+    raw_dir, summary_dir = paths()
+    if not ids:
+        return
+    files = [os.path.join(raw_dir, i + ".xml") for i in ids]
+    cmd = [sys.executable, RUNLUA, SUMMARY_SCRIPT, "--out-dir", summary_dir] + files
+    proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    for line in proc.stdout.splitlines():
+        if line.startswith("error "):
+            print("  " + line)
+    if proc.returncode != 0:
+        raise RuntimeError("BuildSummary failed:\n" + proc.stdout[-2000:] + proc.stderr[-2000:])
+
+
+def index_build(db, build_id, meta):
+    """(Re)write all rows for one build from its summary JSON."""
+    _, summary_dir = paths()
+    with open(os.path.join(summary_dir, build_id + ".json"), encoding="utf-8") as f:
+        s = json.load(f)
+    for table in DETAIL_TABLES:
+        if table == "build_tags":
+            db.execute("DELETE FROM build_tags WHERE build_id = ? AND origin != 'user'", (build_id,))
+        else:
+            db.execute(f"DELETE FROM {table} WHERE build_id = ?", (build_id,))
+    ch = s.get("character", {})
+    primary = s.get("primarySkill") or {}
+    db.execute(
+        """INSERT INTO builds (id, name, source, note, added_at, summarised_at, pob_version, class, ascendancy, level, tree_version,
+                               primary_skill, primary_dps, primary_is_minion, error)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+           ON CONFLICT(id) DO UPDATE SET summarised_at=excluded.summarised_at, pob_version=excluded.pob_version, class=excluded.class,
+             ascendancy=excluded.ascendancy, level=excluded.level, tree_version=excluded.tree_version, primary_skill=excluded.primary_skill,
+             primary_dps=excluded.primary_dps, primary_is_minion=excluded.primary_is_minion, error=excluded.error""",
+        (build_id, meta.get("name") or s.get("name"), meta.get("source"), meta.get("note"), meta.get("added_at"),
+         datetime.datetime.now().isoformat(timespec="seconds"), s.get("pobVersion"), ch.get("class"), ch.get("ascendancy"),
+         ch.get("level"), ch.get("treeVersion"), primary.get("name"), primary.get("dps"), 1 if primary.get("minion") else 0, s.get("error")))
+    if s.get("error"):
+        return
+    tags = {}
+    for skill in s.get("skills", []):
+        dps = 0
+        calc = skill.get("calculated") or {}
+        dps = max([v for v in calc.values() if isinstance(v, (int, float))] or [0])
+        for gem in skill.get("gems", []):
+            db.execute("INSERT INTO gems VALUES (?,?,?,?,?,?,?,?,?)",
+                       (build_id, skill["index"], skill.get("slot"), gem.get("name"), 1 if gem.get("support") else 0,
+                        gem.get("level"), gem.get("quality"), 1 if gem.get("enabled") else 0, dps))
+    for item in s.get("items", []):
+        db.execute("INSERT INTO items VALUES (?,?,?,?,?,?)",
+                   (build_id, item["slot"], item.get("name"), item.get("title"), item.get("rarity"), item.get("base")))
+        for tag in item.get("tags", []):
+            db.execute("INSERT INTO item_tags VALUES (?,?,?)", (build_id, item["slot"], tag))
+            tags[tag] = tags.get(tag, 0) + 1
+    p = s.get("passives", {})
+    for kind in ("keystones", "notables", "ascendancy", "masteries"):
+        for name in p.get(kind, []):
+            db.execute("INSERT INTO passives VALUES (?,?,?)", (build_id, kind[:-1] if kind.endswith("s") else kind, name))
+    for tag, count in (p.get("tagCounts") or {}).items():
+        tags[tag] = tags.get(tag, 0) + count
+    # A build carries a tag when its items and passives use it repeatedly. Defence and utility tags
+    # (life, resistances, flasks ...) appear in nearly every build, so they need much more weight.
+    info = s.get("tagInfo") or {}
+    for tag, count in tags.items():
+        category = (info.get(tag) or {}).get("category", "Custom")
+        needed = BUILD_TAG_THRESHOLD.get(category, 3)
+        if count >= needed:
+            db.execute("INSERT INTO build_tags VALUES (?,?,?)", (build_id, tag, "auto"))
+    for key, value in (s.get("stats") or {}).items():
+        db.execute("INSERT INTO stats VALUES (?,?,?)", (build_id, key, value))
+    for key, value in ((s.get("config") or {}).get("set") or {}).items():
+        db.execute("INSERT INTO config VALUES (?,?,?)", (build_id, key, json.dumps(value)))
+    for e in (s.get("coverage") or {}).get("unsupported", []):
+        db.execute("INSERT INTO unsupported VALUES (?,?,?,?,?,?)",
+                   (build_id, e.get("kind"), e.get("source"), e.get("line"), e.get("impact"), ",".join(e.get("statIds") or [])))
+
+
+def collect_inputs(args):
+    """Yield (xml_text, name) for every build given on the command line."""
+    if args.code:
+        yield decode_share_code(args.code), args.name or "shared build"
+        return
+    for target in args.paths:
+        if os.path.isdir(target):
+            for fname in sorted(os.listdir(target)):
+                if fname.lower().endswith(".xml"):
+                    with open(os.path.join(target, fname), encoding="utf-8") as f:
+                        yield f.read(), fname[:-4]
+        elif target.lower().endswith(".xml"):
+            with open(target, encoding="utf-8") as f:
+                yield f.read(), args.name or os.path.basename(target)[:-4]
+        else:
+            with open(target, encoding="utf-8") as f:
+                yield decode_share_code(f.read()), args.name or os.path.splitext(os.path.basename(target))[0]
+
+
+def cmd_add(args):
+    raw_dir, _ = paths()
+    db = connect()
+    new = []
+    metas = {}
+    for xml_text, name in collect_inputs(args):
+        build_id = hashlib.sha1(xml_text.encode("utf-8")).hexdigest()
+        if db.execute("SELECT 1 FROM builds WHERE id = ?", (build_id,)).fetchone():
+            print(f"skip  {build_id[:10]}  {name} (already in the library)")
+            continue
+        with open(os.path.join(raw_dir, build_id + ".xml"), "w", encoding="utf-8") as f:
+            f.write(xml_text)
+        metas[build_id] = {"name": name, "source": args.source, "note": args.note,
+                           "added_at": datetime.datetime.now().isoformat(timespec="seconds")}
+        new.append(build_id)
+    if not new:
+        return
+    print(f"summarising {len(new)} build(s) with Path of Building ...")
+    summarise(new)
+    for build_id in new:
+        index_build(db, build_id, metas[build_id])
+        for tag in args.tag or []:
+            db.execute("INSERT INTO build_tags VALUES (?,?,?)", (build_id, tag.lower(), "user"))
+        row = db.execute("SELECT * FROM builds WHERE id = ?", (build_id,)).fetchone()
+        print(f"added {build_id[:10]}  {row['name']}  ({row['ascendancy']} {row['level']}, {row['primary_skill']})"
+              + (f"  ERROR: {row['error']}" if row["error"] else ""))
+    db.commit()
+
+
+def cmd_rebuild(args):
+    raw_dir, _ = paths()
+    db = connect()
+    rows = db.execute("SELECT * FROM builds").fetchall()
+    ids = [r["id"] for r in rows if os.path.exists(os.path.join(raw_dir, r["id"] + ".xml"))]
+    print(f"re-summarising {len(ids)} build(s) ...")
+    summarise(ids)
+    for r in rows:
+        if r["id"] in ids:
+            index_build(db, r["id"], dict(r))
+    db.commit()
+    print("done")
+
+
+def find_build(db, key):
+    row = db.execute("SELECT * FROM builds WHERE id LIKE ? OR name LIKE ? ORDER BY name = ? DESC, added_at DESC", (key + "%", f"%{key}%", key)).fetchone()
+    if not row:
+        sys.exit(f"no build matches '{key}'")
+    return row
+
+
+def fmt(n):
+    if n is None:
+        return "-"
+    return f"{n:,.0f}"
+
+
+def cmd_list(args):
+    db = connect()
+    rows = db.execute("SELECT * FROM builds ORDER BY added_at DESC").fetchall()
+    if not rows:
+        print("library is empty")
+    for r in rows:
+        tags = [t[0] for t in db.execute("SELECT DISTINCT tag FROM build_tags WHERE build_id = ? ORDER BY tag", (r["id"],))]
+        print(f"{r['id'][:10]}  {r['name']:<30} {r['ascendancy'] or '-':<14} lv{r['level'] or '-':<3} "
+              f"{(r['primary_skill'] or '-'):<28} {fmt(r['primary_dps']):>12}  [{', '.join(tags)}]")
+
+
+def cmd_show(args):
+    db = connect()
+    r = find_build(db, args.key)
+    print(f"{r['name']}  ({r['id']})")
+    print(f"  {r['class']} / {r['ascendancy']}  level {r['level']}  tree {r['tree_version']}  PoB {r['pob_version']}")
+    print(f"  source: {r['source'] or '-'}   added: {r['added_at']}")
+    if r["note"]:
+        print(f"  note: {r['note']}")
+    print(f"  primary skill: {r['primary_skill']}  DPS {fmt(r['primary_dps'])}{' (per minion)' if r['primary_is_minion'] else ''}")
+    tags = db.execute("SELECT tag, origin FROM build_tags WHERE build_id = ? ORDER BY origin, tag", (r["id"],)).fetchall()
+    print("  tags: " + ", ".join(t["tag"] + ("*" if t["origin"] == "user" else "") for t in tags))
+    stats = {s["key"]: s["value"] for s in db.execute("SELECT key, value FROM stats WHERE build_id = ?", (r["id"],))}
+    print("  life {}  ES {}  EHP {}  resists {}/{}/{}/{}".format(
+        fmt(stats.get("Life")), fmt(stats.get("EnergyShield")), fmt(stats.get("TotalEHP")),
+        fmt(stats.get("FireResist")), fmt(stats.get("ColdResist")), fmt(stats.get("LightningResist")), fmt(stats.get("ChaosResist"))))
+    print("  items:")
+    for it in db.execute("SELECT * FROM items WHERE build_id = ?", (r["id"],)):
+        print(f"    {it['slot']:<14} {it['name']}")
+    print("  skills (group: gems):")
+    groups = {}
+    for g in db.execute("SELECT * FROM gems WHERE build_id = ? ORDER BY grp", (r["id"],)):
+        groups.setdefault(g["grp"], []).append(g["gem"] + ("" if g["enabled"] else " (off)"))
+    for grp, gems in groups.items():
+        print(f"    {grp:>2}: {', '.join(gems)}")
+    asc = [p["name"] for p in db.execute("SELECT name FROM passives WHERE build_id = ? AND kind = 'ascendancy'", (r["id"],))]
+    print("  ascendancy: " + ", ".join(asc))
+    unsupported = db.execute("SELECT COUNT(*) FROM unsupported WHERE build_id = ? AND impact IN ('offence','defence')", (r["id"],)).fetchone()[0]
+    print(f"  modifier lines PoB does not calculate (offence/defence): {unsupported}")
+
+
+FILTERS = {
+    "ascendancy": ("b.ascendancy LIKE ?", None),
+    "skill": ("EXISTS (SELECT 1 FROM gems g WHERE g.build_id = b.id AND g.gem LIKE ?)", None),
+    "item": ("EXISTS (SELECT 1 FROM items i WHERE i.build_id = b.id AND (i.title LIKE ? OR i.name LIKE ?))", 2),
+    "passive": ("EXISTS (SELECT 1 FROM passives p WHERE p.build_id = b.id AND p.name LIKE ?)", None),
+    "tag": ("EXISTS (SELECT 1 FROM build_tags t WHERE t.build_id = b.id AND t.tag = ?)", None),
+    "text": ("(b.name LIKE ? OR b.note LIKE ? OR b.source LIKE ?)", 3),
+}
+
+
+def where_clause(args):
+    clauses, params = [], []
+    for key, (sql, count) in FILTERS.items():
+        value = getattr(args, key, None)
+        if value:
+            v = value.lower() if key == "tag" else f"%{value}%"
+            clauses.append(sql)
+            params.extend([v] * (count or 1))
+    return (" WHERE " + " AND ".join(clauses)) if clauses else "", params
+
+
+def cmd_search(args):
+    db = connect()
+    where, params = where_clause(args)
+    rows = db.execute(f"SELECT b.* FROM builds b{where} ORDER BY b.primary_dps DESC", params).fetchall()
+    print(f"{len(rows)} build(s)")
+    for r in rows:
+        print(f"{r['id'][:10]}  {r['name']:<30} {r['ascendancy'] or '-':<14} {(r['primary_skill'] or '-'):<28} {fmt(r['primary_dps']):>12}")
+
+
+def cmd_common(args):
+    """What do builds matching the filters have in common? Counts across the matching builds."""
+    db = connect()
+    where, params = where_clause(args)
+    ids = [r[0] for r in db.execute(f"SELECT b.id FROM builds b{where}", params)]
+    if not ids:
+        print("no matching builds")
+        return
+    marks = ",".join("?" * len(ids))
+    total = len(ids)
+    print(f"{total} matching build(s)\n")
+    queries = [
+        ("Unique items", f"SELECT title AS name, COUNT(DISTINCT build_id) n FROM items WHERE build_id IN ({marks}) AND rarity IN ('UNIQUE','RELIC') GROUP BY title"),
+        ("Gems", f"SELECT gem AS name, COUNT(DISTINCT build_id) n FROM gems WHERE build_id IN ({marks}) GROUP BY gem"),
+        ("Keystones and notables", f"SELECT name, COUNT(DISTINCT build_id) n FROM passives WHERE build_id IN ({marks}) AND kind IN ('keystone','notable') GROUP BY name"),
+        ("Ascendancy nodes", f"SELECT name, COUNT(DISTINCT build_id) n FROM passives WHERE build_id IN ({marks}) AND kind = 'ascendancy' GROUP BY name"),
+        ("Build tags", f"SELECT tag AS name, COUNT(DISTINCT build_id) n FROM build_tags WHERE build_id IN ({marks}) GROUP BY tag"),
+    ]
+    for title, sql in queries:
+        rows = db.execute(sql + " ORDER BY n DESC, name LIMIT ?", ids + [args.top]).fetchall()
+        print(title)
+        for r in rows:
+            print(f"  {r['n'] / total:>5.0%}  {r['name']}")
+        print()
+
+
+def cmd_note(args):
+    db = connect()
+    r = find_build(db, args.key)
+    db.execute("UPDATE builds SET note = ? WHERE id = ?", (args.text, r["id"]))
+    db.commit()
+    print(f"note saved for {r['name']}")
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Path of Building build library", formatter_class=argparse.RawDescriptionHelpFormatter, epilog=__doc__)
+    sub = parser.add_subparsers(dest="cmd", required=True)
+    p = sub.add_parser("add")
+    p.add_argument("paths", nargs="*")
+    p.add_argument("--code")
+    p.add_argument("--name")
+    p.add_argument("--source")
+    p.add_argument("--note")
+    p.add_argument("--tag", action="append")
+    sub.add_parser("list")
+    sub.add_parser("rebuild")
+    p = sub.add_parser("show")
+    p.add_argument("key")
+    p = sub.add_parser("note")
+    p.add_argument("key")
+    p.add_argument("text")
+    for name in ("search", "common"):
+        p = sub.add_parser(name)
+        for key in FILTERS:
+            p.add_argument("--" + key)
+        if name == "common":
+            p.add_argument("--top", type=int, default=10)
+    args = parser.parse_args(argv)
+    if args.cmd == "add" and not args.paths and not args.code:
+        parser.error("add needs a file, folder or --code")
+    {"add": cmd_add, "list": cmd_list, "rebuild": cmd_rebuild, "show": cmd_show, "search": cmd_search,
+     "common": cmd_common, "note": cmd_note}[args.cmd](args)
+
+
+if __name__ == "__main__":
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+    main()

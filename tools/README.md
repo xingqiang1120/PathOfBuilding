@@ -26,6 +26,38 @@ python tools/runlua.py tools/ModCoverageReport.lua --build "path/to/build.xml"
 
 `reports/coverage.*` is committed as the baseline; per-build reports are git-ignored.
 
+## Build library
+
+Collects builds you choose, summarises them with Path of Building and indexes them in SQLite, so
+you (and later an AI) can search them and see what similar builds have in common.
+
+Builds come in by hand, never by scraping. poe.ninja's builds / profiles API is closed to
+third-party use (see their API docs), so use its PoB button to open a build in Path of Building
+and save it, or import a character from your account (the official API that PoB already uses).
+
+```
+python tools/library.py add src/Builds --source "poe.ninja streamers" --note "why this build" --tag mybuild
+python tools/library.py add --code "<PoB share code>" --name "Forum build"
+python tools/library.py list
+python tools/library.py show MeiMax
+python tools/library.py search --item Soulwrest --ascendancy Luminary
+python tools/library.py common --skill "Summon Phantasm"
+python tools/library.py rebuild
+```
+
+Everything lives in `library/` (git-ignored, it contains account and character names):
+`raw/` keeps each original build unchanged, `summary/` the JSON written by
+`tools/BuildSummary.lua`, and `builds.db` the index. After a Path of Building or game data
+update, `rebuild` recalculates every build from its raw file.
+
+A single build can also be summarised without the library:
+
+```
+python tools/runlua.py tools/BuildSummary.lua "path/to/build.xml" "C:/absolute/path/out.json"
+```
+
+Tests: `python -m unittest discover tools/tests`
+
 ## Running Lua scripts and tests
 
 ```

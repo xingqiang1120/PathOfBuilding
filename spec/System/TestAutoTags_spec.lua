@@ -3,9 +3,15 @@ describe("TestAutoTags", function()
 		newBuild()
 	end)
 
+	local savedUserFilePath = autoTags.userFilePath
+
 	after_each(function()
-		-- Drop any overrides added by a test
+		-- Drop any overrides and user tags added by a test
 		autoTags.Init(LoadModule("Data/AutoTagRules"), LoadModule("Data/AutoTagOverrides"))
+		autoTags.userFilePath = savedUserFilePath
+		while main.popups[1] do
+			main:ClosePopup()
+		end
 	end)
 
 	local function lineTags(line)
@@ -96,6 +102,101 @@ describe("TestAutoTags", function()
 		ids, unknown = autoTags.ParseQuery("energyshield,bogus")
 		assert.are.same({ "energyshield" }, ids)
 		assert.are.same({ "bogus" }, unknown)
+	end)
+
+	it("derives minion type sub-tags that imply minion", function()
+		local tags = lineTags("+1 to maximum number of Raised Zombies")
+		assert.is_true(tags.zombie)
+		assert.is_true(tags.minion)
+		local baron = autoTags.GetItemTags(findUnique("The Baron"))
+		assert.is_true(baron.zombie)
+		-- Spider's Web is a player skill effect, not a spider minion
+		assert.is_nil(autoTags.GetItemTags(findUnique("Fenumus' Shroud")).spider)
+	end)
+
+	it("lists sub-tags right after their parent", function()
+		local list = autoTags.GetTagList()
+		for i, def in ipairs(list) do
+			if def.id == "minion" then
+				assert.are.equal("zombie", list[i + 1].id)
+				assert.are.equal(1, list[i + 1].depth)
+				return
+			end
+		end
+		error("minion tag not found")
+	end)
+
+	it("parses editor input into user tags", function()
+		local add, remove = autoTags.ParseEditString("Minion/My Zombie Build, SRS, -Life, -unknowntag")
+		assert.are.same({ "myzombiebuild", "srs" }, add)
+		assert.are.same({ "life" }, remove)
+		assert.are.equal("minion", autoTags.GetTagDef("myzombiebuild").parent)
+		assert.is_true(autoTags.GetTagDef("srs").user)
+
+		autoTags.SetUserEntry("item", "Kaom's Heart", add, remove)
+		local tags = autoTags.GetItemTags(findUnique("Kaom's Heart"))
+		assert.is_true(tags.myzombiebuild)
+		assert.is_true(tags.minion)
+		assert.is_true(tags.srs)
+		assert.is_nil(tags.life)
+		assert.are.equal("Minion/My Zombie Build, SRS, -Life", autoTags.FormatEditString("item", "Kaom's Heart"))
+	end)
+
+	it("applies user tags to passive nodes and refreshes cached tags", function()
+		local node = findNode("Ravenous Horde")
+		assert.is_nil(autoTags.GetNodeTags(node).srs)
+		local add = autoTags.ParseEditString("SRS")
+		autoTags.SetUserEntry("node", node.id, add, { })
+		assert.is_true(autoTags.GetNodeTags(node).srs)
+
+		local viewer = build.treeTab.viewer
+		viewer.searchParams = { "tag:srs" }
+		assert.is_true(viewer:DoesNodeMatchSearchParams(node))
+	end)
+
+	it("saves and loads user tags", function()
+		local path = os.tmpname()
+		local node = findNode("Ravenous Horde")
+		autoTags.SetUserEntry("item", "The Baron", autoTags.ParseEditString("Minion/My Zombie Build, -Life"))
+		autoTags.SetUserEntry("node", node.id, autoTags.ParseEditString("Strength Stacking"), { })
+		autoTags.SetUserEntryName("node", node.id, node.dn)
+		assert.is_truthy(autoTags.SaveUserFile(path))
+
+		autoTags.Init(LoadModule("Data/AutoTagRules"), LoadModule("Data/AutoTagOverrides"))
+		assert.is_nil(autoTags.GetTagDef("myzombiebuild"))
+		autoTags.LoadUserFile(path)
+		os.remove(path)
+
+		assert.are.equal("minion", autoTags.GetTagDef("myzombiebuild").parent)
+		local baron = autoTags.GetItemTags(findUnique("The Baron"))
+		assert.is_true(baron.myzombiebuild)
+		assert.is_nil(baron.life)
+		assert.is_true(autoTags.GetNodeTags(node).strengthstacking)
+	end)
+
+	it("edits tags through the popup and refreshes the item DB filter", function()
+		local path = os.tmpname()
+		autoTags.userFilePath = path
+		local db = build.itemsTab.controls.uniqueDB
+		autoTagEditor.OpenForItem(findUnique("Kaom's Heart"))
+		local popup = main.popups[1]
+		assert.is_truthy(popup)
+		popup.controls.edit:SetText("Tanky Stuff")
+		popup.controls.save.onClick()
+		os.remove(path)
+		assert.is_nil(main.popups[1])
+		assert.is_true(autoTags.GetItemTags(findUnique("Kaom's Heart")).tankystuff)
+
+		db:RefreshTagList()
+		db.controls.tag:SelByValue("tankystuff", "tagId")
+		assert.are.equal("tankystuff", db.tagList[db.controls.tag.selIndex].tagId)
+		local matches = 0
+		for _, item in pairs(db.db.list) do
+			if db:DoesItemMatchFilters(item) then
+				matches = matches + 1
+			end
+		end
+		assert.are.equal(1, matches)
 	end)
 
 	it("applies manual overrides with parent tags", function()

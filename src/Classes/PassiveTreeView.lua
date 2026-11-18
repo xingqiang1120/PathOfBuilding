@@ -217,6 +217,8 @@ function PassiveTreeViewClass:Draw(build, viewPort, inputEvents)
 				self.showHeatMap = not self.showHeatMap
 			elseif event.key == "d" and IsKeyDown("CTRL") then
 				self.showStatDifferences = not self.showStatDifferences
+			elseif event.key == "t" and IsKeyDown("CTRL") and self.hoverNode then
+				autoTagEditor.OpenForNode(self.hoverNode)
 			elseif event.key == "c" and IsKeyDown("CTRL") and self.hoverNode and self.hoverNode.type ~= "Socket" then
 				local result = "# ".. self.hoverNode.dn .. "\n"
 				for _, line in ipairs(self.hoverNode.sd) do
@@ -1057,7 +1059,7 @@ function PassiveTreeViewClass:Draw(build, viewPort, inputEvents)
 			-- Draw tooltip
 			SetDrawLayer(nil, 100)
 			local size = m_floor(node.size * scale)
-			if self.tooltip:CheckForUpdate(node, self.showStatDifferences, self.tracePath, launch.devModeAlt, build.outputRevision, build.spec.allocMode) then
+			if self.tooltip:CheckForUpdate(node, self.showStatDifferences, self.tracePath, launch.devModeAlt, build.outputRevision, build.spec.allocMode, autoTags.GetGeneration()) then
 				self:AddNodeTooltip(self.tooltip, node, build)
 			end
 			self.tooltip.center = true
@@ -1692,11 +1694,11 @@ function PassiveTreeViewClass:AddNodeTooltip(tooltip, node, build, returnEarly)
 
 	-- Auto tags
 	if node.type ~= "ClassStart" and node.type ~= "AscendClassStart" then
-		local tagLabels = autoTags.Describe(autoTags.GetNodeTags(node))
-		if #tagLabels > 0 then
-			tooltip:AddSeparator(14)
-			tooltip:AddLine(14, "^8Tags: "..table.concat(tagLabels, ", ").." ^8(search with tag:<name>)")
+		tooltip:AddSeparator(14)
+		for _, line in ipairs(autoTags.FormatTooltipLines(autoTags.GetNodeTags(node))) do
+			tooltip:AddLine(14, line)
 		end
+		tooltip:AddLine(14, colorCodes.TIP.."Tip: Search with tag:<name>. Press Ctrl+T to edit this node's tags.")
 	end
 
 	if returnEarly then

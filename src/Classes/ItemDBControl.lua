@@ -71,10 +71,8 @@ function ItemDBClass:ItemDBControl(anchor, rect, itemsTab, db, dbType)
 		self.listBuildFlag = true
 	end)
 	-- Auto tag filters (two, combined with AND)
-	self.tagList = { { label = "Any tag" } }
-	for _, def in ipairs(autoTags.GetTagList()) do
-		t_insert(self.tagList, { label = def.category .. ": " .. def.label, tagId = def.id })
-	end
+	self.tagList = { }
+	self:RefreshTagList()
 	self.controls.tag = new("DropDownControl"):DropDownControl({"BOTTOMLEFT",self,"TOPLEFT"}, {0, -2, 179, 18}, self.tagList, function(index, value)
 		self.listBuildFlag = true
 	end)
@@ -86,6 +84,41 @@ function ItemDBClass:ItemDBControl(anchor, rect, itemsTab, db, dbType)
 	self:BuildSortOrder()
 	self.listBuildFlag = true
 	return self
+end
+
+-- Rebuild the tag dropdown entries when tags were added or changed (e.g. new custom tags)
+function ItemDBClass:RefreshTagList()
+	if self.tagListGeneration == autoTags.GetGeneration() then
+		return
+	end
+	self.tagListGeneration = autoTags.GetGeneration()
+	local selected = { }
+	for _, name in ipairs({ "tag", "tag2" }) do
+		local control = self.controls[name]
+		selected[name] = control and self.tagList[control.selIndex] and self.tagList[control.selIndex].tagId
+	end
+	wipeTable(self.tagList)
+	t_insert(self.tagList, { label = "Any tag" })
+	for _, def in ipairs(autoTags.GetTagList()) do
+		local label
+		if (def.depth or 0) > 0 then
+			label = string.rep("  ", def.depth) .. "> " .. def.label
+		else
+			label = def.category .. ": " .. def.label
+		end
+		t_insert(self.tagList, { label = def.user and ("^xE0C060" .. label) or label, tagId = def.id })
+	end
+	for _, name in ipairs({ "tag", "tag2" }) do
+		local control = self.controls[name]
+		if control then
+			control.selIndex = 1
+			if selected[name] then
+				control:SelByValue(selected[name], "tagId")
+			end
+			control:CheckDroppedWidth(true)
+		end
+	end
+	self.listBuildFlag = true
 end
 
 function ItemDBClass:LoadLeaguesAndTypes()
@@ -328,6 +361,7 @@ function ItemDBClass:Draw(viewPort)
 	if self.itemsTab.build.outputRevision ~= self.listOutputRevision then
 		self.listBuildFlag = true
 	end
+	self:RefreshTagList()
 	if self.listBuildFlag then
 		self.listBuildFlag = false
 		wipeTable(self.list)
@@ -362,7 +396,7 @@ function ItemDBClass:AddValueTooltip(tooltip, index, item)
 		tooltip:Clear()
 		return
 	end
-	if tooltip:CheckForUpdate(item, IsKeyDown("SHIFT"), launch.devModeAlt, self.itemsTab.build.outputRevision) then
+	if tooltip:CheckForUpdate(item, IsKeyDown("SHIFT"), launch.devModeAlt, self.itemsTab.build.outputRevision, autoTags.GetGeneration()) then
 		self.itemsTab:AddItemTooltip(tooltip, item, nil, true)
 	end
 end
@@ -415,7 +449,9 @@ function ItemDBClass:OnSelCopy(index, item)
 end
 
 function ItemDBClass:OnHoverKeyUp(key)
-	if itemLib.wiki.matchesKey(key) then
+	if key == "t" and IsKeyDown("CTRL") then
+		autoTagEditor.OpenForItem(self.ListControl:GetHoverValue())
+	elseif itemLib.wiki.matchesKey(key) then
 		local item = self.ListControl:GetHoverValue()
 		if item then
 			itemLib.wiki.openItem(item)

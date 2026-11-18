@@ -14,8 +14,12 @@
 --   skillTypes     list of SkillType values; matched against "SkillType" mod tags and against the
 --                  skill types of skills/supports granted by the mod (ExtraSkill / ExtraSupport)
 --   gemKeywords    set of gem keywords for "+level / +quality of <keyword> gems" mods (GemProperty)
+--   skillNames     list of skill names; matched against "SkillName" mod tags and granted skills
 --   textPatterns   list of Lua patterns tested on the lower-cased line text, ONLY for lines the
 --                  mod parser could not fully understand (fallback for unsupported modifiers)
+--   textAlways     also test textPatterns on lines that were parsed
+--   parent         id of the parent tag; matching this rule also grants the parent tag. Rules whose
+--                  parent is "minion" are additionally evaluated inside MinionModifier mods.
 --
 -- Mods wrapped in MinionModifier only ever produce the "minion" tag, so that e.g.
 -- "Minions deal 20% increased Fire Damage" is not tagged as a player fire damage modifier.
@@ -31,6 +35,23 @@ local function elementRule(id, label, element, skillType, keyword)
 	}
 end
 
+-- Minion type sub-tags. Text patterns are also checked on parsed lines (textAlways) because many
+-- minion-type modifiers parse to a generic MinionModifier.
+local function minionType(id, label, limitNames, skillNames, textPatterns, skillTypes)
+	local modNames = { }
+	for _, name in ipairs(limitNames) do
+		modNames[name] = true
+	end
+	return {
+		id = id, label = label, category = "Minion Type", parent = "minion",
+		modNames = modNames,
+		skillNames = skillNames,
+		skillTypes = skillTypes,
+		textPatterns = textPatterns,
+		textAlways = true,
+	}
+end
+
 return {
 	-- Archetypes
 	{
@@ -43,6 +64,18 @@ return {
 		gemKeywords = { minion = true },
 		textPatterns = { "minion", "zombie", "spectre", "skeleton", "golem", "raging spirit", "animated guardian", "animated weapon" },
 	},
+	-- Minion types (sub-tags of Minion)
+	minionType("zombie", "Zombie", { "ActiveZombieLimit" }, { "Raise Zombie" }, { "zombie" }),
+	minionType("skeleton", "Skeleton", { "ActiveSkeletonLimit" }, { "Summon Skeletons", "Summon Skeletons of Archers", "Summon Skeletons of Mages", "Vaal Summon Skeletons" }, { "skeleton" }),
+	minionType("spectre", "Spectre", { "ActiveSpectreLimit" }, { "Raise Spectre" }, { "spectre" }),
+	minionType("golem", "Golem", { "ActiveGolemLimit" }, { }, { "golem" }, { SkillType.Golem }),
+	minionType("ragingspirit", "Raging Spirit", { "ActiveRagingSpiritLimit" }, { "Summon Raging Spirit", "Summon Raging Spirit of Enormity" }, { "raging spirit" }),
+	minionType("animated", "Animated Weapon/Guardian", { "ActiveAnimatedWeaponLimit" }, { "Animate Weapon", "Animate Guardian" }, { "animated weapon", "animated guardian", "animate weapon", "animate guardian" }),
+	minionType("phantasm", "Phantasm", { "ActivePhantasmLimit" }, { "Summon Phantasm" }, { "phantasm" }),
+	minionType("holyrelic", "Holy Relic", { "ActiveHolyRelicLimit" }, { "Summon Holy Relic", "Summon Holy Relic of Conviction" }, { "holy relic" }),
+	minionType("sentinel", "Sentinel", { "ActiveSentinelOfPurityLimit", "ActiveSentinelOfDominanceLimit", "ActiveSentinelOfAbsolutionLimit" }, { "Summon Sentinel of Radiance", "Herald of Purity", "Dominating Blow", "Absolution" }, { "sentinel" }),
+	minionType("spider", "Spider", { "ActiveSpiderLimit" }, { "Raise Spiders" }, { "raise spiders", "spider minion" }),
+	minionType("reaper", "Reaper", { "ActiveReaperLimit" }, { "Summon Reaper", "Summon Reaper of Eviscerating", "Summon Reaper of Revenants" }, { "reaper" }),
 	{
 		id = "totem", label = "Totem", category = "Archetype",
 		modNames = { ActiveTotemLimit = true, ActiveBallistaLimit = true },

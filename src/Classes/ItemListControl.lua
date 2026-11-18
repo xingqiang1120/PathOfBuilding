@@ -271,7 +271,7 @@ function ItemListClass:AddValueTooltip(tooltip, index, itemId)
 		return
 	end
 	local item = self.itemsTab.items[itemId]
-	if tooltip:CheckForUpdate(item, IsKeyDown("SHIFT"), launch.devModeAlt, self.itemsTab.build.outputRevision) then
+	if tooltip:CheckForUpdate(item, IsKeyDown("SHIFT"), launch.devModeAlt, self.itemsTab.build.outputRevision, autoTags.GetGeneration()) then
 		self.itemsTab:AddItemTooltip(tooltip, item)
 	end
 end
@@ -378,7 +378,12 @@ function ItemListClass:OnSelDelete(index, itemId)
 end
 
 function ItemListClass:OnHoverKeyUp(key)
-	if itemLib.wiki.matchesKey(key) then
+	if key == "t" and IsKeyDown("CTRL") then
+		local itemId = self.ListControl:GetHoverValue()
+		if itemId then
+			autoTagEditor.OpenForItem(self.itemsTab.items[itemId])
+		end
+	elseif itemLib.wiki.matchesKey(key) then
 		local itemId = self.ListControl:GetHoverValue()
 		if itemId then
 			local item = self.itemsTab.items[itemId]

@@ -12,6 +12,7 @@ inspect.lua
 Builds/
 *.cfg
 Settings.xml
+AutoTags.xml
 
 # Testing
 luajit/

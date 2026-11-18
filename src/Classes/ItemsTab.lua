@@ -4392,9 +4392,12 @@ function ItemsTabClass:AddItemTooltip(tooltip, item, slot, dbMode, maxWidth)
 				tooltip:AddLine(fontSizeBig, colorCodes.SOURCE..self:FormatItemSource(path), "FONTIN SC")
 			end
 		end
-		local tagLabels = autoTags.Describe(autoTags.GetItemTags(item))
-		if #tagLabels > 0 then
-			tooltip:AddLine(14, "^8Tags: "..table.concat(tagLabels, ", "))
+		local tagLines = autoTags.FormatTooltipLines(autoTags.GetItemTags(item))
+		for _, line in ipairs(tagLines) do
+			tooltip:AddLine(14, line)
+		end
+		if not slot then
+			tooltip:AddLine(14, colorCodes.TIP.."Tip: Press Ctrl+T while hovering to edit this item's tags.")
 		end
 		tooltip:AddSeparator(10)
 	end

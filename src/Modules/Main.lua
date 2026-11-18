@@ -20,6 +20,7 @@ LoadModule("Modules/CalcFormat")
 LoadModule("Modules/Data")
 LoadModule("Modules/ModTools")
 LoadModule("Modules/AutoTags")
+LoadModule("Modules/AutoTagEditor")
 require("Modules.ItemTools")
 require("Modules.CalcTools")
 LoadModule("Modules/PantheonTools")
@@ -875,6 +876,7 @@ function main:ChangeUserPath(newUserPath, ignoreBuild)
 	MakeDir(self.buildPath)
 	self:LoadSettings(ignoreBuild)
 	self:LoadSharedItems()
+	autoTags.LoadUserFile(self.userPath.."AutoTags.xml")
 end
 --- Opens the popup for the "Options" menu
 --- @param savedState table|nil optional passing of saved values, in case of reopening `{nodePowerTheme, colorPositive, ...}`

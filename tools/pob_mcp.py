@@ -29,6 +29,8 @@ INSTRUCTIONS = """Path of Building (PoB) for Path of Exile 1, run headless, plus
   ("coverage.unsupported") and the Config assumptions it relies on ("config"); mention them when they affect advice.
 - For minion builds the DPS is per minion; the number of minions alive is not modelled. PoB picks a minion's first skill
   by default, which may not be the one it really uses: check "minionSkills" and ask the user.
+- Conditions PoB leaves at 0 (currently withered stacks) are inferred from the build and applied automatically; results
+  carry "inferred" with the estimate and assumptions (e.g. all minions alive). Mention them; pass infer=false to compare.
 - Builds can carry play-verified settings (group, minion skill, Config); tools apply them automatically. Save new ones with
   pob_save_build_settings only after the user confirms them.
 - Use pob_simulate to check a suggestion before recommending it, and report the before/after numbers.
@@ -56,6 +58,8 @@ MAIN_PROPS = {
     "group": {"type": ["integer", "string"], "description": "Socket group to treat as main skill (default: saved setting, else strongest)"},
     "minionSkill": {"type": ["string", "integer"], "description": "Skill the minion really uses, e.g. 'Physical Projectile' (default: saved setting, else PoB's first skill)"},
     "ignoreSettings": {"type": "boolean", "description": "Ignore the build's saved play-verified settings"},
+    "infer": {"type": "boolean", "description": "Estimate Config values the build leaves at 0, e.g. withered stacks from wither chance x hits per second (default true)"},
+    "minionCount": {"type": "integer", "description": "Minions alive for inference (default: the minion limit, i.e. steady state)"},
 }
 BUILD_ARG = {"type": "string", "description": "Library build id prefix or name, or a path to a PoB build .xml file"}
 FILTER_PROPS = {k: {"type": "string"} for k in library.FILTERS}
@@ -84,6 +88,10 @@ TOOLS = [
                     "Explains how a build works. Takes about a second per part; library results are saved.",
      "inputSchema": {"type": "object", "properties": dict(MAIN_PROPS, build=BUILD_ARG, includePassives={"type": "boolean"},
                                                           changes={"type": "array", "items": CHANGE_SCHEMA}), "required": ["build"]}},
+    {"name": "pob_infer_conditions",
+     "description": "Explain the Config values PoB leaves at 0 that this build can actually produce, e.g. withered stacks: sources and their "
+                    "chance, hits per second, minions, duration, the estimate and its assumptions. Other tools apply these by default.",
+     "inputSchema": {"type": "object", "properties": dict(MAIN_PROPS, build=BUILD_ARG), "required": ["build"]}},
     {"name": "pob_save_build_settings",
      "description": "Save play-verified settings for a library build so every later analysis uses them: main group, the skill its minions "
                     "really use, and Config changes (e.g. withered stacks). Only save what the user confirmed. Omitted fields keep their value.",
@@ -129,7 +137,8 @@ def resolve_build(key):
 
 
 def worker_params(args, xml, name, settings):
-    overrides = {"group": args.get("group"), "minionSkill": args.get("minionSkill"), "changes": args.get("changes") or []}
+    overrides = {"group": args.get("group"), "minionSkill": args.get("minionSkill"), "changes": args.get("changes") or [],
+                 "infer": args.get("infer"), "minionCount": args.get("minionCount")}
     if args.get("ignoreSettings"):
         settings = {}
     return library.apply_settings({"xml": xml, "name": name}, settings, overrides)
@@ -167,7 +176,8 @@ def tool_simulate(args):
     xml, name, build_id, settings = resolve_build(args["build"])
     if args.get("ignoreSettings"):
         settings = {}
-    base = library.apply_settings({"xml": xml, "name": name}, settings, {"group": args.get("group"), "minionSkill": args.get("minionSkill")})
+    base = library.apply_settings({"xml": xml, "name": name}, settings, {"group": args.get("group"), "minionSkill": args.get("minionSkill"),
+                                                                          "infer": args.get("infer"), "minionCount": args.get("minionCount")})
     # Saved settings form the baseline; the requested changes are what is compared
     saved_changes = base.pop("changes")
     params = dict(base, changes=saved_changes + list(args.get("changes") or []))
@@ -175,6 +185,7 @@ def tool_simulate(args):
         before = WORKER.call("simulate", dict(base, changes=saved_changes))["after"]
         result = WORKER.call("simulate", params)
         result["before"] = before
+        result["inferredBefore"] = WORKER.call("infer", dict(base, changes=saved_changes)) if base.get("infer") is not False else None
         result["applied"] = result["applied"][len(saved_changes):]
         result["changed"] = diff_metrics(before, result["after"])
     else:
@@ -197,10 +208,17 @@ def tool_contributions(args):
     try:
         return library.run_contributions(args["build"], include_passives=args.get("includePassives", True),
                                          overrides={"group": args.get("group"), "minionSkill": args.get("minionSkill"),
-                                                    "changes": args.get("changes") or []},
+                                                    "changes": args.get("changes") or [], "infer": args.get("infer"),
+                                                    "minionCount": args.get("minionCount")},
                                          save=not args.get("changes") and not args.get("minionSkill") and args.get("group") is None)
     except LookupError as e:
         raise ToolError(str(e))
+
+
+def tool_infer(args):
+    xml, name, _, settings = resolve_build(args["build"])
+    params = worker_params(args, xml, name, settings)
+    return WORKER.call("infer", params)
 
 
 def tool_save_settings(args):
@@ -223,6 +241,7 @@ HANDLERS = {
     "pob_metrics": tool_metrics,
     "pob_simulate": tool_simulate,
     "pob_contributions": tool_contributions,
+    "pob_infer_conditions": tool_infer,
     "pob_save_build_settings": tool_save_settings,
     "pob_find_uniques": lambda a: WORKER.call("find_uniques", {k: a[k] for k in ("tags", "slot", "limit") if a.get(k) is not None}),
     "pob_find_passives": lambda a: WORKER.call("find_passives", {k: a[k] for k in ("tags", "types", "ascendancy", "limit") if a.get(k) is not None}),

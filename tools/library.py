@@ -453,11 +453,15 @@ def apply_settings(params, settings, overrides=None):
         value = overrides.get(key) if overrides.get(key) is not None else settings.get(key)
         if value is not None:
             params[key] = value
+    for key in ("infer", "minionCount"):
+        if overrides.get(key) is not None:
+            params[key] = overrides[key]
     params["changes"] = list(settings.get("changes") or []) + list(overrides.get("changes") or [])
     return params
 
 
 def run_contributions(key, include_passives=True, overrides=None, save=True):
+    """Leave-one-out analysis. Conditions such as withered stacks are inferred unless overrides["infer"] is False."""
     from pob_worker import WORKER
     xml, name, build_id = resolve(key)
     settings = get_settings(build_id)
@@ -521,6 +525,9 @@ def cmd_analyze(args):
     result = run_contributions(args.key, include_passives=not args.no_passives)
     b = result["baseline"]
     print(f"settings: {json.dumps(result['settingsApplied'], ensure_ascii=False)}")
+    for inf in result.get("inferred") or []:
+        state = f"applied {inf['value']}" if inf.get("applied") else f"not applied ({inf.get('skipped')})"
+        print(f"inferred: {inf['label']} = {inf['estimate']} -> {state}")
     print(f"baseline: {b.get('mainSkill')}" + (f" / minion skill {b['minionSkill']}" if b.get("minionSkill") else "")
           + f"  DPS {fmt(max(b.get('playerDPS') or 0, b.get('minionDPS') or 0))}  EHP {fmt(b.get('TotalEHP'))}")
     for p in result["parts"]:

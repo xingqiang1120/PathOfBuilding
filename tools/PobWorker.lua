@@ -16,14 +16,22 @@
 dofile("HeadlessWrapper.lua")
 local dkjson = require("dkjson")
 local S = dofile(SCRIPT_DIR .. "/lib/summary.lua")
+local I = dofile(SCRIPT_DIR .. "/lib/inference.lua")
 local round = S.round
 
 local loadedXml, dirty = nil, true
+-- Config values as saved in the build, so inference never overrides what the user set
+local userConfig = { }
+
+local function loadFresh(params)
+	loadBuildFromXML(params.xml, params.name or "build")
+	userConfig = copyTable(build.configTab.input)
+end
 
 local function ensureBuild(params)
 	assert(params.xml, "missing build xml")
 	if dirty or loadedXml ~= params.xml then
-		loadBuildFromXML(params.xml, params.name or "build")
+		loadFresh(params)
 		loadedXml, dirty = params.xml, false
 	end
 end
@@ -32,6 +40,37 @@ local function recalc()
 	build.buildFlag = true
 	runCallback("OnFrame")
 	return build.calcsTab.mainOutput
+end
+
+-- Estimate and apply Config values the build leaves at 0 (e.g. withered stacks). Values the user
+-- saved in the build, or set through a config_set change in this request, are never overridden.
+local function applyInference(p)
+	if p.infer == false then
+		return nil
+	end
+	local explicit = { }
+	for _, change in ipairs(p.changes or { }) do
+		if change.type == "config_set" then explicit[change.key] = true end
+	end
+	local list = I.infer(build, { minionCount = p.minionCount })
+	local changed = false
+	for _, inf in ipairs(list) do
+		local saved = userConfig[inf.key]
+		if explicit[inf.key] then
+			inf.applied, inf.skipped = false, "set explicitly in this request or the saved settings"
+		elseif saved ~= nil and saved ~= 0 then
+			inf.applied, inf.skipped = false, "the build already sets " .. inf.key .. " = " .. tostring(saved)
+		else
+			build.configTab.input[inf.key] = inf.value
+			inf.applied = true
+			changed = true
+		end
+	end
+	if changed then
+		build.configTab:BuildModList()
+		recalc()
+	end
+	return list
 end
 
 local function findGroup(ref)
@@ -280,15 +319,20 @@ local function selectMain(p)
 end
 
 function methods.metrics(p)
+	dirty = true
 	ensureBuild(p)
 	selectMain(p)
-	return metrics()
+	local inferred = applyInference(p)
+	local m = metrics()
+	m.inferred = inferred
+	return m
 end
 
 function methods.simulate(p)
 	dirty = true
 	ensureBuild(p)
 	selectMain(p)
+	local inferredBefore = applyInference({ infer = p.infer, minionCount = p.minionCount, changes = { } })
 	local before = metrics()
 	local applied = { }
 	for i, change in ipairs(p.changes or { }) do
@@ -303,6 +347,8 @@ function methods.simulate(p)
 		table.insert(applied, result)
 	end
 	recalc()
+	-- Re-estimate after the changes (they may add or remove sources such as Unholy Might)
+	local inferredAfter = applyInference(p)
 	local after = metrics()
 	local diff = { }
 	for key, value in pairs(after) do
@@ -312,7 +358,7 @@ function methods.simulate(p)
 		end
 	end
 	dirty = true
-	return { applied = applied, before = before, after = after, changed = diff }
+	return { applied = applied, before = before, after = after, changed = diff, inferredBefore = inferredBefore, inferredAfter = inferredAfter }
 end
 
 -- Leave-one-out analysis: remove each part (item, support gem, notable/keystone) on its own and
@@ -340,11 +386,12 @@ function methods.contributions(p)
 	p.group = p.group or build.mainSocketGroup
 	local baseChanges = p.changes or { }
 	local function run(extra)
-		loadBuildFromXML(p.xml, p.name or "build")
+		loadFresh(p)
 		selectMain(p)
 		for _, change in ipairs(baseChanges) do assert(changeHandlers[change.type], "unknown change type " .. tostring(change.type))(change) end
 		local desc = extra and changeHandlers[extra.type](extra)
 		recalc()
+		applyInference(p)
 		local ok, m = pcall(metrics)
 		m = ok and m or { }
 		local points = 0
@@ -378,7 +425,7 @@ function methods.contributions(p)
 			role = role, alsoFunctional = functional and not role:match("functional") or nil })
 	end
 	-- Items (flasks are skipped: their effects depend on Config flask settings)
-	loadBuildFromXML(p.xml, p.name or "build")
+	loadFresh(p)
 	local itemsTab = build.itemsTab
 	local itemParts, gemParts, nodeParts = { }, { }, { }
 	for _, slot in ipairs(itemsTab.orderedSlots or { }) do
@@ -427,7 +474,12 @@ function methods.contributions(p)
 	end
 	table.sort(parts, function(a, b) return (a.dpsPct or 0) + (a.ehpPct or 0) * 0.001 < (b.dpsPct or 0) + (b.ehpPct or 0) * 0.001 end)
 	dirty = true
-	return { baseline = base, parts = parts, note = "dpsPct/ehpPct = change when that part alone is removed; passives are removed with the points that depend on them" }
+	loadFresh(p)
+	selectMain(p)
+	for _, change in ipairs(baseChanges) do changeHandlers[change.type](change) end
+	recalc()
+	local inferred = applyInference(p)
+	return { baseline = base, inferred = inferred, parts = parts, note = "dpsPct/ehpPct = change when that part alone is removed; passives are removed with the points that depend on them" }
 end
 
 local function resolveTags(list)
@@ -438,6 +490,15 @@ local function resolveTags(list)
 		for _, id in ipairs(found) do table.insert(ids, id) end
 	end
 	return ids
+end
+
+function methods.infer(p)
+	dirty = true
+	ensureBuild(p)
+	selectMain(p)
+	for _, change in ipairs(p.changes or { }) do changeHandlers[change.type](change) end
+	recalc()
+	return I.infer(build, { minionCount = p.minionCount })
 end
 
 function methods.find_uniques(p)

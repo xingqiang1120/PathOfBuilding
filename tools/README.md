@@ -97,6 +97,15 @@ python tools/library.py settings MeiMax --group 11 --minion-skill "Physical Proj
 python tools/library.py analyze MeiMax
 ```
 
+### Condition inference
+
+Some Config values default to 0 although the build produces them. `tools/lib/inference.lua`
+estimates them and the tools apply the estimate unless the build or a request sets the value.
+First case, withered stacks (rules from the PoE Wiki): `min(15, hits per second x chance x 2 s)`,
+summed over the player and every minion alive, with Unholy Might counted as a 25% chance. The
+result lists its sources and assumptions (by default all minions alive, i.e. steady state); pass
+`infer: false` to compare, or `minionCount` for the start of a fight.
+
 `analyze` removes each part on its own and records the DPS and EHP lost. Roles: *enables main
 skill*, *core damage* / *damage*, *core defence* / *defence*, *functional* (PoB measures nothing,
 but the part drives mechanics it does not model, e.g. minion count or triggers), *tree hub*

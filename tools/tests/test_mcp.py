@@ -111,6 +111,24 @@ class McpTest(unittest.TestCase):
         self.assertTrue(any(r and "damage" in r for r in roles.values()))
         self.assertTrue(all("dpsPct" in p or "error" in p for p in result["parts"]))
 
+    def test_wither_inference(self):
+        gloves = [{"type": "item_equip", "slot": "Gloves", "unique": "Abhorrent Interrogation"}]
+        err, result = self.call("pob_simulate", build="OccVortex", changes=gloves)
+        self.assertFalse(err, result)
+        self.assertFalse(result["inferredBefore"])
+        wither = result["inferredAfter"][0]
+        self.assertEqual(wither["key"], "multiplierWitheredStackCount")
+        self.assertEqual(wither["parts"][0]["actor"], "player")
+        self.assertTrue(wither["applied"])
+        self.assertGreater(wither["value"], 0)
+        # A value set explicitly is never overridden
+        err, result = self.call("pob_simulate", build="OccVortex",
+                                changes=gloves + [{"type": "config_set", "key": "multiplierWitheredStackCount", "value": 1}])
+        self.assertFalse(result["inferredAfter"][0]["applied"])
+        # infer=false switches it off
+        err, result = self.call("pob_simulate", build="OccVortex", changes=gloves, infer=False)
+        self.assertIsNone(result.get("inferredAfter"))
+
     def test_item_usage(self):
         err, usage = self.call("library_item_usage", item="Heretic's Veil")
         self.assertFalse(err)

@@ -449,6 +449,10 @@ function methods.contributions(p)
 					local types = effect.skillTypes or { }
 					local functional = types[SkillType.Triggered] or types[SkillType.InbuiltTrigger] or types[SkillType.CreatesMinion] or types[SkillType.Minion]
 						or (effect.name or ""):match("^Cast ") ~= nil or (effect.name or ""):match("Summon") ~= nil
+					-- Area / projectile-count supports help clearing packs; PoB's DPS is single-target
+					for _, word in ipairs({ "Multiple Projectiles", "Pierce", "Fork", "Chain", "Unleash", "Volley", "Barrage" }) do
+						if (effect.name or ""):find(word, 1, true) then functional = true end
+					end
 					table.insert(gemParts, { index, gem.nameSpec, functional })
 				end
 			end

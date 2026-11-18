@@ -49,8 +49,10 @@ local function summarize(xmlText, buildName)
 	for index, group in ipairs(build.skillsTab.socketGroupList) do
 		local entry = { index = index, label = group.label, slot = group.slot, enabled = group.enabled, includeInFullDPS = group.includeInFullDPS, main = index == mainGroup, gems = { } }
 		for _, gem in ipairs(group.gemList) do
-			local name = gem.grantedEffect and gem.grantedEffect.name or gem.nameSpec
-			table.insert(entry.gems, { name = name, level = gem.level, quality = gem.quality, enabled = gem.enabled, support = gem.grantedEffect and gem.grantedEffect.support or false })
+			-- Gem-socketed skills carry their effect in gemData; item-granted skills in grantedEffect
+			local effect = gem.gemData and gem.gemData.grantedEffect or gem.grantedEffect
+			local name = gem.nameSpec ~= "" and gem.nameSpec or (effect and effect.name)
+			table.insert(entry.gems, { name = name, level = gem.level, quality = gem.quality, enabled = gem.enabled, support = effect and effect.support or false })
 		end
 		if group.enabled and group.displaySkillList and group.displaySkillList[1] then
 			build.mainSocketGroup = index

@@ -13,14 +13,13 @@ or by a path to a PoB build .xml file.
 """
 import json
 import os
-import subprocess
 import sys
-import threading
 import traceback
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 import library  # noqa: E402
+from pob_worker import WORKER, WorkerError  # noqa: E402
 
 SERVER_INFO = {"name": "path-of-building", "version": "0.1.0"}
 DEFAULT_PROTOCOL = "2025-06-18"
@@ -28,27 +27,35 @@ DEFAULT_PROTOCOL = "2025-06-18"
 INSTRUCTIONS = """Path of Building (PoB) for Path of Exile 1, run headless, plus a local library of saved builds.
 - Numbers come from PoB's own calculation. Every build summary lists modifier lines PoB does NOT calculate
   ("coverage.unsupported") and the Config assumptions it relies on ("config"); mention them when they affect advice.
-- For minion builds the DPS is per minion; the number of minions alive is not modelled.
+- For minion builds the DPS is per minion; the number of minions alive is not modelled. PoB picks a minion's first skill
+  by default, which may not be the one it really uses: check "minionSkills" and ask the user.
+- Builds can carry play-verified settings (group, minion skill, Config); tools apply them automatically. Save new ones with
+  pob_save_build_settings only after the user confirms them.
 - Use pob_simulate to check a suggestion before recommending it, and report the before/after numbers.
 - Tags (pob_list_tags) classify items and passives, e.g. minion, phantasm, energyshield, fire."""
 
 CHANGE_SCHEMA = {
     "type": "object",
-    "description": "One change. Types: gem_replace {gem, with, group?, level?, quality?}; gem_add {group, gem, level?}; "
+    "description": "One change. Types: minion_skill {skill}; gem_replace {gem, with, group?, level?, quality?}; gem_add {group, gem, level?}; "
                    "gem_remove {gem, group?}; gem_level {gem, level?, quality?}; main_group {group}; "
                    "item_equip {slot, unique | raw}; item_remove {slot}; passive_add {node}; passive_remove {node}; "
                    "config_set {key, value}. group = socket group number or the name of a gem in it. "
                    "slot = PoB slot name, e.g. Helmet, Body Armour, Weapon 1, Ring 2, Flask 3.",
     "properties": {
-        "type": {"type": "string", "enum": ["gem_replace", "gem_add", "gem_remove", "gem_level", "main_group", "item_equip",
+        "type": {"type": "string", "enum": ["minion_skill", "gem_replace", "gem_add", "gem_remove", "gem_level", "main_group", "item_equip",
                                             "item_remove", "passive_add", "passive_remove", "config_set"]},
         "gem": {"type": "string"}, "with": {"type": "string"}, "group": {"type": ["integer", "string"]},
         "level": {"type": "integer"}, "quality": {"type": "integer"}, "slot": {"type": "string"},
         "unique": {"type": "string"}, "raw": {"type": "string", "description": "Item text as copied from the game or PoB"},
         "node": {"type": ["string", "integer"], "description": "Passive name or node id"},
-        "key": {"type": "string"}, "value": {},
+        "key": {"type": "string"}, "value": {}, "skill": {"type": ["string", "integer"], "description": "Minion skill name or index"},
     },
     "required": ["type"],
+}
+MAIN_PROPS = {
+    "group": {"type": ["integer", "string"], "description": "Socket group to treat as main skill (default: saved setting, else strongest)"},
+    "minionSkill": {"type": ["string", "integer"], "description": "Skill the minion really uses, e.g. 'Physical Projectile' (default: saved setting, else PoB's first skill)"},
+    "ignoreSettings": {"type": "boolean", "description": "Ignore the build's saved play-verified settings"},
 }
 BUILD_ARG = {"type": "string", "description": "Library build id prefix or name, or a path to a PoB build .xml file"}
 FILTER_PROPS = {k: {"type": "string"} for k in library.FILTERS}
@@ -63,15 +70,26 @@ TOOLS = [
      "inputSchema": {"type": "object", "properties": {"build": BUILD_ARG, "refresh": {"type": "boolean", "description": "Recalculate instead of using the saved library summary"}},
                      "required": ["build"]}},
     {"name": "pob_metrics",
-     "description": "Current key numbers of a build (DPS incl. minion DPS, life, ES, EHP, max hit taken per damage type, resistances, block, attributes).",
-     "inputSchema": {"type": "object", "properties": {"build": BUILD_ARG, "group": {"type": ["integer", "string"], "description": "Socket group to treat as main skill (default: strongest)"}},
-                     "required": ["build"]}},
+     "description": "Current key numbers of a build (DPS incl. minion DPS and minion skills, life, ES, EHP, max hit taken per damage type, "
+                    "resistances, block, attributes). Saved play-verified settings are applied unless ignoreSettings.",
+     "inputSchema": {"type": "object", "properties": dict(MAIN_PROPS, build=BUILD_ARG), "required": ["build"]}},
     {"name": "pob_simulate",
-     "description": "Apply changes to a copy of a build (gems, items, passives, config) and return the numbers before and after, "
-                    "with every stat that changed. The saved build is never modified.",
-     "inputSchema": {"type": "object", "properties": {"build": BUILD_ARG, "changes": {"type": "array", "items": CHANGE_SCHEMA},
-                                                      "group": {"type": ["integer", "string"], "description": "Main skill group (default: strongest)"}},
+     "description": "Apply changes to a copy of a build (gems, items, passives, config, minion skill) and return the numbers before and after, "
+                    "with every stat that changed. Saved play-verified settings form the baseline. The saved build is never modified.",
+     "inputSchema": {"type": "object", "properties": dict(MAIN_PROPS, build=BUILD_ARG, changes={"type": "array", "items": CHANGE_SCHEMA}),
                      "required": ["build", "changes"]}},
+    {"name": "pob_contributions",
+     "description": "Leave-one-out analysis: remove each item, support gem and notable/keystone on its own and report the DPS and EHP lost, "
+                    "with a role (core damage, defence, enables main skill, functional = matters for mechanics PoB does not measure). "
+                    "Explains how a build works. Takes about a second per part; library results are saved.",
+     "inputSchema": {"type": "object", "properties": dict(MAIN_PROPS, build=BUILD_ARG, includePassives={"type": "boolean"},
+                                                          changes={"type": "array", "items": CHANGE_SCHEMA}), "required": ["build"]}},
+    {"name": "pob_save_build_settings",
+     "description": "Save play-verified settings for a library build so every later analysis uses them: main group, the skill its minions "
+                    "really use, and Config changes (e.g. withered stacks). Only save what the user confirmed. Omitted fields keep their value.",
+     "inputSchema": {"type": "object", "properties": {"build": BUILD_ARG, "group": MAIN_PROPS["group"], "minionSkill": MAIN_PROPS["minionSkill"],
+                                                      "changes": {"type": "array", "items": CHANGE_SCHEMA}, "note": {"type": "string"}},
+                     "required": ["build"]}},
     {"name": "pob_find_uniques",
      "description": "Find unique items by tags (all must match) and optional slot or item type, e.g. tags [minion, energy shield], slot Helmet.",
      "inputSchema": {"type": "object", "properties": {"tags": {"type": "array", "items": {"type": "string"}}, "slot": {"type": "string"},
@@ -97,95 +115,102 @@ def log(*args):
     print(*args, file=sys.stderr, flush=True)
 
 
-class Worker:
-    """Persistent Path of Building process (tools/PobWorker.lua)."""
-
-    def __init__(self):
-        self.proc = None
-        self.lock = threading.Lock()
-        self.next_id = 0
-
-    def start(self):
-        cmd = [sys.executable, os.path.join(ROOT, "tools", "runlua.py"), os.path.join(ROOT, "tools", "PobWorker.lua")]
-        self.proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-                                     text=True, encoding="utf-8", errors="replace", cwd=ROOT)
-        for line in self.proc.stdout:
-            if line.startswith("@@READY"):
-                return
-            if line.startswith("LUA ERROR"):
-                break
-        raise RuntimeError("Path of Building worker failed to start")
-
-    def call(self, method, params):
-        with self.lock:
-            if self.proc is None or self.proc.poll() is not None:
-                self.start()
-            self.next_id += 1
-            self.proc.stdin.write(json.dumps({"id": self.next_id, "method": method, "params": params}) + "\n")
-            self.proc.stdin.flush()
-            for line in self.proc.stdout:
-                if line.startswith("@@RESP "):
-                    answer = json.loads(line[7:])
-                    if not answer.get("ok"):
-                        raise ToolError(answer.get("error", "unknown error"))
-                    return answer.get("result")
-            self.proc = None
-            raise RuntimeError("Path of Building worker stopped unexpectedly")
-
-
 class ToolError(Exception):
     """An error the AI can act on (bad build name, unknown gem, ...)."""
 
 
-WORKER = Worker()
-
-
 def resolve_build(key):
-    """Return (xml, name, library_id or None) for a library key or an .xml path."""
-    if key.lower().endswith(".xml"):
-        path = key if os.path.isabs(key) else os.path.join(ROOT, key)
-        if not os.path.exists(path):
-            raise ToolError(f"build file not found: {key}")
-        with open(path, encoding="utf-8") as f:
-            return f.read(), os.path.basename(path)[:-4], None
-    db = library.connect()
-    row = db.execute("SELECT * FROM builds WHERE id LIKE ? OR name LIKE ? ORDER BY name = ? DESC, added_at DESC",
-                     (key + "%", f"%{key}%", key)).fetchone()
-    if not row:
-        raise ToolError(f"no library build matches '{key}' (use pob_list_builds)")
-    raw = os.path.join(library.LIBRARY, "raw", row["id"] + ".xml")
-    with open(raw, encoding="utf-8") as f:
-        return f.read(), row["name"], row["id"]
+    """Return (xml, name, library_id or None, saved settings) for a library key or an .xml path."""
+    try:
+        xml, name, build_id = library.resolve(key)
+    except LookupError as e:
+        raise ToolError(f"{e} (use pob_list_builds)")
+    return xml, name, build_id, library.get_settings(build_id)
+
+
+def worker_params(args, xml, name, settings):
+    overrides = {"group": args.get("group"), "minionSkill": args.get("minionSkill"), "changes": args.get("changes") or []}
+    if args.get("ignoreSettings"):
+        settings = {}
+    return library.apply_settings({"xml": xml, "name": name}, settings, overrides)
 
 
 def tool_build_summary(args):
-    xml, name, build_id = resolve_build(args["build"])
+    xml, name, build_id, settings = resolve_build(args["build"])
+    summary = None
     if build_id and not args.get("refresh"):
         path = os.path.join(library.LIBRARY, "summary", build_id + ".json")
         if os.path.exists(path):
             with open(path, encoding="utf-8") as f:
                 summary = json.load(f)
-            summary.pop("tagInfo", None)
-            return summary
-    summary = WORKER.call("summary", {"xml": xml, "name": name})
+    if summary is None:
+        summary = WORKER.call("summary", {"xml": xml, "name": name})
     summary.pop("tagInfo", None)
+    if settings:
+        summary["verifiedSettings"] = settings
     return summary
 
 
 def tool_metrics(args):
-    xml, name, _ = resolve_build(args["build"])
-    params = {"xml": xml, "name": name}
-    if args.get("group") is not None:
-        params["group"] = args["group"]
-    return WORKER.call("metrics", params)
+    xml, name, _, settings = resolve_build(args["build"])
+    params = worker_params(args, xml, name, settings)
+    if params.get("changes"):
+        # Saved config changes are applied through a simulation; report its result state
+        result = WORKER.call("simulate", params)["after"]
+    else:
+        result = WORKER.call("metrics", params)
+    result["settingsApplied"] = {k: params[k] for k in ("group", "minionSkill", "changes") if params.get(k)}
+    return result
 
 
 def tool_simulate(args):
-    xml, name, _ = resolve_build(args["build"])
-    params = {"xml": xml, "name": name, "changes": args.get("changes") or []}
-    if args.get("group") is not None:
-        params["group"] = args["group"]
-    return WORKER.call("simulate", params)
+    xml, name, build_id, settings = resolve_build(args["build"])
+    if args.get("ignoreSettings"):
+        settings = {}
+    base = library.apply_settings({"xml": xml, "name": name}, settings, {"group": args.get("group"), "minionSkill": args.get("minionSkill")})
+    # Saved settings form the baseline; the requested changes are what is compared
+    saved_changes = base.pop("changes")
+    params = dict(base, changes=saved_changes + list(args.get("changes") or []))
+    if saved_changes:
+        before = WORKER.call("simulate", dict(base, changes=saved_changes))["after"]
+        result = WORKER.call("simulate", params)
+        result["before"] = before
+        result["applied"] = result["applied"][len(saved_changes):]
+        result["changed"] = diff_metrics(before, result["after"])
+    else:
+        result = WORKER.call("simulate", params)
+    result["settingsApplied"] = {k: v for k, v in (("group", base.get("group")), ("minionSkill", base.get("minionSkill")), ("changes", saved_changes)) if v}
+    return result
+
+
+def diff_metrics(before, after):
+    diff = {}
+    for key, value in after.items():
+        old = before.get(key)
+        if isinstance(value, (int, float)) and isinstance(old, (int, float)) and value != old:
+            diff[key] = {"before": old, "after": value, "change": round(value - old, 2),
+                         "percent": round((value / old - 1) * 100, 1) if old else None}
+    return diff
+
+
+def tool_contributions(args):
+    try:
+        return library.run_contributions(args["build"], include_passives=args.get("includePassives", True),
+                                         overrides={"group": args.get("group"), "minionSkill": args.get("minionSkill"),
+                                                    "changes": args.get("changes") or []},
+                                         save=not args.get("changes") and not args.get("minionSkill") and args.get("group") is None)
+    except LookupError as e:
+        raise ToolError(str(e))
+
+
+def tool_save_settings(args):
+    _, name, build_id, current = resolve_build(args["build"])
+    if not build_id:
+        raise ToolError("settings can only be saved for library builds")
+    new = {"group": args.get("group", current.get("group")), "minionSkill": args.get("minionSkill", current.get("minionSkill")),
+           "changes": args.get("changes", current.get("changes"))}
+    saved = library.save_settings(build_id, new, args.get("note", current.get("note")))
+    return {"build": name, "settings": saved, "note": args.get("note", current.get("note"))}
 
 
 def filters_of(args):
@@ -197,6 +222,8 @@ HANDLERS = {
     "pob_build_summary": tool_build_summary,
     "pob_metrics": tool_metrics,
     "pob_simulate": tool_simulate,
+    "pob_contributions": tool_contributions,
+    "pob_save_build_settings": tool_save_settings,
     "pob_find_uniques": lambda a: WORKER.call("find_uniques", {k: a[k] for k in ("tags", "slot", "limit") if a.get(k) is not None}),
     "pob_find_passives": lambda a: WORKER.call("find_passives", {k: a[k] for k in ("tags", "types", "ascendancy", "limit") if a.get(k) is not None}),
     "pob_list_tags": lambda a: WORKER.call("list_tags", {}),
@@ -227,7 +254,7 @@ def handle(message):
         try:
             data = HANDLERS[name](args)
             result = {"content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False)}], "isError": False}
-        except ToolError as e:
+        except (ToolError, WorkerError) as e:
             result = {"content": [{"type": "text", "text": str(e)}], "isError": True}
         except Exception as e:  # report, keep serving
             log(traceback.format_exc())

@@ -83,6 +83,25 @@ Claude Code picks it up from `.mcp.json` at the repository root (approve it when
 | `library_common` | What matching builds have in common |
 | `library_item_usage` | How often an item appears, by ascendancy, skill and slot |
 
+| `pob_contributions` | Remove each item, support and notable on its own; report DPS / EHP lost and a role |
+| `pob_save_build_settings` | Save play-verified settings for a build |
+
+### Play-verified settings and contribution analysis
+
+PoB's defaults are not always how a build is played: it picks a minion's first skill (a Phantasm's
+melee attack instead of its spell projectile), and conditions such as withered stacks default to 0.
+Settings confirmed in play are saved per library build and applied by every tool and analysis:
+
+```
+python tools/library.py settings MeiMax --group 11 --minion-skill "Physical Projectile" --config multiplierWitheredStackCount=15 --note "why"
+python tools/library.py analyze MeiMax
+```
+
+`analyze` removes each part on its own and records the DPS and EHP lost. Roles: *enables main
+skill*, *core damage* / *damage*, *core defence* / *defence*, *functional* (PoB measures nothing,
+but the part drives mechanics it does not model, e.g. minion count or triggers), *tree hub*
+(removing the notable disconnects many points). Results are stored and shown by `show`.
+
 Builds are named by library id prefix or name, or by a path to a `.xml` file. Every summary lists
 the modifiers PoB does not calculate and the Config assumptions, so advice can say how far the
 numbers can be trusted.

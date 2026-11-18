@@ -68,6 +68,38 @@ local function primaryGroup()
 	return best
 end
 
+-- Minion skills of the main skill (e.g. a Phantasm's melee attack and its spell projectiles)
+local function minionSkillList()
+	local skill = build.calcsTab.mainEnv.player.mainSkill
+	local list = { }
+	if skill and skill.minion then
+		for _, minionSkill in ipairs(skill.minion.activeSkillList) do
+			table.insert(list, minionSkill.activeEffect.grantedEffect.name)
+		end
+	end
+	return list, skill
+end
+
+local function selectMinionSkill(ref)
+	local list, skill = minionSkillList()
+	assert(#list > 0, "the main skill has no minion skills")
+	local index = tonumber(ref)
+	if not index then
+		local want = tostring(ref):lower()
+		for i, name in ipairs(list) do
+			if name:lower() == want or name:lower():find(want, 1, true) then
+				index = i
+				break
+			end
+		end
+	end
+	assert(index and list[index], "no minion skill '" .. tostring(ref) .. "' (available: " .. table.concat(list, ", ") .. ")")
+	skill.activeEffect.srcInstance.skillMinionSkill = index
+	skill.activeEffect.srcInstance.skillMinionSkillCalcs = index
+	recalc()
+	return list[index]
+end
+
 local function metrics()
 	local o = build.calcsTab.mainOutput
 	local env = build.calcsTab.mainEnv
@@ -78,6 +110,12 @@ local function metrics()
 		playerDPS = round(o.CombinedDPS or 0, 1),
 		minionDPS = o.Minion and round(o.Minion.CombinedDPS or 0, 1) or nil,
 	}
+	local list = minionSkillList()
+	if #list > 0 then
+		local minionMain = env.minion and env.minion.mainSkill
+		m.minionSkill = minionMain and minionMain.activeEffect.grantedEffect.name
+		m.minionSkills = list
+	end
 	for _, key in ipairs({ "Life", "EnergyShield", "Mana", "ManaUnreserved", "LifeUnreserved", "Ward", "Armour", "Evasion", "TotalEHP",
 		"PhysicalMaximumHitTaken", "FireMaximumHitTaken", "ColdMaximumHitTaken", "LightningMaximumHitTaken", "ChaosMaximumHitTaken",
 		"FireResist", "ColdResist", "LightningResist", "ChaosResist", "EffectiveBlockChance", "EffectiveSpellBlockChance",
@@ -131,6 +169,9 @@ local changeHandlers = {
 		local _, index = findGroup(c.group)
 		build.mainSocketGroup = index
 		return "main skill group " .. index
+	end,
+	minion_skill = function(c)
+		return "minion skill: " .. selectMinionSkill(c.skill)
 	end,
 	gem_replace = function(c)
 		local group, index = findGroup(c.group or c.gem)
@@ -225,8 +266,7 @@ function methods.summary(p)
 	return S.summarize(assert(p.xml, "missing build xml"), p.name or "build")
 end
 
-function methods.metrics(p)
-	ensureBuild(p)
+local function selectMain(p)
 	if p.group then
 		local _, index = findGroup(p.group)
 		build.mainSocketGroup = index
@@ -234,19 +274,21 @@ function methods.metrics(p)
 	else
 		primaryGroup()
 	end
+	if p.minionSkill then
+		selectMinionSkill(p.minionSkill)
+	end
+end
+
+function methods.metrics(p)
+	ensureBuild(p)
+	selectMain(p)
 	return metrics()
 end
 
 function methods.simulate(p)
 	dirty = true
 	ensureBuild(p)
-	if p.group then
-		local _, index = findGroup(p.group)
-		build.mainSocketGroup = index
-		recalc()
-	else
-		primaryGroup()
-	end
+	selectMain(p)
 	local before = metrics()
 	local applied = { }
 	for i, change in ipairs(p.changes or { }) do
@@ -271,6 +313,121 @@ function methods.simulate(p)
 	end
 	dirty = true
 	return { applied = applied, before = before, after = after, changed = diff }
+end
+
+-- Leave-one-out analysis: remove each part (item, support gem, notable/keystone) on its own and
+-- measure what the build loses. Parts whose removal changes nothing PoB can measure but that
+-- carry mechanics PoB does not model (minion count, triggers, unsupported lines) are reported as
+-- "functional" rather than useless.
+local functionalTags = { minion = true, phantasm = true, zombie = true, skeleton = true, spectre = true, golem = true,
+	ragingspirit = true, animated = true, holyrelic = true, sentinel = true, spider = true, reaper = true, totem = true, trapmine = true, brand = true }
+
+local function classify(dpsPct, ehpPct, functional)
+	if dpsPct <= -10 then return "core damage" end
+	if dpsPct <= -2 then return "damage" end
+	if ehpPct <= -10 then return "core defence" end
+	if ehpPct <= -2 then return "defence" end
+	if dpsPct >= 2 then return "hurts damage" end
+	if functional then return "functional (not measured by PoB)" end
+	return "no measurable effect"
+end
+
+function methods.contributions(p)
+	dirty = true
+	ensureBuild(p)
+	selectMain(p)
+	-- Fix the main group once; finding the strongest group on every run would be slow
+	p.group = p.group or build.mainSocketGroup
+	local baseChanges = p.changes or { }
+	local function run(extra)
+		loadBuildFromXML(p.xml, p.name or "build")
+		selectMain(p)
+		for _, change in ipairs(baseChanges) do assert(changeHandlers[change.type], "unknown change type " .. tostring(change.type))(change) end
+		local desc = extra and changeHandlers[extra.type](extra)
+		recalc()
+		local ok, m = pcall(metrics)
+		m = ok and m or { }
+		local points = 0
+		for _ in pairs(build.spec.allocNodes) do points = points + 1 end
+		m.allocatedNodes = points
+		return m, desc
+	end
+	local base = run(nil)
+	local function dpsOf(m) return math.max(m.playerDPS or 0, m.minionDPS or 0) end
+	local baseDPS, baseEHP = dpsOf(base), base.TotalEHP or 0
+	local parts = { }
+	local function measure(kind, name, detail, change, functional)
+		local ok, after = pcall(run, change)
+		if not ok then
+			table.insert(parts, { kind = kind, name = name, detail = detail, error = (tostring(after):gsub("^.-%.lua:%d+: ", "")) })
+			return
+		end
+		local dps, ehp = dpsOf(after), after.TotalEHP or 0
+		local lostSkill = after.mainSkill ~= base.mainSkill
+		local dpsPct = baseDPS > 0 and round((dps / baseDPS - 1) * 100, 1) or 0
+		local ehpPct = baseEHP > 0 and round((ehp / baseEHP - 1) * 100, 1) or 0
+		if lostSkill then dpsPct = -100 end
+		local nodesRemoved = kind ~= "item" and kind ~= "support gem" and (base.allocatedNodes - (after.allocatedNodes or 0)) or nil
+		local role = lostSkill and "enables main skill" or classify(dpsPct, ehpPct, functional)
+		if nodesRemoved and nodesRemoved > 10 then
+			-- Removing this node disconnects a large part of the tree; the loss is not the node's own value
+			role = "tree hub (" .. role .. " incl. " .. nodesRemoved .. " points)"
+		end
+		table.insert(parts, { kind = kind, name = name, detail = detail, dpsPct = dpsPct, ehpPct = ehpPct, lostMainSkill = lostSkill or nil,
+			nodesRemoved = nodesRemoved,
+			role = role, alsoFunctional = functional and not role:match("functional") or nil })
+	end
+	-- Items (flasks are skipped: their effects depend on Config flask settings)
+	loadBuildFromXML(p.xml, p.name or "build")
+	local itemsTab = build.itemsTab
+	local itemParts, gemParts, nodeParts = { }, { }, { }
+	for _, slot in ipairs(itemsTab.orderedSlots or { }) do
+		local item = slot.selItemId and itemsTab.items[slot.selItemId]
+		if item and not slot.slotName:match("^Flask") and slot:IsShown() ~= false then
+			local tags, functional = autoTags.GetItemTags(item), false
+			for id in pairs(tags) do if functionalTags[id] then functional = true end end
+			for _, group in ipairs({ "implicitModLines", "explicitModLines" }) do
+				for _, ml in ipairs(item[group] or { }) do
+					if item:CheckModLineVariant(ml) and (ml.extra or not ml.modList or not ml.modList[1]) then functional = true end
+				end
+			end
+			table.insert(itemParts, { slot.slotName, item.name, functional })
+		end
+	end
+	for index, group in ipairs(build.skillsTab.socketGroupList) do
+		if group.enabled then
+			for _, gem in ipairs(group.gemList) do
+				local effect = gem.gemData and gem.gemData.grantedEffect
+				if effect and effect.support and gem.enabled then
+					local types = effect.skillTypes or { }
+					local functional = types[SkillType.Triggered] or types[SkillType.InbuiltTrigger] or types[SkillType.CreatesMinion] or types[SkillType.Minion]
+						or (effect.name or ""):match("^Cast ") ~= nil or (effect.name or ""):match("Summon") ~= nil
+					table.insert(gemParts, { index, gem.nameSpec, functional })
+				end
+			end
+		end
+	end
+	if p.includePassives ~= false then
+		for _, node in pairs(build.spec.allocNodes) do
+			if (node.type == "Notable" or node.type == "Keystone") and not node.ascendancyName then
+				local functional = false
+				for id in pairs(autoTags.GetNodeTags(node)) do if functionalTags[id] then functional = true end end
+				table.insert(nodeParts, { node.id, node.dn, node.type, functional })
+			end
+		end
+	end
+	for _, it in ipairs(itemParts) do
+		measure("item", it[2], it[1], { type = "item_remove", slot = it[1] }, it[3])
+	end
+	for _, g in ipairs(gemParts) do
+		measure("support gem", g[2], "group " .. g[1], { type = "gem_remove", gem = g[2], group = g[1] }, g[3])
+	end
+	for _, n in ipairs(nodeParts) do
+		measure(n[3]:lower(), n[2], "node " .. n[1], { type = "passive_remove", node = n[1] }, n[4])
+	end
+	table.sort(parts, function(a, b) return (a.dpsPct or 0) + (a.ehpPct or 0) * 0.001 < (b.dpsPct or 0) + (b.ehpPct or 0) * 0.001 end)
+	dirty = true
+	return { baseline = base, parts = parts, note = "dpsPct/ehpPct = change when that part alone is removed; passives are removed with the points that depend on them" }
 end
 
 local function resolveTags(list)

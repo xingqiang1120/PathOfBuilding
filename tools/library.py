@@ -20,6 +20,10 @@ Usage:
   python tools/library.py usage --item X  how often an item appears, by ascendancy, skill and slot
   python tools/library.py note <id prefix | name> TEXT
   python tools/library.py rebuild          re-summarise every raw build (after a PoB or data update)
+  python tools/library.py settings <build> [--group N] [--minion-skill X] [--config KEY=VALUE ...] [--note TEXT] [--clear]
+        play-verified settings used by every analysis of this build (e.g. the skill a minion really uses)
+  python tools/library.py analyze <build> [--no-passives]
+        remove each item, support gem and notable on its own and record what the build loses
 """
 import argparse
 import base64
@@ -51,6 +55,9 @@ CREATE TABLE IF NOT EXISTS passives (build_id TEXT, kind TEXT, name TEXT);
 CREATE TABLE IF NOT EXISTS stats (build_id TEXT, key TEXT, value REAL);
 CREATE TABLE IF NOT EXISTS config (build_id TEXT, key TEXT, value TEXT);
 CREATE TABLE IF NOT EXISTS unsupported (build_id TEXT, kind TEXT, source TEXT, line TEXT, impact TEXT, stat_ids TEXT);
+CREATE TABLE IF NOT EXISTS build_settings (build_id TEXT PRIMARY KEY, settings TEXT, note TEXT, updated_at TEXT);
+CREATE TABLE IF NOT EXISTS contributions (build_id TEXT, analyzed_at TEXT, settings TEXT, kind TEXT, name TEXT, detail TEXT,
+    dps_pct REAL, ehp_pct REAL, nodes_removed INTEGER, role TEXT, also_functional INTEGER, error TEXT);
 CREATE INDEX IF NOT EXISTS idx_gems ON gems(gem);
 CREATE INDEX IF NOT EXISTS idx_items ON items(title, name);
 CREATE INDEX IF NOT EXISTS idx_passives ON passives(name);
@@ -278,6 +285,16 @@ def cmd_show(args):
     print("  ascendancy: " + ", ".join(asc))
     unsupported = db.execute("SELECT COUNT(*) FROM unsupported WHERE build_id = ? AND impact IN ('offence','defence')", (r["id"],)).fetchone()[0]
     print(f"  modifier lines PoB does not calculate (offence/defence): {unsupported}")
+    settings = get_settings(r["id"])
+    if settings:
+        print(f"  verified settings: {json.dumps({k: v for k, v in settings.items() if k != 'note'}, ensure_ascii=False)}"
+              + (f"  ({settings['note']})" if settings.get("note") else ""))
+    parts = db.execute("SELECT * FROM contributions WHERE build_id = ? ORDER BY dps_pct, ehp_pct", (r["id"],)).fetchall()
+    if parts:
+        print(f"  contribution analysis ({parts[0]['analyzed_at']}), top parts:")
+        for p in parts[:8]:
+            print(describe_part({"kind": p["kind"], "name": p["name"], "dpsPct": p["dps_pct"] or 0, "ehpPct": p["ehp_pct"] or 0,
+                                 "role": p["role"], "nodesRemoved": p["nodes_removed"], "alsoFunctional": p["also_functional"], "error": p["error"]}))
 
 
 FILTERS = {
@@ -386,6 +403,130 @@ def cmd_usage(args):
         print(f"    {b['id']}  {b['name']:<30} {b['ascendancy'] or '-':<14} {b['slot']:<12} {b['item']}")
 
 
+def resolve(key):
+    """(xml, name, build_id) for a library id prefix / name, or (xml, name, None) for an .xml path."""
+    if key.lower().endswith(".xml"):
+        path = key if os.path.isabs(key) else os.path.join(ROOT, key)
+        if not os.path.exists(path):
+            raise LookupError(f"build file not found: {key}")
+        with open(path, encoding="utf-8") as f:
+            return f.read(), os.path.basename(path)[:-4], None
+    db = connect()
+    row = db.execute("SELECT * FROM builds WHERE id LIKE ? OR name LIKE ? ORDER BY name = ? DESC, added_at DESC",
+                     (key + "%", f"%{key}%", key)).fetchone()
+    if not row:
+        raise LookupError(f"no library build matches '{key}'")
+    with open(os.path.join(LIBRARY, "raw", row["id"] + ".xml"), encoding="utf-8") as f:
+        return f.read(), row["name"], row["id"]
+
+
+def get_settings(build_id):
+    """Play-verified settings of a build: {"group", "minionSkill", "changes": [...], "note"}."""
+    if not build_id:
+        return {}
+    row = connect().execute("SELECT settings, note FROM build_settings WHERE build_id = ?", (build_id,)).fetchone()
+    if not row:
+        return {}
+    settings = json.loads(row["settings"])
+    if row["note"]:
+        settings["note"] = row["note"]
+    return settings
+
+
+def save_settings(build_id, settings, note=None):
+    db = connect()
+    clean = {k: v for k, v in settings.items() if k in ("group", "minionSkill", "changes") and v not in (None, [], "")}
+    if not clean and not note:
+        db.execute("DELETE FROM build_settings WHERE build_id = ?", (build_id,))
+    else:
+        db.execute("INSERT INTO build_settings VALUES (?,?,?,?) ON CONFLICT(build_id) DO UPDATE SET settings=excluded.settings, "
+                   "note=excluded.note, updated_at=excluded.updated_at",
+                   (build_id, json.dumps(clean, ensure_ascii=False), note, datetime.datetime.now().isoformat(timespec="seconds")))
+    db.commit()
+    return clean
+
+
+def apply_settings(params, settings, overrides=None):
+    """Merge saved settings into worker params; explicit overrides win, saved config changes run first."""
+    overrides = overrides or {}
+    for key in ("group", "minionSkill"):
+        value = overrides.get(key) if overrides.get(key) is not None else settings.get(key)
+        if value is not None:
+            params[key] = value
+    params["changes"] = list(settings.get("changes") or []) + list(overrides.get("changes") or [])
+    return params
+
+
+def run_contributions(key, include_passives=True, overrides=None, save=True):
+    from pob_worker import WORKER
+    xml, name, build_id = resolve(key)
+    settings = get_settings(build_id)
+    params = apply_settings({"xml": xml, "name": name, "includePassives": include_passives}, settings, overrides)
+    result = WORKER.call("contributions", params)
+    result["settingsApplied"] = {k: params.get(k) for k in ("group", "minionSkill", "changes") if params.get(k)}
+    if save and build_id:
+        db = connect()
+        now = datetime.datetime.now().isoformat(timespec="seconds")
+        db.execute("DELETE FROM contributions WHERE build_id = ?", (build_id,))
+        for p in result["parts"]:
+            db.execute("INSERT INTO contributions VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                       (build_id, now, json.dumps(result["settingsApplied"], ensure_ascii=False), p.get("kind"), p.get("name"), p.get("detail"),
+                        p.get("dpsPct"), p.get("ehpPct"), p.get("nodesRemoved"), p.get("role"), 1 if p.get("alsoFunctional") else 0, p.get("error")))
+        db.commit()
+    return result
+
+
+def parse_value(text):
+    if text.lower() in ("true", "false"):
+        return text.lower() == "true"
+    try:
+        return int(text)
+    except ValueError:
+        try:
+            return float(text)
+        except ValueError:
+            return text
+
+
+def cmd_settings(args):
+    db = connect()
+    r = find_build(db, args.key)
+    current = get_settings(r["id"])
+    if args.clear:
+        current = {}
+    if args.group is not None:
+        current["group"] = int(args.group) if args.group.isdigit() else args.group
+    if args.minion_skill:
+        current["minionSkill"] = args.minion_skill
+    for item in args.config or []:
+        key, _, value = item.partition("=")
+        changes = [c for c in current.get("changes", []) if not (c.get("type") == "config_set" and c.get("key") == key)]
+        changes.append({"type": "config_set", "key": key, "value": parse_value(value)})
+        current["changes"] = changes
+    note = args.note if args.note is not None else current.get("note")
+    saved = save_settings(r["id"], current, note)
+    print(f"settings for {r['name']}: {json.dumps(saved, ensure_ascii=False)}" + (f"  note: {note}" if note else ""))
+
+
+def describe_part(p):
+    extra = f" (+{p['nodesRemoved'] - 1} dependent points)" if p.get("nodesRemoved") and p["nodesRemoved"] > 1 else ""
+    func = "  [also functional]" if p.get("alsoFunctional") else ""
+    if p.get("error"):
+        return f"  {p['kind']:<12} {p['name'][:36]:<36} error: {p['error']}"
+    return (f"  {p['kind']:<12} {p['name'][:36]:<36} DPS {p['dpsPct']:>+7.1f}%  EHP {p['ehpPct']:>+6.1f}%  {p['role']}{func}{extra}")
+
+
+def cmd_analyze(args):
+    print("analysing (each part is removed on its own; takes about a second per part) ...")
+    result = run_contributions(args.key, include_passives=not args.no_passives)
+    b = result["baseline"]
+    print(f"settings: {json.dumps(result['settingsApplied'], ensure_ascii=False)}")
+    print(f"baseline: {b.get('mainSkill')}" + (f" / minion skill {b['minionSkill']}" if b.get("minionSkill") else "")
+          + f"  DPS {fmt(max(b.get('playerDPS') or 0, b.get('minionDPS') or 0))}  EHP {fmt(b.get('TotalEHP'))}")
+    for p in result["parts"]:
+        print(describe_part(p))
+
+
 def cmd_note(args):
     db = connect()
     r = find_build(db, args.key)
@@ -411,6 +552,16 @@ def main(argv=None):
     p = sub.add_parser("note")
     p.add_argument("key")
     p.add_argument("text")
+    p = sub.add_parser("settings")
+    p.add_argument("key")
+    p.add_argument("--group")
+    p.add_argument("--minion-skill")
+    p.add_argument("--config", action="append")
+    p.add_argument("--note")
+    p.add_argument("--clear", action="store_true")
+    p = sub.add_parser("analyze")
+    p.add_argument("key")
+    p.add_argument("--no-passives", action="store_true")
     p = sub.add_parser("usage")
     p.add_argument("--item", required=True)
     p.add_argument("--top", type=int, default=10)
@@ -424,7 +575,8 @@ def main(argv=None):
     if args.cmd == "add" and not args.paths and not args.code:
         parser.error("add needs a file, folder or --code")
     {"add": cmd_add, "list": cmd_list, "rebuild": cmd_rebuild, "show": cmd_show, "search": cmd_search,
-     "common": cmd_common, "note": cmd_note, "usage": cmd_usage}[args.cmd](args)
+     "common": cmd_common, "note": cmd_note, "usage": cmd_usage,
+     "settings": cmd_settings, "analyze": cmd_analyze}[args.cmd](args)
 
 
 if __name__ == "__main__":

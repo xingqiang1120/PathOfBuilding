@@ -82,6 +82,35 @@ class McpTest(unittest.TestCase):
         self.assertFalse(err)
         self.assertIn("The Baron", [i["name"] for i in result["items"]])
 
+    def test_minion_skill_needs_a_minion(self):
+        err, text = self.call("pob_metrics", build="OccVortex", minionSkill="Physical Projectile")
+        self.assertTrue(err)
+        self.assertIn("no minion skills", text)
+
+    def test_saved_settings_are_applied(self):
+        err, plain = self.call("pob_metrics", build="OccVortex")
+        err, saved = self.call("pob_save_build_settings", build="OccVortex",
+                               changes=[{"type": "gem_level", "gem": "Vortex", "level": 1}], note="test only")
+        self.assertFalse(err, saved)
+        try:
+            err, metrics = self.call("pob_metrics", build="OccVortex")
+            self.assertFalse(err, metrics)
+            self.assertIn("changes", metrics["settingsApplied"])
+            self.assertLess(metrics["playerDPS"], plain["playerDPS"])
+            err, ignored = self.call("pob_metrics", build="OccVortex", ignoreSettings=True)
+            self.assertEqual(ignored["playerDPS"], plain["playerDPS"])
+            err, summary = self.call("pob_build_summary", build="OccVortex")
+            self.assertEqual(summary["verifiedSettings"]["note"], "test only")
+        finally:
+            self.call("pob_save_build_settings", build="OccVortex", changes=[], note="")
+
+    def test_contributions(self):
+        err, result = self.call("pob_contributions", build="OccVortex", includePassives=False)
+        self.assertFalse(err, result)
+        roles = {p["name"]: p.get("role") for p in result["parts"]}
+        self.assertTrue(any(r and "damage" in r for r in roles.values()))
+        self.assertTrue(all("dpsPct" in p or "error" in p for p in result["parts"]))
+
     def test_item_usage(self):
         err, usage = self.call("library_item_usage", item="Heretic's Veil")
         self.assertFalse(err)

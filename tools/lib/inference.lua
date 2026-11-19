@@ -86,6 +86,21 @@ function M.inferWithered(build, opts)
 		table.insert(actors.minion.chances, M.UNHOLY_MIGHT_WITHER_CHANCE)
 		table.insert(actors.minion.sources, "minions' Unholy Might (25%)")
 	end
+	-- Support gems that grant a wither chance (e.g. Withering Touch), only when they support the skill used
+	local function addSupportChances(skill, actor)
+		for _, effect in ipairs(skill and skill.effectList or { }) do
+			for _, stat in ipairs(effect.grantedEffect.constantStats or { }) do
+				if stat[1] == "withered_on_hit_chance_%" and effect.grantedEffect.support then
+					table.insert(actor.chances, stat[2])
+					table.insert(actor.sources, string.format("%s support (%d%%)", effect.grantedEffect.name, stat[2]))
+				end
+			end
+		end
+	end
+	addSupportChances(env.player.mainSkill, actors.player)
+	if env.minion then
+		addSupportChances(env.minion.mainSkill, actors.minion)
+	end
 	-- Explicit chances from modifier text
 	for _, line in ipairs(buildLines(build)) do
 		local text = line.text:lower()

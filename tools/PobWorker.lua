@@ -552,6 +552,205 @@ function methods.find_passives(p)
 	return { total = total, passives = results }
 end
 
+-- Damage formula of the main skill, read from PoB's own calculation breakdown:
+-- base damage -> increased -> more -> conversion -> hit -> enemy mitigation -> crit -> speed -> DPS
+local function cleanLine(line)
+	return (tostring(line):gsub("%^x%x%x%x%x%x%x", ""):gsub("%^%d", ""):gsub("%s+$", ""))
+end
+
+local function textLines(list)
+	local out = { }
+	for _, line in ipairs(list or { }) do
+		if type(line) == "string" then
+			table.insert(out, cleanLine(line))
+		end
+	end
+	return out
+end
+
+local function multiplier(text)
+	return text and tonumber(tostring(text):match("x%s*([%d%.]+)")) or nil
+end
+
+function methods.damage_breakdown(p)
+	dirty = true
+	ensureBuild(p)
+	selectMain(p)
+	for _, change in ipairs(p.changes or { }) do changeHandlers[change.type](change) end
+	recalc()
+	local inferred = applyInference(p)
+	local env = build.calcsTab.mainEnv
+	local actor = env.minion or env.player
+	local out, bd = actor.output, actor.breakdown or { }
+	-- Attacks keep their per-weapon numbers under MainHand / OffHand
+	local hand
+	if out.MainHand and (out.MainHand.TotalDPS or 0) > 0 then
+		hand = "MainHand"
+	elseif out.OffHand and (out.OffHand.TotalDPS or 0) > 0 then
+		hand = "OffHand"
+	end
+	local handOut = hand and out[hand] or out
+	local handBd = hand and bd[hand] or bd
+	local result = {
+		actor = env.minion and "minion" or "player",
+		skill = actor.mainSkill and actor.mainSkill.activeEffect.grantedEffect.name,
+		mainSkill = env.player.mainSkill and env.player.mainSkill.activeEffect.grantedEffect.name,
+		weapon = hand,
+		damageTypes = { },
+		speed = { value = round(out.Speed or 0, 3), lines = textLines(handBd.Speed or bd.Speed) },
+		hitChance = round(handOut.HitChance or out.HitChance or 0, 1),
+		crit = { chance = round(handOut.CritChance or out.CritChance or 0, 2), multiplier = round(handOut.CritMultiplier or out.CritMultiplier or 0, 3),
+			effect = round(handOut.CritEffect or out.CritEffect or 1, 4) },
+		averageHit = round(handOut.AverageHit or out.AverageHit or 0, 1),
+		hitDPS = round(out.TotalDPS or 0, 1),
+		dot = { },
+		combinedDPS = round(out.CombinedDPS or 0, 1),
+		inferred = inferred,
+	}
+	for _, dtype in ipairs({ "Physical", "Lightning", "Cold", "Fire", "Chaos" }) do
+		local hitAvg = handOut[dtype .. "HitAverage"] or 0
+		local typeBd = handBd[dtype]
+		if typeBd and (hitAvg > 0 or (typeBd.damageTypes and typeBd.damageTypes[1])) then
+			local rows = { }
+			for _, row in ipairs(typeBd.damageTypes or { }) do
+				table.insert(rows, { from = row.source, base = row.base, increased = multiplier(row.inc), more = multiplier(row.more),
+					convertedIn = row.convSrc or nil, total = row.total, convertedTo = row.convDst or nil, gainedAs = row.gainDst or nil })
+			end
+			table.insert(result.damageTypes, {
+				type = dtype,
+				hitAverage = round(hitAvg, 1),
+				portionPercent = 0,
+				lines = textLines(typeBd),
+				rows = rows,
+				enemyMitigation = (function()
+					local lines = textLines(handBd[dtype .. "EffMult"])
+					local value = handOut[dtype .. "EffMult"]
+					if not value and #lines > 0 then
+						value = tonumber(lines[#lines]:match("^=%s*([%d%.]+)"))
+					end
+					return { value = value and round(value, 4), lines = lines }
+				end)(),
+			})
+		end
+	end
+	local totalHit = 0
+	for _, dt in ipairs(result.damageTypes) do totalHit = totalHit + dt.hitAverage end
+	for _, dt in ipairs(result.damageTypes) do
+		dt.portionPercent = totalHit > 0 and round(dt.hitAverage / totalHit * 100, 1) or 0
+	end
+	for _, key in ipairs({ "BleedDPS", "PoisonDPS", "IgniteDPS", "BurningGroundDPS", "CausticGroundDPS", "TotalDot", "ImpaleDPS", "DecayDPS" }) do
+		if (out[key] or 0) > 0 then
+			result.dot[key] = round(out[key], 1)
+		end
+	end
+	return result
+end
+
+-- Remove one modifier line at a time from every equipped item (flasks excluded) and measure
+function methods.mod_contributions(p)
+	dirty = true
+	local function setup()
+		loadFresh(p)
+		selectMain(p)
+		for _, change in ipairs(p.changes or { }) do changeHandlers[change.type](change) end
+		recalc()
+		applyInference(p)
+	end
+	ensureBuild(p)
+	selectMain(p)
+	p.group = p.group or build.mainSocketGroup
+	setup()
+	local function dpsOf(m) return math.max(m.playerDPS or 0, m.minionDPS or 0) end
+	local base = metrics()
+	local baseDPS, baseEHP = dpsOf(base), base.TotalEHP or 0
+	local targets = { }
+	for _, slot in ipairs(build.itemsTab.orderedSlots or { }) do
+		local item = slot.selItemId and build.itemsTab.items[slot.selItemId]
+		if item and not slot.slotName:match("^Flask") and slot:IsShown() ~= false then
+			for _, group in ipairs({ "implicitModLines", "explicitModLines" }) do
+				for index, ml in ipairs(item[group] or { }) do
+					if item:CheckModLineVariant(ml) then
+						table.insert(targets, { slot = slot.slotName, item = item.name, group = group, index = index, line = ml.line })
+					end
+				end
+			end
+		end
+	end
+	local parts = { }
+	for _, t in ipairs(targets) do
+		setup()
+		local ok, err = pcall(function()
+			local slot = build.itemsTab.slots[t.slot]
+			local original = build.itemsTab.items[slot.selItemId]
+			local copy = new("Item"):Item(original:BuildRaw())
+			table.remove(copy[t.group], t.index)
+			copy:BuildAndParseRaw()
+			build.itemsTab:AddItem(copy, true)
+			slot:SetSelItemId(copy.id)
+			build.itemsTab:PopulateSlots()
+			recalc()
+			applyInference(p)
+		end)
+		local entry = { slot = t.slot, item = t.item, line = t.line, kind = t.group == "implicitModLines" and "implicit" or "explicit" }
+		if ok then
+			local m = metrics()
+			entry.dpsPct = baseDPS > 0 and round((dpsOf(m) / baseDPS - 1) * 100, 1) or 0
+			entry.ehpPct = baseEHP > 0 and round(((m.TotalEHP or 0) / baseEHP - 1) * 100, 1) or 0
+		else
+			entry.error = (tostring(err):gsub("^.-%.lua:%d+: ", ""))
+		end
+		table.insert(parts, entry)
+	end
+	table.sort(parts, function(a, b) return (a.dpsPct or 0) + (a.ehpPct or 0) * 0.001 < (b.dpsPct or 0) + (b.ehpPct or 0) * 0.001 end)
+	dirty = true
+	return { baseline = base, parts = parts }
+end
+
+-- Switch off each Config assumption the build turned on and measure what it was worth
+local configSkip = { bandit = true, pantheonMajorGod = true, pantheonMinorGod = true, resistancePenalty = true, enemySizePreset = true,
+	presetBossSkills = true, doomBlastSource = true, repeatMode = true, resourceGainMode = true, plagueBearerState = true,
+	ChanceToIgnoreEnemyPhysicalDamageReductionMode = true }
+
+function methods.config_sensitivity(p)
+	dirty = true
+	ensureBuild(p)
+	selectMain(p)
+	p.group = p.group or build.mainSocketGroup
+	local saved = copyTable(userConfig)
+	local function dpsOf(m) return math.max(m.playerDPS or 0, m.minionDPS or 0) end
+	local function run(change)
+		loadFresh(p)
+		selectMain(p)
+		for _, c in ipairs(p.changes or { }) do changeHandlers[c.type](c) end
+		if change then changeHandlers.config_set(change) end
+		recalc()
+		applyInference(p)
+		return metrics()
+	end
+	local base = run(nil)
+	local baseDPS, baseEHP = dpsOf(base), base.TotalEHP or 0
+	local parts = { }
+	for key, value in pairs(saved) do
+		if not configSkip[key] and not key:match("BypassCD$") then
+			local off
+			if value == true then off = false
+			elseif type(value) == "number" and value ~= 0 and (key:match("^multiplier") or key:match("^override") or key:match("Count$") or key:match("Stages$")) then off = 0
+			elseif key == "enemyIsBoss" and value ~= "None" then off = "None" end
+			if off ~= nil then
+				local ok, m = pcall(run, { type = "config_set", key = key, value = off })
+				if ok then
+					table.insert(parts, { key = key, value = value, testedWith = off,
+						dpsPct = baseDPS > 0 and round((dpsOf(m) / baseDPS - 1) * 100, 1) or 0,
+						ehpPct = baseEHP > 0 and round(((m.TotalEHP or 0) / baseEHP - 1) * 100, 1) or 0 })
+				end
+			end
+		end
+	end
+	table.sort(parts, function(a, b) return math.abs(a.dpsPct) + math.abs(a.ehpPct) > math.abs(b.dpsPct) + math.abs(b.ehpPct) end)
+	dirty = true
+	return { baseline = base, parts = parts, note = "dpsPct/ehpPct = change when that assumption is switched off (enemyIsBoss: set to None)" }
+end
+
 -- Mechanics knowledge base entries, with the uniques and passives that carry each mechanic
 function methods.mechanics(p)
 	local want = p.id and p.id:lower()

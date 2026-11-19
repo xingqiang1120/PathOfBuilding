@@ -147,6 +147,32 @@ class McpTest(unittest.TestCase):
         self.assertTrue(core["damage"])
         self.assertTrue(all(p["avgDpsPct"] <= -2 for p in core["damage"]))
 
+    def test_damage_breakdown(self):
+        err, bd = self.call("pob_damage_breakdown", build="OccVortex")
+        self.assertFalse(err, bd)
+        self.assertEqual(bd["actor"], "player")
+        self.assertEqual(bd["mainSkill"], "Vortex")
+        types = {d["type"]: d for d in bd["damageTypes"]}
+        self.assertIn("Cold", types)
+        rows = [r for r in types["Cold"]["rows"] if r.get("base")]
+        self.assertTrue(rows and rows[0]["increased"] > 1)
+        self.assertGreater(bd["speed"]["value"], 0)
+
+    def test_config_sensitivity(self):
+        err, result = self.call("pob_config_sensitivity", build="OccVortex")
+        self.assertFalse(err, result)
+        self.assertTrue(all("key" in p and "dpsPct" in p for p in result["parts"]))
+
+    def test_notes_parsing(self):
+        import analysis
+        xml = ('<?xml version="1.0" encoding="UTF-8"?><PathOfBuilding><Build/><Notes>^7來源: poe.ninja\n目的：看防禦\n'
+               'Minion skill: Physical Projectile\nfree text</Notes></PathOfBuilding>')
+        fields, text = analysis.parse_notes(xml)
+        self.assertEqual(fields["source"], "poe.ninja")
+        self.assertEqual(fields["purpose"], "看防禦")
+        self.assertEqual(fields["minionSkill"], "Physical Projectile")
+        self.assertIn("free text", text)
+
     def test_item_usage(self):
         err, usage = self.call("library_item_usage", item="Heretic's Veil")
         self.assertFalse(err)

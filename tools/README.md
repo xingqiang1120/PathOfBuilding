@@ -97,6 +97,23 @@ python tools/library.py settings MeiMax --group 11 --minion-skill "Physical Proj
 python tools/library.py analyze MeiMax
 ```
 
+### Analysing builds: the inbox workflow
+
+1. Open a build in PoB (poe.ninja PoB button, share code or account import) and write in its
+   **Notes** tab, e.g. `來源: poe.ninja`, `目的: 看防禦`, `召喚物技能: Physical Projectile`,
+   `已知: 打王很強` (English keys `source`, `purpose`, `minion skill`, `main skill`, `known` work too).
+2. **Save As** into `src/Builds/inbox/` (any number of builds).
+3. Run `python tools/library.py inbox`.
+
+Each build is added to the library, the Notes become verified settings, and a full analysis
+(about 2 to 4 minutes per build) writes `library/reports/<build>.md`: PoB numbers with and
+without inferred conditions, the damage formula from PoB's breakdown, contributions of items,
+supports, notables and every modifier line, the author's Config assumptions, unsupported
+modifiers and **questions for the player**. A batch report compares the run and lists core parts
+those builds rely on that builds tagged `my-build` do not use. Processed files move to
+`src/Builds/done/`. `python tools/library.py report <build>` runs the same analysis for one
+library build. Answers to the questions become verified settings or knowledge base facts.
+
 ### Mechanics knowledge base
 
 `src/Data/Mechanics.lua` describes game mechanics as data: rules with their numbers, the tags a

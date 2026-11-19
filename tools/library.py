@@ -24,6 +24,8 @@ Usage:
         play-verified settings used by every analysis of this build (e.g. the skill a minion really uses)
   python tools/library.py core [--tag X] [--ascendancy X] [--skill X] ...
         what analysed builds of a kind have as core damage, defence and functional parts
+  python tools/library.py inbox            full analysis of every build saved in src/Builds/inbox (see tools/analysis.py)
+  python tools/library.py report <build>   full analysis and report for one library build
   python tools/library.py analyze <build> [--no-passives]
         remove each item, support gem and notable on its own and record what the build loses
 """
@@ -197,29 +199,38 @@ def cmd_add(args):
     raw_dir, _ = paths()
     db = connect()
     new = []
-    metas = {}
-    for xml_text, name in collect_inputs(args):
+    entries = [(xml_text, {"name": name, "source": args.source, "note": args.note, "tags": args.tag or []})
+               for xml_text, name in collect_inputs(args)]
+    add_builds(entries)
+
+
+def add_builds(entries):
+    """entries: [(xml_text, {"name", "source", "note", "tags"})]. Returns the build ids (existing ones too)."""
+    raw_dir, _ = paths()
+    db = connect()
+    ids, new, metas = [], [], {}
+    for xml_text, meta in entries:
         build_id = hashlib.sha1(xml_text.encode("utf-8")).hexdigest()
-        if db.execute("SELECT 1 FROM builds WHERE id = ?", (build_id,)).fetchone():
-            print(f"skip  {build_id[:10]}  {name} (already in the library)")
+        ids.append(build_id)
+        if build_id in metas or db.execute("SELECT 1 FROM builds WHERE id = ?", (build_id,)).fetchone():
+            print(f"skip  {build_id[:10]}  {meta['name']} (already in the library)")
             continue
         with open(os.path.join(raw_dir, build_id + ".xml"), "w", encoding="utf-8") as f:
             f.write(xml_text)
-        metas[build_id] = {"name": name, "source": args.source, "note": args.note,
-                           "added_at": datetime.datetime.now().isoformat(timespec="seconds")}
+        metas[build_id] = dict(meta, added_at=datetime.datetime.now().isoformat(timespec="seconds"))
         new.append(build_id)
-    if not new:
-        return
-    print(f"summarising {len(new)} build(s) with Path of Building ...")
-    summarise(new)
+    if new:
+        print(f"summarising {len(new)} build(s) with Path of Building ...")
+        summarise(new)
     for build_id in new:
         index_build(db, build_id, metas[build_id])
-        for tag in args.tag or []:
+        for tag in metas[build_id].get("tags") or []:
             db.execute("INSERT INTO build_tags VALUES (?,?,?)", (build_id, tag.lower(), "user"))
         row = db.execute("SELECT * FROM builds WHERE id = ?", (build_id,)).fetchone()
         print(f"added {build_id[:10]}  {row['name']}  ({row['ascendancy']} {row['level']}, {row['primary_skill']})"
               + (f"  ERROR: {row['error']}" if row["error"] else ""))
     db.commit()
+    return ids
 
 
 def cmd_rebuild(args):
@@ -571,6 +582,19 @@ def cmd_analyze(args):
         print(describe_part(p))
 
 
+def cmd_inbox(args):
+    import analysis
+    analysis.process_inbox(include_passives=not args.no_passives)
+
+
+def cmd_report(args):
+    import analysis
+    result = analysis.analyse(args.key, include_passives=not args.no_passives)
+    print(f"report: {result['reportPath']}")
+    for i, q in enumerate(result["questions"], 1):
+        print(f"  {i}. {q}")
+
+
 def cmd_note(args):
     db = connect()
     r = find_build(db, args.key)
@@ -606,6 +630,11 @@ def main(argv=None):
     p = sub.add_parser("analyze")
     p.add_argument("key")
     p.add_argument("--no-passives", action="store_true")
+    p = sub.add_parser("inbox")
+    p.add_argument("--no-passives", action="store_true")
+    p = sub.add_parser("report")
+    p.add_argument("key")
+    p.add_argument("--no-passives", action="store_true")
     p = sub.add_parser("usage")
     p.add_argument("--item", required=True)
     p.add_argument("--top", type=int, default=10)
@@ -620,7 +649,8 @@ def main(argv=None):
         parser.error("add needs a file, folder or --code")
     {"add": cmd_add, "list": cmd_list, "rebuild": cmd_rebuild, "show": cmd_show, "search": cmd_search,
      "common": cmd_common, "note": cmd_note, "usage": cmd_usage,
-     "settings": cmd_settings, "analyze": cmd_analyze, "core": cmd_core}[args.cmd](args)
+     "settings": cmd_settings, "analyze": cmd_analyze, "core": cmd_core,
+     "inbox": cmd_inbox, "report": cmd_report}[args.cmd](args)
 
 
 if __name__ == "__main__":

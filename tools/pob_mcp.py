@@ -94,6 +94,20 @@ TOOLS = [
      "description": "Explain the Config values PoB leaves at 0 that this build can actually produce, e.g. withered stacks: sources and their "
                     "chance, hits per second, minions, duration, the estimate and its assumptions. Other tools apply these by default.",
      "inputSchema": {"type": "object", "properties": dict(MAIN_PROPS, build=BUILD_ARG), "required": ["build"]}},
+    {"name": "pob_damage_breakdown",
+     "description": "The main skill's damage formula from PoB's own calculation: per damage type the base damage, increased and more "
+                    "multipliers, conversion, enemy mitigation (resistance, damage taken), plus speed, hit chance, crit and DoT. "
+                    "Use it to explain where damage comes from and which multiplier a change would affect.",
+     "inputSchema": {"type": "object", "properties": dict(MAIN_PROPS, build=BUILD_ARG), "required": ["build"]}},
+    {"name": "pob_config_sensitivity",
+     "description": "Switch off each Config assumption the build turned on (conditions, charges, buffs, boss setting) and report the DPS "
+                    "and EHP change, to show which assumptions the numbers depend on.",
+     "inputSchema": {"type": "object", "properties": dict(MAIN_PROPS, build=BUILD_ARG), "required": ["build"]}},
+    {"name": "pob_full_analysis",
+     "description": "Full analysis of a library build, as tools/library.py report: numbers with and without inference, damage formula, "
+                    "contributions of items/supports/notables and of every modifier line, Config assumptions, unsupported modifiers, and "
+                    "questions only the player can answer. Takes a few minutes. Returns the Markdown report and the questions.",
+     "inputSchema": {"type": "object", "properties": {"build": BUILD_ARG, "includePassives": {"type": "boolean"}}, "required": ["build"]}},
     {"name": "pob_save_build_settings",
      "description": "Save play-verified settings for a library build so every later analysis uses them: main group, the skill its minions "
                     "really use, and Config changes (e.g. withered stacks). Only save what the user confirmed. Omitted fields keep their value.",
@@ -226,6 +240,17 @@ def tool_contributions(args):
         raise ToolError(str(e))
 
 
+def tool_full_analysis(args):
+    import analysis
+    try:
+        result = analysis.analyse(args["build"], include_passives=args.get("includePassives", True))
+    except LookupError as e:
+        raise ToolError(str(e))
+    with open(result["reportPath"], encoding="utf-8") as f:
+        report = f.read()
+    return {"reportPath": result["reportPath"], "questions": result["questions"], "report": report}
+
+
 def tool_infer(args):
     xml, name, _, settings = resolve_build(args["build"])
     params = worker_params(args, xml, name, settings)
@@ -252,6 +277,9 @@ HANDLERS = {
     "pob_metrics": tool_metrics,
     "pob_simulate": tool_simulate,
     "pob_contributions": tool_contributions,
+    "pob_damage_breakdown": lambda a: WORKER.call("damage_breakdown", worker_params(a, *resolve_build(a["build"])[:2], resolve_build(a["build"])[3])),
+    "pob_config_sensitivity": lambda a: WORKER.call("config_sensitivity", worker_params(a, *resolve_build(a["build"])[:2], resolve_build(a["build"])[3])),
+    "pob_full_analysis": tool_full_analysis,
     "pob_infer_conditions": tool_infer,
     "pob_save_build_settings": tool_save_settings,
     "pob_find_uniques": lambda a: WORKER.call("find_uniques", {k: a[k] for k in ("tags", "slot", "limit") if a.get(k) is not None}),

@@ -939,12 +939,34 @@ function calcs.createMinionSkills(env, activeSkill)
 		minionSkill.skillData.damageEffectiveness = 1 + (activeSkill.skillData.minionDamageEffectiveness or 0) / 100
 		t_insert(minion.activeSkillList, minionSkill)
 	end
-	local skillIndex 
+	-- Default to the first minion skill the summoning skill says its minions use. Every minion gets a
+	-- melee "Default Attack", but e.g. Summon Phantasm declares only spell/projectile minion skill
+	-- types, so its phantasms really use their spell projectile.
+	local defaultIndex = 1
+	local declaredTypes = activeSkill.activeEffect.grantedEffect.minionSkillTypes
+	local attackNotUsed = declaredTypes and not declaredTypes[SkillType.Attack]
+	if attackNotUsed then
+		for index, minionSkill in ipairs(minion.activeSkillList) do
+			if not minionSkill.skillTypes[SkillType.Attack] then
+				defaultIndex = index
+				break
+			end
+		end
+		-- Builds saved before this fix store index 1 (the melee attack); such a choice is not a skill
+		-- these minions can use, so fall back to the default
+		for _, key in ipairs({ "skillMinionSkill", "skillMinionSkillCalcs" }) do
+			local stored = activeEffect.srcInstance[key] and minion.activeSkillList[activeEffect.srcInstance[key]]
+			if stored and stored.skillTypes[SkillType.Attack] then
+				activeEffect.srcInstance[key] = nil
+			end
+		end
+	end
+	local skillIndex
 	if env.mode == "CALCS" then
-		skillIndex = m_max(m_min(activeEffect.srcInstance.skillMinionSkillCalcs or 1, #minion.activeSkillList), 1)
+		skillIndex = m_max(m_min(activeEffect.srcInstance.skillMinionSkillCalcs or defaultIndex, #minion.activeSkillList), 1)
 		activeEffect.srcInstance.skillMinionSkillCalcs = skillIndex
 	else
-		skillIndex = m_max(m_min(activeEffect.srcInstance.skillMinionSkill or 1, #minion.activeSkillList), 1)
+		skillIndex = m_max(m_min(activeEffect.srcInstance.skillMinionSkill or defaultIndex, #minion.activeSkillList), 1)
 		if env.mode == "MAIN" then
 			activeEffect.srcInstance.skillMinionSkill = skillIndex
 		end

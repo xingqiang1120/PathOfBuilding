@@ -483,7 +483,7 @@ def get_settings(build_id):
 
 def save_settings(build_id, settings, note=None):
     db = connect()
-    clean = {k: v for k, v in settings.items() if k in ("group", "minionSkill", "changes") and v not in (None, [], "")}
+    clean = {k: v for k, v in settings.items() if k in ("group", "minionSkill", "changes", "summonRate") and v not in (None, [], "")}
     if not clean and not note:
         db.execute("DELETE FROM build_settings WHERE build_id = ?", (build_id,))
     else:
@@ -504,6 +504,10 @@ def apply_settings(params, settings, overrides=None):
     for key in ("infer", "minionCount"):
         if overrides.get(key) is not None:
             params[key] = overrides[key]
+    # Summons per second seen in play (Fresh Meat uptime); a saved value is play-verified
+    rate = overrides.get("summonRate") if overrides.get("summonRate") is not None else settings.get("summonRate")
+    if rate is not None:
+        params["summonRate"] = rate
     params["changes"] = list(settings.get("changes") or []) + list(overrides.get("changes") or [])
     return params
 
@@ -550,6 +554,8 @@ def cmd_settings(args):
         current["group"] = int(args.group) if args.group.isdigit() else args.group
     if args.minion_skill:
         current["minionSkill"] = args.minion_skill
+    if args.summon_rate is not None:
+        current["summonRate"] = args.summon_rate
     for item in args.config or []:
         key, _, value = item.partition("=")
         changes = [c for c in current.get("changes", []) if not (c.get("type") == "config_set" and c.get("key") == key)]
@@ -624,6 +630,7 @@ def main(argv=None):
     p.add_argument("key")
     p.add_argument("--group")
     p.add_argument("--minion-skill")
+    p.add_argument("--summon-rate", type=float, help="minions summoned per second in play (Fresh Meat uptime)")
     p.add_argument("--config", action="append")
     p.add_argument("--note")
     p.add_argument("--clear", action="store_true")

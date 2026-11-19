@@ -129,6 +129,28 @@ class McpTest(unittest.TestCase):
         err, result = self.call("pob_simulate", build="OccVortex", changes=gloves, infer=False)
         self.assertIsNone(result.get("inferredAfter"))
 
+    def test_fresh_meat_uptime(self):
+        zombies = [{"type": "group_add", "gems": ["Raise Zombie", "Fresh Meat"]}, {"type": "main_group", "group": "Raise Zombie"}]
+
+        def fresh(result):
+            return [i for i in result["inferredAfter"] if i["key"] == "freshMeatBuffs"][0]
+        # Without a summon rate from play nothing is applied; the rate needed for full uptime is reported
+        err, result = self.call("pob_simulate", build="OccVortex", changes=zombies)
+        self.assertFalse(err, result)
+        self.assertFalse(fresh(result)["applied"])
+        self.assertGreater(fresh(result)["requiredRateForFull"], 0)
+        # Slow re-summoning: part of the army has the buff, minion DPS is blended between with and without
+        err, result = self.call("pob_simulate", build="OccVortex", changes=zombies, summonRate=0.05)
+        inf = fresh(result)
+        self.assertTrue(inf["applied"])
+        self.assertLess(inf["estimate"], 1)
+        self.assertLess(inf["minionDPSWithoutBuff"], result["after"]["minionDPS"])
+        self.assertLess(result["after"]["minionDPS"], inf["minionDPSWithBuff"])
+        # Fast re-summoning: every minion is fresh
+        err, result = self.call("pob_simulate", build="OccVortex", changes=zombies, summonRate=100)
+        self.assertEqual(fresh(result)["estimate"], 1)
+        self.assertNotIn("blendedBy", result["after"])
+
     def test_mechanics_lookup(self):
         err, result = self.call("pob_mechanics", id="withered")
         self.assertFalse(err, result)

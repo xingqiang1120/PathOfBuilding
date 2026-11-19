@@ -62,6 +62,8 @@ MAIN_PROPS = {
     "ignoreSettings": {"type": "boolean", "description": "Ignore the build's saved play-verified settings"},
     "infer": {"type": "boolean", "description": "Estimate Config values the build leaves at 0, e.g. withered stacks from wither chance x hits per second (default true)"},
     "minionCount": {"type": "integer", "description": "Minions alive for inference (default: the minion limit, i.e. steady state)"},
+    "summonRate": {"type": "number", "description": "Minions summoned per second in play (e.g. phantasms from corpses). Needed for Fresh Meat uptime; "
+                                                     "minion DPS is then blended between buffed and unbuffed minions (default: saved setting)"},
 }
 BUILD_ARG = {"type": "string", "description": "Library build id prefix or name, or a path to a PoB build .xml file"}
 FILTER_PROPS = {k: {"type": "string"} for k in library.FILTERS}
@@ -112,7 +114,7 @@ TOOLS = [
      "description": "Save play-verified settings for a library build so every later analysis uses them: main group, the skill its minions "
                     "really use, and Config changes (e.g. withered stacks). Only save what the user confirmed. Omitted fields keep their value.",
      "inputSchema": {"type": "object", "properties": {"build": BUILD_ARG, "group": MAIN_PROPS["group"], "minionSkill": MAIN_PROPS["minionSkill"],
-                                                      "changes": {"type": "array", "items": CHANGE_SCHEMA}, "note": {"type": "string"}},
+                                                      "summonRate": MAIN_PROPS["summonRate"], "changes": {"type": "array", "items": CHANGE_SCHEMA}, "note": {"type": "string"}},
                      "required": ["build"]}},
     {"name": "pob_find_uniques",
      "description": "Find unique items by tags (all must match) and optional slot or item type, e.g. tags [minion, energy shield], slot Helmet.",
@@ -163,7 +165,7 @@ def resolve_build(key):
 
 def worker_params(args, xml, name, settings):
     overrides = {"group": args.get("group"), "minionSkill": args.get("minionSkill"), "changes": args.get("changes") or [],
-                 "infer": args.get("infer"), "minionCount": args.get("minionCount")}
+                 "infer": args.get("infer"), "minionCount": args.get("minionCount"), "summonRate": args.get("summonRate")}
     if args.get("ignoreSettings"):
         settings = {}
     return library.apply_settings({"xml": xml, "name": name}, settings, overrides)
@@ -202,7 +204,8 @@ def tool_simulate(args):
     if args.get("ignoreSettings"):
         settings = {}
     base = library.apply_settings({"xml": xml, "name": name}, settings, {"group": args.get("group"), "minionSkill": args.get("minionSkill"),
-                                                                          "infer": args.get("infer"), "minionCount": args.get("minionCount")})
+                                                                          "infer": args.get("infer"), "minionCount": args.get("minionCount"),
+                                                                          "summonRate": args.get("summonRate")})
     # Saved settings form the baseline; the requested changes are what is compared
     saved_changes = base.pop("changes")
     params = dict(base, changes=saved_changes + list(args.get("changes") or []))
@@ -234,7 +237,7 @@ def tool_contributions(args):
         return library.run_contributions(args["build"], include_passives=args.get("includePassives", True),
                                          overrides={"group": args.get("group"), "minionSkill": args.get("minionSkill"),
                                                     "changes": args.get("changes") or [], "infer": args.get("infer"),
-                                                    "minionCount": args.get("minionCount")},
+                                                    "minionCount": args.get("minionCount"), "summonRate": args.get("summonRate")},
                                          save=not args.get("changes") and not args.get("minionSkill") and args.get("group") is None)
     except LookupError as e:
         raise ToolError(str(e))
@@ -262,7 +265,7 @@ def tool_save_settings(args):
     if not build_id:
         raise ToolError("settings can only be saved for library builds")
     new = {"group": args.get("group", current.get("group")), "minionSkill": args.get("minionSkill", current.get("minionSkill")),
-           "changes": args.get("changes", current.get("changes"))}
+           "changes": args.get("changes", current.get("changes")), "summonRate": args.get("summonRate", current.get("summonRate"))}
     saved = library.save_settings(build_id, new, args.get("note", current.get("note")))
     return {"build": name, "settings": saved, "note": args.get("note", current.get("note"))}
 

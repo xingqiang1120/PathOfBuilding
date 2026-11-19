@@ -6,6 +6,7 @@ goal.json:
     {
       "base": "MeiMax",                       library build (id prefix / name) or a .xml path
       "group": 11, "minionSkill": "Physical Projectile",   optional; default: saved settings
+      "summonRate": 8,                                       optional: minions summoned per second (Fresh Meat uptime)
       "lock": ["Weapon 1"],                   slots whose item must stay (e.g. a required unique)
       "targets": {                            metric: minimum value
         "minionDPS": 50000, "Life": 3000, "PhysicalMaximumHitTaken": 10000,
@@ -54,7 +55,8 @@ class Optimizer:
         xml, name, build_id = library.resolve(goal["base"])
         settings = library.get_settings(build_id)
         self.params = library.apply_settings({"xml": xml, "name": name}, settings,
-                                             {"group": goal.get("group"), "minionSkill": goal.get("minionSkill")})
+                                             {"group": goal.get("group"), "minionSkill": goal.get("minionSkill"),
+                                              "summonRate": goal.get("summonRate")})
         self.base_changes = self.params.pop("changes")
         self.base_name = name
         self.targets = goal["targets"]

@@ -215,10 +215,86 @@ function M.inferFeedingFrenzy(build, opts)
 	}
 end
 
+---Fresh Meat share of minions buffed. Pure function so it can be tested without a build.
+---Minions alive = min(limit, summons per second x minion duration); buffed = min(alive, summons per second x buff duration).
+---@param rate number summons per second
+---@param limit number minion limit
+---@param minionDuration number|nil seconds (nil = minions do not expire)
+---@param buffDuration number seconds
+function M.freshMeatUptime(rate, limit, minionDuration, buffDuration)
+	if rate <= 0 or limit <= 0 then
+		return 0, 0, 0
+	end
+	local alive = minionDuration and math.min(limit, rate * minionDuration) or limit
+	local buffed = math.min(alive, rate * buffDuration)
+	return buffed / alive, alive, buffed
+end
+
+---Fresh Meat: each minion has the buff only for the first share of its own duration, so the share of the army with
+---the buff depends on how fast minions are re-summoned. The summon rate is not in the build; it comes from play
+---(opts.summonRate, minions per second). Without it the inference only reports the rate needed for full uptime.
+function M.inferFreshMeat(build, opts)
+	opts = opts or { }
+	local env = build.calcsTab.mainEnv
+	local out = build.calcsTab.mainOutput
+	local skill = env.player.mainSkill
+	if not (env.minion and out.Minion and skill) then
+		return nil
+	end
+	local support
+	for _, effect in ipairs(skill.effectList or { }) do
+		if effect.grantedEffect.support and effect.grantedEffect.name == "Fresh Meat" then
+			support = effect
+		end
+	end
+	if not support then
+		return nil
+	end
+	local share, maxMs = 10, 10000
+	for _, stat in ipairs(support.grantedEffect.constantStats or { }) do
+		if stat[1] == "support_recent_minions_effect_duration_is_%_summon_duration" then share = stat[2] end
+		if stat[1] == "support_recent_minions_max_effect_duration_ms" then maxMs = stat[2] end
+	end
+	local minionDuration = (out.Duration or 0) > 0 and out.Duration or nil
+	local buffDuration = math.min(maxMs / 1000, (minionDuration or math.huge) * share / 100)
+	local limit = out.ActiveMinionLimit or 1
+	local fullRate = limit / buffDuration
+	local result = {
+		key = "freshMeatBuffs",
+		label = "Fresh Meat active (share of minions with the buff)",
+		blend = true,
+		requiredRateForFull = round(fullRate, 2),
+		formula = "share = min(alive, summons/s x buff duration) / alive; alive = min(limit, summons/s x minion duration); buff duration = min(10 s, 10% of minion duration)",
+		mechanics = { "freshmeat" },
+	}
+	local part = { actor = "minion", minionLimit = limit, minionDuration = minionDuration and round(minionDuration),
+		buffDuration = round(buffDuration), sources = { string.format("Fresh Meat Support level %d (%d%% of minion duration, max %.0f s)", support.level, share, maxMs / 1000) } }
+	result.parts = { part }
+	if not opts.summonRate then
+		result.value = nil
+		result.needs = "summonRate"
+		result.assumptions = { string.format("summon rate unknown: full uptime needs %.1f summons per second with %d minions; pass summonRate (from play) to estimate", fullRate, limit) }
+		return result
+	end
+	local uptime, alive, buffed = M.freshMeatUptime(opts.summonRate, limit, minionDuration, buffDuration)
+	part.summonRate, part.alive, part.buffed = opts.summonRate, round(alive, 1), round(buffed, 1)
+	result.value = uptime > 0
+	result.estimate = round(uptime, 3)
+	result.uptime = uptime
+	result.override = true -- a summon rate from play is more specific than the build's on/off Config switch
+	result.assumptions = {
+		string.format("%.2f summons per second (from play), sustained", opts.summonRate),
+		"at the minion limit a new summon replaces the oldest minion",
+		"minion DPS is blended: share x DPS with the buff + (1 - share) x DPS without it",
+		"minions are not killed before their duration ends",
+	}
+	return result
+end
+
 ---All inferences for the current state of the build.
 function M.infer(build, opts)
 	local list = { }
-	for _, fn in ipairs({ M.inferWithered, M.inferFeedingFrenzy }) do
+	for _, fn in ipairs({ M.inferWithered, M.inferFeedingFrenzy, M.inferFreshMeat }) do
 		local inference = fn(build, opts)
 		if inference then
 			table.insert(list, inference)

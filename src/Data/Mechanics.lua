@@ -86,6 +86,27 @@ return {
 		refs = { wiki .. "Feeding_Frenzy_Support" },
 	},
 	{
+		id = "freshmeat", label = "Fresh Meat", kind = "buff",
+		summary = "Buff on newly summoned minions from skills supported by Fresh Meat Support: added critical strike chance, critical strike multiplier and Adrenaline, for a share of the minion's own duration.",
+		implies = { "minion", "crit" },
+		detect = {
+			textPatterns = { "fresh meat" },
+			textAlways = true,
+		},
+		rules = {
+			buffDurationPercentOfSummonDuration = { value = 10, source = "pobdata", note = "support_recent_minions_effect_duration_is_%_summon_duration" },
+			maxBuffDurationSeconds = { value = 10, source = "pobdata", note = "support_recent_minions_max_effect_duration_ms" },
+			addedCritChancePercent = { min = 2, max = 3.9, source = "pobdata", note = "by gem level 1-20" },
+			addedCritMultiplierPercent = { min = 50, max = 69, source = "pobdata", note = "by gem level 1-20" },
+		},
+		facts = {
+			{ text = "Each minion has the buff only for the first 10% of its duration (at most 10 s); PoB's Config 'Is Fresh Meat active?' applies it to every minion all the time.", source = "pobdata", ref = "src/Data/Skills/sup_int.lua" },
+			{ text = "Minions with Fresh Meat also have Adrenaline, so the buff raises damage and speed as well as critical strikes.", source = "pobdata", ref = "src/Data/Skills/sup_int.lua" },
+			{ text = "Share of minions with the buff = buff duration x summons per second / minions alive; fast re-summoning (e.g. corpses from Desecrate consumed by offerings with Soulwrest) keeps it high, and a lower minion limit makes full uptime easier.", source = "play", ref = "MeiMax-modify analysis 2026-11-19" },
+		},
+		refs = { wiki .. "Fresh_Meat_Support" },
+	},
+	{
 		id = "phantasm", label = "Summoned Phantasm", kind = "minion",
 		tag = "phantasm",
 		summary = "Projectile spell-casting minion: a piercing physical projectile spell; summoned by Summon Phantasm Support, Soulwrest and similar sources.",

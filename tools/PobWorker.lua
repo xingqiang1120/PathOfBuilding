@@ -20,12 +20,15 @@ local I = dofile(SCRIPT_DIR .. "/lib/inference.lua")
 local round = S.round
 
 local loadedXml, dirty = nil, true
+-- Blended minion DPS for a buff with partial uptime (set by applyInference, read by metrics)
+local blend = nil
 -- Config values as saved in the build, so inference never overrides what the user set
 local userConfig = { }
 
 local function loadFresh(params)
 	loadBuildFromXML(params.xml, params.name or "build")
 	userConfig = copyTable(build.configTab.input)
+	blend = nil
 end
 
 local function ensureBuild(params)
@@ -52,13 +55,16 @@ local function applyInference(p)
 	for _, change in ipairs(p.changes or { }) do
 		if change.type == "config_set" then explicit[change.key] = true end
 	end
-	local list = I.infer(build, { minionCount = p.minionCount })
+	blend = nil
+	local list = I.infer(build, { minionCount = p.minionCount, summonRate = p.summonRate })
 	local changed = false
 	for _, inf in ipairs(list) do
 		local saved = userConfig[inf.key]
 		if explicit[inf.key] then
 			inf.applied, inf.skipped = false, "set explicitly in this request or the saved settings"
-		elseif saved ~= nil and saved ~= 0 then
+		elseif inf.needs then
+			inf.applied, inf.skipped = false, "needs " .. inf.needs .. " from play"
+		elseif saved ~= nil and saved ~= 0 and not inf.override then
 			inf.applied, inf.skipped = false, "the build already sets " .. inf.key .. " = " .. tostring(saved)
 		elseif inf.value == false then
 			inf.applied, inf.skipped = false, "estimate too low to switch on"
@@ -71,6 +77,21 @@ local function applyInference(p)
 	if changed then
 		build.configTab:BuildModList()
 		recalc()
+	end
+	-- Partial uptime of an on/off buff: PoB only knows on or off, so measure both and blend the minion DPS
+	for _, inf in ipairs(list) do
+		if inf.applied and inf.blend and inf.uptime and inf.uptime < 1 then
+			local on = build.calcsTab.mainOutput.Minion and build.calcsTab.mainOutput.Minion.CombinedDPS or 0
+			build.configTab.input[inf.key] = false
+			build.configTab:BuildModList()
+			local o = recalc()
+			local off = o.Minion and o.Minion.CombinedDPS or 0
+			build.configTab.input[inf.key] = inf.value
+			build.configTab:BuildModList()
+			recalc()
+			blend = { key = inf.key, uptime = inf.uptime, on = on, off = off, value = off + inf.uptime * (on - off) }
+			inf.minionDPSWithBuff, inf.minionDPSWithoutBuff, inf.minionDPSBlended = round(on, 1), round(off, 1), round(blend.value, 1)
+		end
 	end
 	return list
 end
@@ -151,6 +172,12 @@ local function metrics()
 		playerDPS = round(o.CombinedDPS or 0, 1),
 		minionDPS = o.Minion and round(o.Minion.CombinedDPS or 0, 1) or nil,
 	}
+	-- Only while the blended buff is still on (a later change could have switched it off)
+	if blend and blend.on > 0 and o.Minion and build.configTab.input[blend.key] then
+		m.minionDPSFullBuff = m.minionDPS
+		m.minionDPS = round(blend.value * (o.Minion.CombinedDPS or 0) / blend.on, 1)
+		m.blendedBy = string.format("%s uptime %.0f%%", blend.key, blend.uptime * 100)
+	end
 	local list = minionSkillList()
 	if #list > 0 then
 		local minionMain = env.minion and env.minion.mainSkill
@@ -346,7 +373,7 @@ function methods.simulate(p)
 	dirty = true
 	ensureBuild(p)
 	selectMain(p)
-	local inferredBefore = applyInference({ infer = p.infer, minionCount = p.minionCount, changes = { } })
+	local inferredBefore = applyInference({ infer = p.infer, minionCount = p.minionCount, summonRate = p.summonRate, changes = { } })
 	local before = metrics()
 	local applied = { }
 	for i, change in ipairs(p.changes or { }) do

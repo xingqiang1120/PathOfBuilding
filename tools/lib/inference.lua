@@ -173,12 +173,56 @@ function M.inferWithered(build, opts)
 	}
 end
 
+---Feeding Frenzy: minions from skills supported by Feeding Frenzy Support grant the buff on hit with a
+---chance per hit; the buff lasts a few seconds. Uptime with Poisson-distributed hits:
+---uptime = 1 - exp(-(hits per second x chance) x duration). Considered permanent at 90% or more.
+function M.inferFeedingFrenzy(build, opts)
+	opts = opts or { }
+	local env = build.calcsTab.mainEnv
+	local out = build.calcsTab.mainOutput
+	local skill = env.player.mainSkill
+	if not (env.minion and out.Minion and skill) then
+		return nil
+	end
+	local support
+	for _, effect in ipairs(skill.effectList or { }) do
+		if effect.grantedEffect.support and effect.grantedEffect.name == "Feeding Frenzy" then
+			support = effect
+		end
+	end
+	if not support then
+		return nil
+	end
+	local levelData = support.grantedEffect.levels[support.level] or support.grantedEffect.levels[1]
+	local chance, durationMs = levelData[1], levelData[2]
+	local count = opts.minionCount or out.ActiveMinionLimit or 1
+	local hitsPerSecond = count * (out.Minion.Speed or 0) * (out.Minion.HitChance or 100) / 100
+	local uptime = 1 - math.exp(-hitsPerSecond * chance / 100 * durationMs / 1000)
+	local assumptions = { "buff applications follow a Poisson process over all minions' hits" }
+	if not opts.minionCount then
+		table.insert(assumptions, 1, string.format("all %d minions alive and hitting (steady state)", count))
+	end
+	return {
+		key = "feedingFrenzyFeedingFrenzyActive",
+		label = "Feeding Frenzy active",
+		value = uptime >= 0.9,
+		estimate = round(uptime, 3),
+		parts = { { actor = "minion", minions = count, hitsPerSecondEach = round((out.Minion.Speed or 0) * (out.Minion.HitChance or 100) / 100),
+			chance = chance, duration = durationMs / 1000, sources = { string.format("Feeding Frenzy Support level %d (%d%%, %.1f s)", support.level, chance, durationMs / 1000) } } },
+		assumptions = assumptions,
+		formula = "uptime = 1 - exp(-hits per second x chance x duration); active when uptime >= 90%",
+		mechanics = { "feedingfrenzy" },
+	}
+end
+
 ---All inferences for the current state of the build.
 function M.infer(build, opts)
 	local list = { }
-	local wither = M.inferWithered(build, opts)
-	if wither then
-		table.insert(list, wither)
+	for _, fn in ipairs({ M.inferWithered, M.inferFeedingFrenzy }) do
+		local inference = fn(build, opts)
+		if inference then
+			table.insert(list, inference)
+		end
 	end
 	return list
 end

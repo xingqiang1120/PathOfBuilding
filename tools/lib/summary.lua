@@ -90,7 +90,7 @@ local function summarize(xmlText, buildName)
 		local changed = false
 		for _, inf in ipairs(inferred) do
 			local current = build.configTab.input[inf.key]
-			inf.applied = current == nil or current == 0
+			inf.applied = (current == nil or current == 0) and inf.value ~= false
 			if inf.applied then
 				build.configTab.input[inf.key] = inf.value
 				changed = true

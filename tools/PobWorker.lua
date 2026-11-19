@@ -60,6 +60,8 @@ local function applyInference(p)
 			inf.applied, inf.skipped = false, "set explicitly in this request or the saved settings"
 		elseif saved ~= nil and saved ~= 0 then
 			inf.applied, inf.skipped = false, "the build already sets " .. inf.key .. " = " .. tostring(saved)
+		elseif inf.value == false then
+			inf.applied, inf.skipped = false, "estimate too low to switch on"
 		else
 			build.configTab.input[inf.key] = inf.value
 			inf.applied = true
@@ -222,6 +224,18 @@ local changeHandlers = {
 			end
 		end
 		error("gem '" .. c.gem .. "' not found in group " .. index)
+	end,
+	group_add = function(c)
+		local group = { label = c.label or "", enabled = true, includeInFullDPS = false, slot = c.slot, gemList = { } }
+		local names = { }
+		for _, name in ipairs(assert(c.gems, "group_add needs gems")) do
+			local gem = { enableGlobal1 = true, enableGlobal2 = true, count = 1 }
+			table.insert(names, setGem(gem, name, c.level, c.quality))
+			table.insert(group.gemList, gem)
+		end
+		table.insert(build.skillsTab.socketGroupList, group)
+		build.skillsTab:ProcessSocketGroup(group)
+		return "new group: " .. table.concat(names, ", ")
 	end,
 	gem_add = function(c)
 		local group, index = findGroup(c.group)
@@ -749,6 +763,126 @@ function methods.config_sensitivity(p)
 	table.sort(parts, function(a, b) return math.abs(a.dpsPct) + math.abs(a.ehpPct) > math.abs(b.dpsPct) + math.abs(b.ehpPct) end)
 	dirty = true
 	return { baseline = base, parts = parts, note = "dpsPct/ehpPct = change when that assumption is switched off (enemyIsBoss: set to None)" }
+end
+
+-- Passive point budget: level - 1 + 23 quest points + extra points (as the PoB GUI counts them)
+local function pointBudget()
+	local used = build.spec:CountAllocNodes()
+	local extra = build.calcsTab.mainOutput and build.calcsTab.mainOutput.ExtraPoints or 0
+	return used, build.characterLevel - 1 + 23 + extra
+end
+
+local function extendedMetrics()
+	local m = metrics()
+	m.passivePointsUsed, m.passivePointsAvailable = pointBudget()
+	local o = build.calcsTab.mainOutput
+	m.minionLimit = o.ActiveMinionLimit
+	m.LifeUnreserved = o.LifeUnreserved and round(o.LifeUnreserved, 1)
+	m.ManaUnreserved = o.ManaUnreserved and round(o.ManaUnreserved, 1)
+	return m
+end
+
+-- Apply changes and evaluate; used by the optimizer for many candidates in one request
+function methods.evaluate(p)
+	dirty = true
+	local results = { }
+	for _, candidate in ipairs(p.candidates or { { } }) do
+		local ok, res = pcall(function()
+			loadFresh(p)
+			selectMain(p)
+			local applied = { }
+			for _, change in ipairs(p.changes or { }) do changeHandlers[change.type](change) end
+			for _, change in ipairs(candidate) do table.insert(applied, changeHandlers[change.type](change)) end
+			recalc()
+			local inferred = applyInference(p)
+			local m = extendedMetrics()
+			m.inferred = inferred
+			return { applied = applied, metrics = m }
+		end)
+		table.insert(results, ok and res or { error = (tostring(res):gsub("^.-%.lua:%d+: ", "")) })
+	end
+	return results
+end
+
+-- What the optimizer may try for this build
+local defensiveSkills = { "Determination", "Grace", "Discipline", "Purity of Elements", "Vitality", "Defiance Banner", "Molten Shell",
+	"Steelskin", "Arctic Armour", "Petrified Blood", "Tempest Shield", "Flesh and Stone" }
+local minionBuffSkills = { "Zealotry", "Dread Banner", "Haste", "Pride", "Malevolence", "Wrath", "Anger", "Hatred", "Flesh Offering", "Convocation" }
+
+function methods.candidates(p)
+	dirty = true
+	ensureBuild(p)
+	selectMain(p)
+	local result = { supports = { }, skills = { }, passives = { }, uniques = { } }
+	local mainSkill = build.calcsTab.mainEnv.player.mainSkill
+	for _, gem in pairs(data.gems) do
+		local effect = gem.grantedEffect
+		if effect and effect.support and not gem.name:match("^Vaal") and calcLib.canGrantedEffectSupportActiveSkill(effect, mainSkill) then
+			table.insert(result.supports, gem.name)
+		end
+	end
+	table.sort(result.supports)
+	local present = { }
+	for _, group in ipairs(build.skillsTab.socketGroupList) do
+		for _, gem in ipairs(group.gemList) do present[(gem.nameSpec or ""):lower()] = true end
+	end
+	for _, name in ipairs(defensiveSkills) do if not present[name:lower()] then table.insert(result.skills, { name = name, purpose = "defence" }) end end
+	for _, name in ipairs(minionBuffSkills) do if not present[name:lower()] then table.insert(result.skills, { name = name, purpose = "damage" }) end end
+	-- Reachable notables and keystones, with the points their path costs
+	for id, node in pairs(build.spec.nodes) do
+		if (node.type == "Notable" or node.type == "Keystone") and not node.alloc and not node.ascendancyName and node.path and #node.path <= (p.maxPath or 6) then
+			table.insert(result.passives, { id = id, name = node.dn, type = node.type, cost = #node.path })
+		end
+	end
+	-- Allocated notables / keystones that can be removed without disconnecting more than a few points
+	result.removable = { }
+	for id, node in pairs(build.spec.allocNodes) do
+		if (node.type == "Notable" or node.type == "Keystone") and not node.ascendancyName then
+			table.insert(result.removable, { id = id, name = node.dn, frees = #(node.depends or { node }) })
+		end
+	end
+	-- Uniques per equipped slot, within the character's level
+	local level = build.characterLevel
+	for _, slot in ipairs(build.itemsTab.orderedSlots or { }) do
+		local slotName = slot.slotName
+		if not slotName:match("^Flask") and not slotName:match("^Jewel") and not slotName:match("Abyssal") and slot:IsShown() ~= false
+			and not (p.lockedSlots or { })[slotName] then
+			local list = { }
+			local current = slot.selItemId and build.itemsTab.items[slot.selItemId]
+			if not current then
+				-- Only slots the build uses (e.g. no off-hand with a two-handed weapon)
+				goto nextSlot
+			end
+			for _, item in pairs(main.uniqueDB.list) do
+				local primary = item:GetPrimarySlot()
+				if primary and (primary == slotName or primary:gsub(" %d$", "") == slotName:gsub(" %d$", ""))
+					and (item.requirements.level or 0) <= level and (not current or item.title ~= current.title) then
+					table.insert(list, item.title)
+				end
+			end
+			table.sort(list)
+			result.uniques[slotName] = list
+		end
+		::nextSlot::
+	end
+	result.points = { pointBudget() }
+	return result
+end
+
+-- The build with changes applied, as a PoB build file (open it in Path of Building)
+function methods.export(p)
+	dirty = true
+	loadFresh(p)
+	selectMain(p)
+	local applied = { }
+	for _, change in ipairs(p.changes or { }) do table.insert(applied, changeHandlers[change.type](change)) end
+	recalc()
+	local inferred = applyInference(p)
+	if p.notes and build.notesTab and build.notesTab.controls.edit then
+		build.notesTab.controls.edit:SetText(p.notes)
+	end
+	local m = extendedMetrics()
+	return { xml = build:SaveDB("export"), metrics = m, applied = applied, inferred = inferred }
 end
 
 -- Mechanics knowledge base entries, with the uniques and passives that carry each mechanic

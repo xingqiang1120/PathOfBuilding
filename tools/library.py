@@ -65,7 +65,7 @@ CREATE INDEX IF NOT EXISTS idx_items ON items(title, name);
 CREATE INDEX IF NOT EXISTS idx_passives ON passives(name);
 CREATE INDEX IF NOT EXISTS idx_tags ON build_tags(tag);
 """
-BUILD_TAG_THRESHOLD = {"Archetype": 4, "Damage": 6, "Ailment": 4, "Minion Type": 2, "Defence": 20, "Utility": 20, "Custom": 1}
+BUILD_TAG_THRESHOLD = {"Mechanic": 1, "Archetype": 4, "Damage": 6, "Ailment": 4, "Minion Type": 2, "Defence": 20, "Utility": 20, "Custom": 1}
 DETAIL_TABLES = ("build_tags", "gems", "items", "item_tags", "passives", "stats", "config", "unsupported")
 
 
@@ -132,7 +132,8 @@ def index_build(db, build_id, meta):
              primary_dps=excluded.primary_dps, primary_is_minion=excluded.primary_is_minion, error=excluded.error""",
         (build_id, meta.get("name") or s.get("name"), meta.get("source"), meta.get("note"), meta.get("added_at"),
          datetime.datetime.now().isoformat(timespec="seconds"), s.get("pobVersion"), ch.get("class"), ch.get("ascendancy"),
-         ch.get("level"), ch.get("treeVersion"), primary.get("name"), primary.get("dps"), 1 if primary.get("minion") else 0, s.get("error")))
+         ch.get("level"), ch.get("treeVersion"), primary.get("name"), primary.get("dpsWithInference") or primary.get("dps"),
+         1 if primary.get("minion") else 0, s.get("error")))
     if s.get("error"):
         return
     tags = {}

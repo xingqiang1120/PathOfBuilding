@@ -26,7 +26,8 @@ local function readFile(path)
 	local f = assert(io.open(path, "rb"))
 	local text = f:read("*a")
 	f:close()
-	return text
+	-- Builds saved on Windows use CRLF; a stray "\r" at the end of item lines breaks modifier parsing
+	return (text:gsub("\r\n", "\n"))
 end
 
 local function writeFile(path, text)

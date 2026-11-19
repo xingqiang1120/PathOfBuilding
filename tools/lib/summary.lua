@@ -77,6 +77,39 @@ local function summarize(xmlText, buildName)
 	runCallback("OnFrame")
 	-- The highest-damage skill PoB can calculate; the saved main skill is not always the real one
 	summary.primarySkill = best and { group = best.index, name = best.activeSkill, dps = round(bestDPS, 1), minion = best.calculated.MinionCombinedDPS ~= nil } or nil
+	-- Same skill with conditions PoB leaves at 0 inferred (e.g. withered stacks), as the AI tools report it
+	if best then
+		local I = dofile(SCRIPT_DIR .. "/lib/inference.lua")
+		-- Fresh load: calculating every group as main skill above can leave state behind
+		loadBuildFromXML(xmlText, buildName)
+		build.mainSocketGroup = best.index
+		build.buildFlag = true
+		runCallback("OnFrame")
+		local savedInput = copyTable(build.configTab.input)
+		local inferred = I.infer(build)
+		local changed = false
+		for _, inf in ipairs(inferred) do
+			local current = build.configTab.input[inf.key]
+			inf.applied = current == nil or current == 0
+			if inf.applied then
+				build.configTab.input[inf.key] = inf.value
+				changed = true
+			end
+		end
+		if changed then
+			build.configTab:BuildModList()
+			build.buildFlag = true
+			runCallback("OnFrame")
+			local o = build.calcsTab.mainOutput
+			summary.primarySkill.dpsWithInference = round(math.max(o.CombinedDPS or 0, o.Minion and o.Minion.CombinedDPS or 0), 1)
+		end
+		summary.inferred = inferred
+		build.configTab.input = savedInput
+		build.configTab:BuildModList()
+		build.mainSocketGroup = mainGroup
+		build.buildFlag = true
+		runCallback("OnFrame")
+	end
 
 	-- Equipped items
 	summary.items = { }

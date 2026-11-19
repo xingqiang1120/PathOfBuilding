@@ -22,6 +22,8 @@ Usage:
   python tools/library.py rebuild          re-summarise every raw build (after a PoB or data update)
   python tools/library.py settings <build> [--group N] [--minion-skill X] [--config KEY=VALUE ...] [--note TEXT] [--clear]
         play-verified settings used by every analysis of this build (e.g. the skill a minion really uses)
+  python tools/library.py core [--tag X] [--ascendancy X] [--skill X] ...
+        what analysed builds of a kind have as core damage, defence and functional parts
   python tools/library.py analyze <build> [--no-passives]
         remove each item, support gem and notable on its own and record what the build loses
 """
@@ -374,6 +376,40 @@ def query_item_usage(item, top=10):
                         "slot": r["slot"], "item": r["item"]} for r in builds]}
 
 
+def query_core_parts(filters, top=15):
+    """Aggregate saved contribution analyses over the builds matching the filters: which items, supports and
+    passives carry damage, defence or mechanics PoB cannot measure in that kind of build."""
+    db = connect()
+    where, params = where_clause(filters)
+    joined = where.replace(" WHERE ", " AND ", 1) if where else ""
+    analysed = db.execute(f"SELECT COUNT(DISTINCT c.build_id) FROM contributions c JOIN builds b ON b.id = c.build_id WHERE 1=1{joined}",
+                          params).fetchone()[0]
+    def group(condition, order):
+        rows = db.execute(f"""SELECT c.kind, c.name, COUNT(DISTINCT c.build_id) n, AVG(c.dps_pct) dps, AVG(c.ehp_pct) ehp,
+                                     GROUP_CONCAT(DISTINCT c.role) roles
+                              FROM contributions c JOIN builds b ON b.id = c.build_id
+                              WHERE c.error IS NULL AND {condition}{joined}
+                              GROUP BY c.kind, c.name ORDER BY {order} LIMIT ?""", params + [top]).fetchall()
+        return [{"kind": r["kind"], "name": r["name"], "builds": r["n"], "avgDpsPct": round(r["dps"] or 0, 1),
+                 "avgEhpPct": round(r["ehp"] or 0, 1), "roles": (r["roles"] or "").split(",")} for r in rows]
+    return {
+        "analysedBuilds": analysed,
+        "damage": group("c.dps_pct <= -2 AND c.role NOT LIKE 'tree hub%'", "AVG(c.dps_pct)"),
+        "defence": group("c.ehp_pct <= -2 AND c.role NOT LIKE 'tree hub%'", "AVG(c.ehp_pct)"),
+        "functional": group("(c.role LIKE 'functional%' OR c.also_functional = 1 OR c.role = 'enables main skill')", "COUNT(DISTINCT c.build_id) DESC, AVG(c.dps_pct)"),
+        "note": "averages of 'remove this part alone' results; run `analyze` on more builds to make them meaningful",
+    }
+
+
+def cmd_core(args):
+    result = query_core_parts(args, args.top)
+    print(f"{result['analysedBuilds']} analysed build(s) match")
+    for title, key, metric in (("Damage", "damage", "avgDpsPct"), ("Defence", "defence", "avgEhpPct"), ("Functional", "functional", "avgDpsPct")):
+        print(title)
+        for p in result[key]:
+            print(f"  {p['kind']:<12} {p['name'][:40]:<40} in {p['builds']} build(s)  {metric} {p[metric]:+.1f}%  ({', '.join(p['roles'])})")
+
+
 def cmd_search(args):
     rows = query_search(args)
     print(f"{len(rows)} build(s)")
@@ -572,18 +608,18 @@ def main(argv=None):
     p = sub.add_parser("usage")
     p.add_argument("--item", required=True)
     p.add_argument("--top", type=int, default=10)
-    for name in ("search", "common"):
+    for name in ("search", "common", "core"):
         p = sub.add_parser(name)
         for key in FILTERS:
             p.add_argument("--" + key)
-        if name == "common":
-            p.add_argument("--top", type=int, default=10)
+        if name in ("common", "core"):
+            p.add_argument("--top", type=int, default=10 if name == "common" else 15)
     args = parser.parse_args(argv)
     if args.cmd == "add" and not args.paths and not args.code:
         parser.error("add needs a file, folder or --code")
     {"add": cmd_add, "list": cmd_list, "rebuild": cmd_rebuild, "show": cmd_show, "search": cmd_search,
      "common": cmd_common, "note": cmd_note, "usage": cmd_usage,
-     "settings": cmd_settings, "analyze": cmd_analyze}[args.cmd](args)
+     "settings": cmd_settings, "analyze": cmd_analyze, "core": cmd_core}[args.cmd](args)
 
 
 if __name__ == "__main__":

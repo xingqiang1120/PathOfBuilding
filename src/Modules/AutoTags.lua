@@ -62,7 +62,31 @@ end
 ---Initialise (or re-initialise) the tagger. Clears all overrides, including user ones.
 ---@param rules table @List of rules, see Data/AutoTagRules.lua
 ---@param overrides table? @See Data/AutoTagOverrides.lua
-function autoTags.Init(rules, overrides)
+local mechanicList, mechanicById = { }, { }
+
+local function compileRule(rule)
+	return {
+		id = rule.id,
+		parent = rule.parent,
+		minionToo = rule.minionToo,
+		modNames = rule.modNames or { },
+		modPatterns = rule.modPatterns or { },
+		excludePatterns = rule.excludePatterns or { },
+		modFlags = rule.modFlags or 0,
+		keywordFlags = band(rule.keywordFlags or 0, matchAllMask),
+		skillTypes = toSet(rule.skillTypes),
+		skillNames = toSet(rule.skillNames, true),
+		gemKeywords = rule.gemKeywords or { },
+		textPatterns = rule.textPatterns or { },
+		textAlways = rule.textAlways,
+	}
+end
+
+---Initialise (or re-initialise) the tagger. Clears all overrides, including user ones.
+---@param rules table @List of rules, see Data/AutoTagRules.lua
+---@param overrides table? @See Data/AutoTagOverrides.lua
+---@param mechanics table? @See Data/Mechanics.lua (loaded when omitted)
+function autoTags.Init(rules, overrides, mechanics)
 	ruleList = { }
 	tagById = { }
 	tagOrder = { }
@@ -71,24 +95,37 @@ function autoTags.Init(rules, overrides)
 	userTagIds = { }
 	bump()
 	for _, rule in ipairs(rules) do
-		local compiled = {
-			id = rule.id,
-			parent = rule.parent,
-			modNames = rule.modNames or { },
-			modPatterns = rule.modPatterns or { },
-			excludePatterns = rule.excludePatterns or { },
-			modFlags = rule.modFlags or 0,
-			keywordFlags = band(rule.keywordFlags or 0, matchAllMask),
-			skillTypes = toSet(rule.skillTypes),
-			skillNames = toSet(rule.skillNames, true),
-			gemKeywords = rule.gemKeywords or { },
-			textPatterns = rule.textPatterns or { },
-			textAlways = rule.textAlways,
-		}
-		t_insert(ruleList, compiled)
+		t_insert(ruleList, compileRule(rule))
 		addTag({ id = rule.id, label = rule.label or rule.id, category = rule.category or "Other", parent = rule.parent })
 	end
+	-- Mechanics become tags too, and carry the tags they imply (e.g. withered -> chaos)
+	mechanicList, mechanicById = mechanics or LoadModule("Data/Mechanics"), { }
+	for _, mech in ipairs(mechanicList) do
+		mechanicById[mech.id] = mech
+		if mech.detect then
+			local rule = copyTable(mech.detect, true)
+			rule.id = mech.id
+			t_insert(ruleList, compileRule(rule))
+			addTag({ id = mech.id, label = mech.label, category = "Mechanic" })
+		end
+	end
+	for _, mech in ipairs(mechanicList) do
+		local def = tagById[mech.tag or mech.id]
+		if def then
+			def.implies = mech.implies
+			def.mechanic = mech.id
+		end
+	end
 	autoTags.AddOverrides(overrides)
+end
+
+---Mechanics knowledge base entries (Data/Mechanics.lua).
+function autoTags.GetMechanics()
+	return mechanicList
+end
+
+function autoTags.GetMechanic(id)
+	return mechanicById[id]
 end
 
 local function mergeEntries(dest, src)
@@ -200,12 +237,12 @@ end
 function autoTags.GetModTags(mod, out)
 	out = out or { }
 	if mod.name == "MinionModifier" or mod.name == "MinionPerSkillModifier" then
-		-- Effects applied to minions describe the minions, not the player: only the minion tag
-		-- and its sub-tags (minion types) are considered
+		-- Effects applied to minions describe the minions, not the player: only the minion tag, its
+		-- sub-tags (minion types) and mechanics marked minionToo (e.g. Unholy Might) are considered
 		out.minion = true
 		local inner = type(mod.value) == "table" and mod.value.mod
 		for _, rule in ipairs(ruleList) do
-			if rule.parent == "minion" and not out[rule.id] and (ruleMatchesMod(rule, mod) or (inner and ruleMatchesMod(rule, inner))) then
+			if (rule.parent == "minion" or rule.minionToo) and not out[rule.id] and (ruleMatchesMod(rule, mod) or (inner and ruleMatchesMod(rule, inner))) then
 				out[rule.id] = true
 			end
 		end
@@ -262,14 +299,29 @@ local function applyOverride(tags, override)
 	end
 end
 
+-- Add parent tags and implied tags until nothing changes. New keys are collected first: adding
+-- keys to a table while traversing it with pairs is undefined in Lua.
 local function expandParents(tags)
 	local changed = true
 	while changed do
 		changed = false
+		local add = { }
 		for id in pairs(tags) do
 			local def = tagById[id]
-			if def and def.parent and not tags[def.parent] then
-				tags[def.parent] = true
+			if def then
+				if def.parent and not tags[def.parent] then
+					t_insert(add, def.parent)
+				end
+				for _, implied in ipairs(def.implies or { }) do
+					if not tags[implied] and tagById[implied] then
+						t_insert(add, implied)
+					end
+				end
+			end
+		end
+		for _, id in ipairs(add) do
+			if not tags[id] then
+				tags[id] = true
 				changed = true
 			end
 		end

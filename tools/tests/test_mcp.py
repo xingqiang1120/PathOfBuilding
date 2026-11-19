@@ -129,6 +129,24 @@ class McpTest(unittest.TestCase):
         err, result = self.call("pob_simulate", build="OccVortex", changes=gloves, infer=False)
         self.assertIsNone(result.get("inferredAfter"))
 
+    def test_mechanics_lookup(self):
+        err, result = self.call("pob_mechanics", id="withered")
+        self.assertFalse(err, result)
+        wither = result[0]
+        self.assertEqual(wither["rules"]["maxStacks"]["value"], 15)
+        self.assertEqual(wither["rules"]["maxStacks"]["source"], "wiki")
+        self.assertIn("chaos", wither["implies"])
+        self.assertIn("Abhorrent Interrogation", wither["uniques"])
+        self.assertNotIn("detect", wither)
+
+    def test_core_parts_after_analysis(self):
+        self.call("pob_contributions", build="OccVortex", includePassives=False)
+        err, core = self.call("library_core_parts", skill="Vortex")
+        self.assertFalse(err, core)
+        self.assertEqual(core["analysedBuilds"], 1)
+        self.assertTrue(core["damage"])
+        self.assertTrue(all(p["avgDpsPct"] <= -2 for p in core["damage"]))
+
     def test_item_usage(self):
         err, usage = self.call("library_item_usage", item="Heretic's Veil")
         self.assertFalse(err)

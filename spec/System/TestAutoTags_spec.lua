@@ -199,6 +199,37 @@ describe("TestAutoTags", function()
 		assert.are.equal(1, matches)
 	end)
 
+	it("tags mechanics and their implied tags, also on minion modifiers", function()
+		local tags = lineTags("Minions have Unholy Might")
+		assert.is_true(tags.minion)
+		assert.is_true(tags.unholymight)
+		local item = findUnique("Broken Faith")
+		local itemTags = autoTags.GetItemTags(item)
+		assert.is_true(itemTags.unholymight)
+		-- Unholy Might implies Withered, which implies chaos
+		assert.is_true(itemTags.withered)
+		assert.is_true(itemTags.chaos)
+		assert.is_true(autoTags.GetNodeTags(findNode("Unnatural Strength")).unholymight)
+	end)
+
+	it("keeps every mechanic rule and fact sourced", function()
+		local allowed = { wiki = true, pobdata = true, play = true }
+		for _, mech in ipairs(autoTags.GetMechanics()) do
+			assert.is_truthy(mech.id and mech.label and mech.summary)
+			assert.is_truthy(autoTags.GetTagDef(mech.tag or mech.id), "no tag for mechanic " .. mech.id)
+			for key, rule in pairs(mech.rules or { }) do
+				assert.is_truthy(rule.value or rule.min, mech.id .. "." .. key .. " has no value")
+				assert.is_truthy(allowed[rule.source], mech.id .. "." .. key .. " has no valid source")
+			end
+			for _, fact in ipairs(mech.facts or { }) do
+				assert.is_truthy(allowed[fact.source], mech.id .. " fact without a valid source")
+			end
+			for _, implied in ipairs(mech.implies or { }) do
+				assert.is_truthy(autoTags.GetTagDef(implied), mech.id .. " implies unknown tag " .. implied)
+			end
+		end
+	end)
+
 	it("applies manual overrides with parent tags", function()
 		autoTags.AddOverrides({
 			tags = { { id = "srs", label = "Summon Raging Spirit", category = "Skill", parent = "minion" } },

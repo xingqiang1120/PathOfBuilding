@@ -15,9 +15,15 @@
 
 local M = { }
 
-M.WITHER_MAX = 15
-M.WITHER_BASE_DURATION = 2
-M.UNHOLY_MIGHT_WITHER_CHANCE = 25
+-- Rule values come from the mechanics knowledge base (src/Data/Mechanics.lua), the single source of truth
+local function rule(mechanicId, key)
+	local mech = autoTags.GetMechanic(mechanicId)
+	local entry = assert(mech and mech.rules and mech.rules[key], "missing mechanic rule " .. mechanicId .. "." .. key)
+	return entry.value
+end
+M.WITHER_MAX = rule("withered", "maxStacks")
+M.WITHER_BASE_DURATION = rule("withered", "baseDurationSeconds")
+M.UNHOLY_MIGHT_WITHER_CHANCE = rule("unholymight", "witherChanceOnHitPercent")
 
 -- Text sources: pattern, who hits, which capture is the chance (nil = always), duration capture
 local witherPatterns = {
@@ -163,6 +169,7 @@ function M.inferWithered(build, opts)
 		minionsNeededForMax = needed,
 		assumptions = assumptions,
 		formula = "min(15, hits per second x chance x duration), summed over the player and every minion",
+		mechanics = { "withered", "unholymight" },
 	}
 end
 

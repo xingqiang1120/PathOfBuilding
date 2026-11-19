@@ -97,6 +97,19 @@ python tools/library.py settings MeiMax --group 11 --minion-skill "Physical Proj
 python tools/library.py analyze MeiMax
 ```
 
+### Mechanics knowledge base
+
+`src/Data/Mechanics.lua` describes game mechanics as data: rules with their numbers, the tags a
+mechanic implies (Withered -> chaos, Unholy Might -> withered and chaos), how items and passives
+are recognised, and facts. Every rule and fact names its source: `wiki` (PoE Wiki, CC BY-NC),
+`pobdata` (PoB's game data export) or `play` (confirmed in play). The tagger, the condition
+inference and the AI tools all read it, so a correction made there reaches all of them.
+
+- `pob_mechanics` returns an entry with the uniques and passives that provide it.
+- `library_core_parts` (CLI: `library.py core --tag minion`) aggregates saved analyses: which
+  parts carry damage, defence or mechanics in that kind of build. It gets better with every
+  analysed build.
+
 ### Condition inference
 
 Some Config values default to 0 although the build produces them. `tools/lib/inference.lua`

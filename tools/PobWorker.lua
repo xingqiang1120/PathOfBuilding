@@ -552,6 +552,39 @@ function methods.find_passives(p)
 	return { total = total, passives = results }
 end
 
+-- Mechanics knowledge base entries, with the uniques and passives that carry each mechanic
+function methods.mechanics(p)
+	local want = p.id and p.id:lower()
+	local query = p.query and p.query:lower()
+	local tree = main:LoadTree(latestTreeVersion)
+	local results = { }
+	for _, mech in ipairs(autoTags.GetMechanics()) do
+		local text = (mech.id .. " " .. mech.label .. " " .. (mech.summary or "")):lower()
+		if (not want or mech.id == want or mech.label:lower() == want) and (not query or text:find(query, 1, true)) then
+			local entry = copyTable(mech)
+			entry.detect = nil
+			local tagId = mech.tag or mech.id
+			if autoTags.GetTagDef(tagId) then
+				local uniques, passives = { }, { }
+				for _, item in pairs(main.uniqueDB.list) do
+					if autoTags.GetItemTags(item)[tagId] then table.insert(uniques, item.title or item.name) end
+				end
+				for _, node in pairs(tree.nodes) do
+					if node.dn and (node.type == "Notable" or node.type == "Keystone" or node.ascendancyName) and node.type ~= "AscendClassStart"
+						and autoTags.GetNodeTags(node)[tagId] then
+						table.insert(passives, node.ascendancyName and (node.dn .. " (" .. node.ascendancyName .. ")") or node.dn)
+					end
+				end
+				table.sort(uniques)
+				table.sort(passives)
+				entry.uniques, entry.passives = uniques, passives
+			end
+			table.insert(results, entry)
+		end
+	end
+	return results
+end
+
 function methods.list_tags()
 	local list = { }
 	for _, def in ipairs(autoTags.GetTagList()) do

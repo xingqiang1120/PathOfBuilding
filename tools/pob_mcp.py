@@ -34,7 +34,9 @@ INSTRUCTIONS = """Path of Building (PoB) for Path of Exile 1, run headless, plus
 - Builds can carry play-verified settings (group, minion skill, Config); tools apply them automatically. Save new ones with
   pob_save_build_settings only after the user confirms them.
 - Use pob_simulate to check a suggestion before recommending it, and report the before/after numbers.
-- Tags (pob_list_tags) classify items and passives, e.g. minion, phantasm, energyshield, fire."""
+- Tags (pob_list_tags) classify items and passives, e.g. minion, phantasm, energyshield, fire. Mechanic tags (unholymight,
+  withered, ...) imply related tags (withered -> chaos). Check pob_mechanics for how a mechanic works and where its numbers
+  come from before relying on memory; say when a fact is only "play"-confirmed or not covered."""
 
 CHANGE_SCHEMA = {
     "type": "object",
@@ -112,6 +114,15 @@ TOOLS = [
      "inputSchema": {"type": "object", "properties": {}}},
     {"name": "library_common",
      "description": "What builds matching the filters have in common: share of builds using each unique, gem, notable, ascendancy node and tag.",
+     "inputSchema": {"type": "object", "properties": dict(FILTER_PROPS, top={"type": "integer"})}},
+    {"name": "pob_mechanics",
+     "description": "Mechanics knowledge base: rules with their numbers (e.g. Withered: 15 stacks, 6% chaos damage taken each, 2 s), "
+                    "implied tags, sourced facts (wiki / PoB data / confirmed in play) and the uniques and passives that provide the "
+                    "mechanic. Use it to check how a mechanic works before reasoning about it. id or query optional.",
+     "inputSchema": {"type": "object", "properties": {"id": {"type": "string"}, "query": {"type": "string"}}}},
+    {"name": "library_core_parts",
+     "description": "Across analysed library builds matching the filters (e.g. tag minion, ascendancy Necromancer): which items, supports "
+                    "and passives are core for damage, defence, or functional (mechanics PoB does not measure), with average loss when removed.",
      "inputSchema": {"type": "object", "properties": dict(FILTER_PROPS, top={"type": "integer"})}},
     {"name": "library_item_usage",
      "description": "How often an item appears in the library, grouped by ascendancy, primary skill and slot, with the builds using it.",
@@ -248,6 +259,8 @@ HANDLERS = {
     "pob_list_tags": lambda a: WORKER.call("list_tags", {}),
     "library_common": lambda a: library.query_common(filters_of(a), a.get("top") or 10),
     "library_item_usage": lambda a: library.query_item_usage(a["item"], a.get("top") or 10),
+    "library_core_parts": lambda a: library.query_core_parts(filters_of(a), a.get("top") or 15),
+    "pob_mechanics": lambda a: WORKER.call("mechanics", {k: a[k] for k in ("id", "query") if a.get(k)}),
 }
 
 

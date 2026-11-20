@@ -213,7 +213,7 @@ describe("TestAutoTags", function()
 	end)
 
 	it("keeps every mechanic rule and fact sourced", function()
-		local allowed = { wiki = true, pobdata = true, play = true }
+		local allowed = { wiki = true, pobdata = true, play = true, pobcalc = true }
 		for _, mech in ipairs(autoTags.GetMechanics()) do
 			assert.is_truthy(mech.id and mech.label and mech.summary)
 			assert.is_truthy(autoTags.GetTagDef(mech.tag or mech.id), "no tag for mechanic " .. mech.id)

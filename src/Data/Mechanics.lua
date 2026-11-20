@@ -14,7 +14,9 @@
 --                       (tag = existing tag id the knowledge attaches to).
 --   rules               numbers used by calculations; each rule lists its source key
 --   facts               statements with their source: { text, source, ref }
---                         source: "wiki" (PoE Wiki), "pobdata" (PoB game data export), "play" (confirmed in play)
+--                         source: "wiki" (PoE Wiki), "pobdata" (PoB game data export or calculation code),
+--                         "play" (confirmed in play), "pobcalc" (observed by running PoB's calculation on a build;
+--                         ref names the build and analysis)
 --   refs                source pages
 --
 -- PoE Wiki content is CC BY-NC 3.0 (https://www.poewiki.net); keep the refs when copying facts.
@@ -120,7 +122,105 @@ return {
 			{ text = "Phantasms attack with Physical Projectile, not the melee Default Attack PoB used to select.", source = "play" },
 			{ text = "The total number of phantasms is limited by the highest-level Summon Phantasm Support.", source = "wiki", ref = wiki .. "Summon_Phantasm_Support" },
 			{ text = "The Dark Monarch: Maximum number of Summoned Phantasms is Doubled; cannot have minions other than Summoned Phantasms.", source = "pobdata", ref = "src/Data/Uniques/helmet.lua" },
+			{ text = "Soulwrest's phantasms: limit 11 from the staff, +10 from a Summon Phantasm Support linked to it, doubled by The Dark Monarch (42 vs 22). Replacing that support for per-minion damage halves the army; compare total damage (per minion x limit).", source = "pobcalc", ref = "MeiMax vs MeiMax-modify, 2026-11-19" },
 		},
 		refs = { wiki .. "Summon_Phantasm_Support" },
+	},
+
+	-- Defence layers (learned from the level 100 AWoRA Necromancer analysis, 2026-11-20)
+	{
+		id = "armour", label = "Armour", kind = "mechanic",
+		tag = "armour",
+		summary = "Reduces physical hit damage by armour / (armour + 5 x damage): strong against many small hits, weak against one big hit.",
+		rules = {
+			hitDamageFactor = { value = 5, source = "pobdata", note = "calcs.armourReductionF in src/Modules/CalcDefence.lua" },
+			maxPhysicalDamageReductionPercent = { value = 90, source = "wiki" },
+		},
+		facts = {
+			{ text = "Armour's reduction shrinks as the hit grows, so it does little for the maximum hit taken (one-shot threshold); flat additional physical damage reduction (endurance charges, Bone Barrier, Basalt Flask) applies in full to big hits and is the lever against one-shots, together with a larger life pool.", source = "pobdata", ref = "src/Modules/CalcDefence.lua" },
+			{ text = "MeiMax (3,784 life, no flat reduction): Granite + Basalt flasks raise armour from 173 to 2,655 but the physical maximum hit only from 4,999 to 5,448 (+9%); adding 3 endurance charges brings it to 6,197.", source = "pobcalc", ref = "MeiMax defence simulation, 2026-11-20" },
+		},
+		refs = { wiki .. "Armour" },
+	},
+	{
+		id = "endurancecharge", label = "Endurance Charges", kind = "buff",
+		tag = "charges",
+		summary = "Each endurance charge grants 4% additional physical damage reduction and 4% elemental damage reduction.",
+		rules = {
+			physicalReductionPerChargePercent = { value = 4, source = "pobdata", note = "physical_damage_reduction_%_per_endurance_charge, src/Data/Misc.lua" },
+			elementalReductionPerChargePercent = { value = 4, source = "pobdata", note = "elemental_damage_reduction_%_per_endurance_charge, src/Data/Misc.lua" },
+			baseMaxCharges = { value = 3, source = "pobdata", note = "max_endurance_charges, src/Data/Misc.lua" },
+		},
+		facts = {
+			{ text = "PoB counts endurance charges only when Config 'Use Endurance Charges' is on, and then assumes the maximum; how the build generates them is not checked (e.g. Enduring Composure 'Gain 1 Endurance Charge every second if you've been Hit Recently' is not calculated).", source = "pobdata", ref = "src/Modules/CalcSetup.lua" },
+			{ text = "AWoRA Necromancer: 5 charges are 20 of its 75% physical reduction; at the start of a fight without charges or flasks the physical maximum hit drops from 14,157 to 9,782 and the elemental one from 43,135 to 34,508.", source = "pobcalc", ref = "Animate Weapon of Ranged Arms (Necro, shared), 2026-11-20" },
+		},
+		refs = { wiki .. "Endurance_charge" },
+	},
+	{
+		id = "block", label = "Block", kind = "mechanic",
+		tag = "block",
+		summary = "Chance to take no damage from a blocked hit; attack and spell block are capped at 75% unless the maximum is raised.",
+		rules = {
+			baseMaxBlockPercent = { value = 75, source = "pobdata", note = "BlockChanceMax / SpellBlockChanceMax Base" },
+		},
+		facts = {
+			{ text = "Block protects against repeated hits; it does not raise the maximum hit taken, so a one-shot is decided by life and flat reduction, not by block.", source = "play", ref = "user's MeiMax experience (66/78 block, dies only to one-shots or rare streaks of unblocked hits)" },
+			{ text = "Necromancer Mistress of Sacrifice makes offerings affect you at 50% effect: Bone Offering then gives about 38% attack and spell block to the player, which needs corpses (e.g. Desecrate) to keep up.", source = "pobcalc", ref = "Animate Weapon of Ranged Arms (Necro, shared), 2026-11-20" },
+			{ text = "Rumi's Concoction adds attack and spell block and armour while active; on MeiMax it raises attack block from 66% to the 75% cap.", source = "pobcalc", ref = "MeiMax defence simulation, 2026-11-20" },
+		},
+		refs = { wiki .. "Block" },
+	},
+	{
+		id = "flaskuptime", label = "Flask uptime", kind = "mechanic",
+		tag = "flask",
+		summary = "PoB applies a flask only when its slot is ticked active, and then as if it were always up.",
+		facts = {
+			{ text = "Flask effects are all-or-nothing in PoB (slot 'active'); real uptime depends on charges and flask duration, so defence that relies on flasks is overstated between flask uses.", source = "pobdata", ref = "src/Modules/CalcPerform.lua" },
+			{ text = "AWoRA Necromancer: all five flasks active; with them off physical reduction drops from 75% to 50% and armour from 7,932 to 2,312.", source = "pobcalc", ref = "Animate Weapon of Ranged Arms (Necro, shared), 2026-11-20" },
+		},
+	},
+	{
+		id = "stonegolemsafeguarding", label = "Stone Golem of Safeguarding", kind = "minion",
+		implies = { "minion" },
+		detect = {
+			textPatterns = { "stone golem" },
+			textAlways = true,
+		},
+		summary = "Golem that takes part of the melee hit damage you receive from its own life before yours, and can taunt enemies.",
+		rules = {
+			meleeDamageTakenByGolemPercent = { value = 15, source = "pobdata", note = "stone_golem_grants_melee_damage_removed_from_stone_golem_before_life_or_es_%" },
+		},
+		facts = {
+			{ text = "PoB models the redirect as a melee-only life pool in effective HP (takenFromStoneGolemBeforeYou); the golem's taunt is not modelled.", source = "pobdata", ref = "src/Modules/CalcDefence.lua" },
+			{ text = "Increased effect of the buff granted by Stone Golems (e.g. Soul Span) scales the golem's buff.", source = "pobdata", ref = "src/Modules/ModParser.lua" },
+		},
+	},
+	{
+		id = "minionleech", label = "Life leech from minion damage", kind = "mechanic",
+		implies = { "minion", "life" },
+		detect = {
+			textPatterns = { "damage dealt by your minions is leeched" },
+			textAlways = true,
+		},
+		summary = "Leeching life from the damage your minions deal (e.g. Necromancer Bone Barrier: 1%).",
+		facts = {
+			{ text = "PoB does not calculate 'X% of Damage Dealt by your Minions is Leeched to you as Life'; with high minion damage it can be the main recovery, so recovery is understated.", source = "pobdata", ref = "reports/coverage (life_leech_from_minion_damage_%)" },
+		},
+	},
+	{
+		id = "mercenary", label = "Mercenary (Luminary)", kind = "minion",
+		implies = { "minion" },
+		detect = {
+			textPatterns = { "mercenar" },
+			textAlways = true,
+		},
+		summary = "Luminary's mercenary fights beside you; much of what it does is not in PoB yet.",
+		facts = {
+			{ text = "The mercenary taunts enemies, so the player is hit much less often.", source = "play", ref = "user's MeiMax experience" },
+			{ text = "Luminary ascendancy raises the effect of the mercenary's auras by 50%; a mercenary such as one using Despair, Zealotry and Envy adds buffs and a curse PoB does not apply.", source = "play", ref = "user, 2026-11-20" },
+			{ text = "Curses count against one shared limit for the player, the mercenary and minions; a curse from the mercenary uses the slot.", source = "play", ref = "user, 2026-11-20" },
+			{ text = "Loyal Bodyguard (mercenary takes part of the hit damage) is not modelled; physical maximum hit is understated if it applies.", source = "play", ref = "Soulwrest optimizer run, 2026-11-19" },
+		},
 	},
 }

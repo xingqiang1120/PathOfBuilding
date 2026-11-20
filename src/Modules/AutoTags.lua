@@ -112,8 +112,11 @@ function autoTags.Init(rules, overrides, mechanics)
 	for _, mech in ipairs(mechanicList) do
 		local def = tagById[mech.tag or mech.id]
 		if def then
-			def.implies = mech.implies
-			def.mechanic = mech.id
+			-- Several mechanics can attach to one general tag (e.g. armour, block); keep the first and never clear implies
+			if mech.implies then
+				def.implies = mech.implies
+			end
+			def.mechanic = def.mechanic or mech.id
 		end
 	end
 	autoTags.AddOverrides(overrides)

@@ -146,7 +146,8 @@ end
 local function scanNode(node, entries)
 	for index, line in ipairs(node.sd or { }) do
 		local mods = node.mods and node.mods[index]
-		if mods and not mods.combined then
+		-- blank spacer lines (e.g. on nodes changed by a timeless jewel or tattoo) carry no modifier
+		if mods and not mods.combined and line:match("%S") then
 			local entry = modCoverage.ClassifyLine(line, mods.list, mods.extra)
 			entry.kind = "node"
 			entry.source = node.dn

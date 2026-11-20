@@ -47,7 +47,7 @@ local function loadJewelFile(jewelTypeName, cacheUncompressed)
 		if uncompressedFile then
 			local jewelData = uncompressedFile:read("*a")
 			uncompressedFile:close()
-			if jewelData then
+			if jewelData and jewelData ~= "" then
 				return jewelData
 			end
 		end
@@ -82,6 +82,11 @@ local function loadJewelFile(jewelTypeName, cacheUncompressed)
 	end
 
 	local jewelData = Inflate(compressedData)
+	if not jewelData or jewelData == "" then
+		-- e.g. a headless run without a real Inflate: never cache an empty table, it would hide the data from the app
+		ConPrintf("Failed to decompress jewel data: " .. jewelTypeName)
+		return
+	end
 	if cacheUncompressed then
 		local uncompressedFile = io.open(scriptPath .. jewelPath .. ".bin", "wb+")
 		if uncompressedFile then

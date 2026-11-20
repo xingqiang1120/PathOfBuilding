@@ -1,6 +1,6 @@
 # Modifier coverage: all uniques and passive tree
 
-Path of Building 2.68.1 · passive tree 3_30 · generated 2026-11-20 11:42
+Path of Building 2.68.1 · passive tree 3_30 · generated 2026-11-20 16:41
 
 A line is **unsupported** when Path of Building cannot parse it, so it is not part of any calculation. 
 **Impact** is an estimate: *Offence* / *Defence* lines may change your numbers, *Utility* / *Cosmetic* lines usually do not. 
@@ -16,14 +16,8 @@ A line is **unsupported** when Path of Building cannot parse it, so it is not pa
 ## Changes since the previous report
 
 - Newly unsupported: **0**
-- Now supported: **1**
-- Unsupported lines that disappeared from the data: **1**
-
-### Now supported
-
-| Source | Where | Line | Impact | Game stat id |
-|---|---|---|---|---|
-| Loyal Bodyguard | Luminary | If your Mercenary's Life is higher than your own, 20% of Damage from Hits is | Defence | — |
+- Now supported: **0**
+- Unsupported lines that disappeared from the data: **0**
 
 ## Passive tree 3_30 compared with 3_29
 

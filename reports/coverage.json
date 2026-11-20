@@ -1,7 +1,12 @@
 {
+  "version":"2.68.1",
+  "diff":{
+    "added":[],
+    "fixed":[],
+    "removed":[]
+  },
   "treeDiff":{
     "newSupported":110,
-    "previousTreeVersion":"3_29",
     "newUnsupported":[{
         "kind":"node",
         "source":"Blackflame",
@@ -178,61 +183,9 @@
         "status":"unsupported",
         "impact":"defence",
         "statIds":["gain_endurance_charge_on_melee_stun","gain_endurance_charge_on_melee_stun_%"]
-      }]
-  },
-  "treeVersion":"3_30",
-  "generated":"2026-11-20 11:42",
-  "summary":{
-    "unique":{
-      "impact":{
-        "offence":268,
-        "defence":190,
-        "utility":330,
-        "cosmetic":16
-      },
-      "sourcesWithGap":547,
-      "supported":6475,
-      "lines":7279,
-      "sources":1335,
-      "unsupported":804,
-      "mapped":640
-    },
-    "node":{
-      "impact":{
-        "offence":130,
-        "defence":92,
-        "utility":79
-      },
-      "sourcesWithGap":238,
-      "supported":4791,
-      "lines":5092,
-      "sources":1750,
-      "unsupported":301,
-      "mapped":256
-    }
-  },
-  "diff":{
-    "removed":[{
-        "kind":"node",
-        "source":"Loyal Bodyguard",
-        "detail":"Luminary",
-        "nodeId":1564,
-        "line":"taken from your Mercenary's Life before you",
-        "status":"unsupported",
-        "impact":"utility"
       }],
-    "added":[],
-    "fixed":[{
-        "kind":"node",
-        "source":"Loyal Bodyguard",
-        "detail":"Luminary",
-        "nodeId":1564,
-        "line":"If your Mercenary's Life is higher than your own, 20% of Damage from Hits is",
-        "status":"unsupported",
-        "impact":"defence"
-      }]
+    "previousTreeVersion":"3_29"
   },
-  "version":"2.68.1",
   "unsupported":[{
       "kind":"unique",
       "source":"Abberath's Hooves",
@@ -9165,5 +9118,36 @@
       "status":"unsupported",
       "impact":"offence",
       "statIds":["cover_in_ash_on_hit_%_while_you_are_burning"]
-    }]
+    }],
+  "treeVersion":"3_30",
+  "generated":"2026-11-20 16:41",
+  "summary":{
+    "unique":{
+      "impact":{
+        "defence":190,
+        "utility":330,
+        "cosmetic":16,
+        "offence":268
+      },
+      "supported":6475,
+      "lines":7279,
+      "mapped":640,
+      "sources":1335,
+      "sourcesWithGap":547,
+      "unsupported":804
+    },
+    "node":{
+      "impact":{
+        "defence":92,
+        "utility":79,
+        "offence":130
+      },
+      "supported":4791,
+      "lines":5092,
+      "mapped":256,
+      "sources":1750,
+      "sourcesWithGap":238,
+      "unsupported":301
+    }
+  }
 }

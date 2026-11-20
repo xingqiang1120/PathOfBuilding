@@ -833,6 +833,9 @@ Huge sets the radius to 11.
 	{ var = "TotalStoneGolemLife", type = "integer", label = "Stone Golem Life override:", ifSkill = "Summon Stone Golem of Safeguarding", ifMod = "takenFromStoneGolemBeforeYou", tooltip = "Overrides the automatically calculated Life of your Stone Golem of Safeguarding that can be taken before yours.", apply = function(val, modList, enemyModList)
 		modList:NewMod("TotalStoneGolemLife", "OVERRIDE", val, "Config")
 	end },
+	{ var = "TotalMercenaryLife", type = "integer", label = "Mercenary maximum Life:", ifMod = "takenFromMercenaryBeforeYou", tooltip = "Your Mercenary's maximum Life, as shown in game. Loyal Bodyguard takes damage from it before yours only while it is higher than your own Life.", apply = function(val, modList, enemyModList)
+		modList:NewMod("TotalMercenaryLife", "OVERRIDE", val, "Config")
+	end },
 	{ var = "TotalVaalRejuvenationTotemLife", type = "integer", label = "Vaal Rejuvenation Totem Life override:", ifSkill = "Vaal Rejuvenation Totem", ifMod = "takenFromVaalRejuvenationTotemsBeforeYou", tooltip = "Overrides the automatically calculated Life of your Vaal Rejuvenation Totem that can be taken before yours.", apply = function(val, modList, enemyModList)
 		modList:NewMod("TotalVaalRejuvenationTotemLife", "OVERRIDE", val, "Config")
 	end },

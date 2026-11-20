@@ -56,7 +56,7 @@ class Optimizer:
         settings = library.get_settings(build_id)
         self.params = library.apply_settings({"xml": xml, "name": name}, settings,
                                              {"group": goal.get("group"), "minionSkill": goal.get("minionSkill"),
-                                              "summonRate": goal.get("summonRate")})
+                                              "summonRate": goal.get("summonRate"), "mercenary": goal.get("mercenary")})
         self.base_changes = self.params.pop("changes")
         self.base_name = name
         self.targets = goal["targets"]

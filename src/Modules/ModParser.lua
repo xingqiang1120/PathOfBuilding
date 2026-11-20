@@ -2930,6 +2930,8 @@ local specialModList = {
 	} end,
 	["enemies in your link beams cannot apply elemental ailments"] = { flag("ElementalAilmentImmune", { type = "ActorCondition", actor = "enemy", var = "BetweenYouAndLinkedTarget" }), },
 	["(%d+)%% of damage from hits is taken from your sentinel of radiance's life before you"] = function(num) return { mod("takenFromRadianceSentinelBeforeYou", "BASE", num) } end,
+	-- Luminary Loyal Bodyguard; the "Life higher than your own" check is made in CalcDefence (mercenary ally pool)
+	["if your mercenary's life is higher than your own, (%d+)%% of damage from hits is taken from your mercenary's life before you"] = function(num) return { mod("takenFromMercenaryBeforeYou", "BASE", num) } end,
 	["you can inflict %+(%d+) hallowing flame on enemies"] = function(num) return { mod("Multiplier:HallowingFlameMax", "BASE", num) } end,
 	["gain (%d+)%% of (%a+) damage as extra (%a+) damage for each of your hallowing flames that have been removed by an allied hit recently, up to (%d+)%%"] = function(num, _, fromType, destType, limit) return { mod((fromType:gsub("^%l", string.upper)) .. "DamageGainAs" .. (destType:gsub("^%l", string.upper)), "BASE", num, { type = "ActorCondition", actor = "enemy", var = "HallowingFlame" }, { type = "Multiplier", var = "HallowingFlameStacksRemovedByAlly", limit = tonumber(limit) / num }) } end,
 	["(%d+)%% increased magnitude of hallowing flame you inflict"] = function(num) return { mod("HallowingFlameMagnitude", "INC", num) } end,

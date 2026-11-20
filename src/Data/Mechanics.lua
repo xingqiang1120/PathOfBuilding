@@ -215,12 +215,18 @@ return {
 			textPatterns = { "mercenar" },
 			textAlways = true,
 		},
-		summary = "Luminary's mercenary fights beside you; much of what it does is not in PoB yet.",
+		summary = "Luminary's mercenary fights beside you. Modelled as a Party member (tools/lib/mercenary.lua): its auras and curses, and Loyal Bodyguard from its Life.",
+		rules = {
+			bestowedKnighthoodAuraEffectPercent = { value = 50, source = "pobdata", note = "Bestowed Knighthood: Your Mercenary has 50% increased effect of Non-Curse Auras from Skills" },
+			loyalBodyguardHitDamageTakenPercent = { value = 20, source = "pobdata", note = "Loyal Bodyguard, only while the mercenary's Life is higher than yours" },
+		},
 		facts = {
-			{ text = "The mercenary taunts enemies, so the player is hit much less often.", source = "play", ref = "user's MeiMax experience" },
-			{ text = "Luminary ascendancy raises the effect of the mercenary's auras by 50%; a mercenary such as one using Despair, Zealotry and Envy adds buffs and a curse PoB does not apply.", source = "play", ref = "user, 2026-11-20" },
-			{ text = "Curses count against one shared limit for the player, the mercenary and minions; a curse from the mercenary uses the slot.", source = "play", ref = "user, 2026-11-20" },
-			{ text = "Loyal Bodyguard (mercenary takes part of the hit damage) is not modelled; physical maximum hit is understated if it applies.", source = "play", ref = "Soulwrest optimizer run, 2026-11-19" },
+			{ text = "The mercenary taunts enemies (Bestowed Knighthood), so the player is hit much less often; hit frequency is not part of PoB's numbers.", source = "play", ref = "user's MeiMax experience" },
+			{ text = "The mercenary's auras reach you and your minions at 150% effect with Bestowed Knighthood; in PoB they go through the Party tab (calculated from the mercenary's gems), which is saved with the build.", source = "pobdata", ref = "tools/lib/mercenary.lua, src/Modules/CalcPerform.lua" },
+			{ text = "Curses count against one shared limit for the player, the mercenary and minions; in PoB the mercenary's curse takes a free curse slot only, the player's own curses keep theirs.", source = "play", ref = "user, 2026-11-20; src/Modules/CalcPerform.lua curse slots" },
+			{ text = "Loyal Bodyguard: 20% of hit damage is taken from the mercenary's Life while it is higher than yours; set the mercenary's Life in Config ('Mercenary maximum Life'). The 40% recoup when its Life is lower is not modelled.", source = "pobdata", ref = "src/Modules/CalcDefence.lua" },
+			{ text = "MeiMax with a mercenary using Zealotry 20/20, Envy 25 and Despair 20/20 and 8,000 Life: per-phantasm DPS 37,584 -> 88,168 (Despair alone -> 55,303, auras alone -> 59,920); physical maximum hit 4,999 -> 6,240.", source = "pobcalc", ref = "MeiMax, assumed mercenary gems, 2026-11-20" },
+			{ text = "Not modelled: the mercenary's own damage, its unique items (Legendary nodes), Link skill buffs on it (Golden Glory).", source = "pobdata", ref = "Luminary ascendancy lines unsupported in ModParser" },
 		},
 	},
 }

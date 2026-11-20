@@ -151,6 +151,36 @@ class McpTest(unittest.TestCase):
         self.assertEqual(fresh(result)["estimate"], 1)
         self.assertNotIn("blendedBy", result["after"])
 
+    def test_mercenary_party_member(self):
+        err, base = self.call("pob_metrics", build="OccVortex")
+        self.assertFalse(err, base)
+        # Zealotry (more spell damage) and Envy (granted by items only) from the mercenary raise the player's spell DPS
+        merc = {"auras": [{"name": "Zealotry", "level": 20}, {"name": "Envy", "level": 25}], "life": 999999}
+        err, result = self.call("pob_metrics", build="OccVortex", mercenary=merc)
+        self.assertFalse(err, result)
+        self.assertGreater(result["playerDPS"], base["playerDPS"])
+        self.assertEqual(result["mercenary"]["auras"], ["Zealotry", "Envy"])
+        self.assertEqual(result["mercenary"]["auraEffectIncrease"], 0)  # no Bestowed Knighthood on this build
+        # Loyal Bodyguard is not allocated here, so the mercenary's Life does not protect the player
+        self.assertIsNone(result.get("mercenaryDamageTakenPercent"))
+        self.assertEqual(result["PhysicalMaximumHitTaken"], base["PhysicalMaximumHitTaken"])
+        # Extra aura effect on the mercenary scales its auras
+        err, stronger = self.call("pob_metrics", build="OccVortex", mercenary=dict(merc, auraEffect=50))
+        self.assertGreater(stronger["playerDPS"], result["playerDPS"])
+        # Curses share the enemy's slots: the player's Enfeeble and Temporal Chains fill them, so the mercenary's does nothing
+        weakness = {"curses": [{"name": "Elemental Weakness", "level": 20}]}
+        err, cursed = self.call("pob_metrics", build="OccVortex", mercenary=weakness)
+        self.assertFalse(err, cursed)
+        self.assertEqual(cursed["playerDPS"], base["playerDPS"])
+        # Without the player's curses the mercenary's curse lands
+        no_curses = [{"type": "gem_remove", "gem": "Enfeeble"}, {"type": "gem_remove", "gem": "Temporal Chains"}]
+        err, alone = self.call("pob_simulate", build="OccVortex", changes=no_curses)
+        err, merc_curse = self.call("pob_simulate", build="OccVortex", changes=no_curses, mercenary=weakness)
+        self.assertFalse(err, merc_curse)
+        self.assertGreater(merc_curse["after"]["playerDPS"], alone["after"]["playerDPS"])
+        err, result = self.call("pob_metrics", build="OccVortex", mercenary={"auras": [{"name": "No Such Aura"}]})
+        self.assertTrue(err)
+
     def test_mechanics_lookup(self):
         err, result = self.call("pob_mechanics", id="withered")
         self.assertFalse(err, result)

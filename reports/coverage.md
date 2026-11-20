@@ -1,6 +1,6 @@
 # Modifier coverage: all uniques and passive tree
 
-Path of Building 2.68.1 · passive tree 3_30 · generated 2026-11-18 16:34
+Path of Building 2.68.1 · passive tree 3_30 · generated 2026-11-20 11:42
 
 A line is **unsupported** when Path of Building cannot parse it, so it is not part of any calculation. 
 **Impact** is an estimate: *Offence* / *Defence* lines may change your numbers, *Utility* / *Cosmetic* lines usually do not. 
@@ -11,7 +11,19 @@ A line is **unsupported** when Path of Building cannot parse it, so it is not pa
 | Scope | Lines | Unsupported | With game stat id | Offence | Defence | Utility | Cosmetic | Sources with a gap |
 |---|---|---|---|---|---|---|---|---|
 | Unique items | 7279 | 804 (11.0%) | 640 | 268 | 190 | 330 | 16 | 547 of 1335 |
-| Passive nodes | 5093 | 303 (5.9%) | 256 | 130 | 93 | 80 | 0 | 238 of 1750 |
+| Passive nodes | 5092 | 301 (5.9%) | 256 | 130 | 92 | 79 | 0 | 238 of 1750 |
+
+## Changes since the previous report
+
+- Newly unsupported: **0**
+- Now supported: **1**
+- Unsupported lines that disappeared from the data: **1**
+
+### Now supported
+
+| Source | Where | Line | Impact | Game stat id |
+|---|---|---|---|---|
+| Loyal Bodyguard | Luminary | If your Mercenary's Life is higher than your own, 20% of Damage from Hits is | Defence | — |
 
 ## Passive tree 3_30 compared with 3_29
 
@@ -443,7 +455,7 @@ New line texts in this tree: 110 supported, **20 unsupported**.
 | Worthy Foe | Champion | Taunt on Hit | Offence | `chance_to_taunt_on_hit_%` |
 | Wrapped in Flame | Notable | 5% chance to Cover Enemies in Ash on Hit while you are Burning | Offence | `cover_in_ash_on_hit_%_while_you_are_burning` |
 
-## Unsupported · Defence (283)
+## Unsupported · Defence (282)
 
 | Source | Where | Line | Impact | Game stat id |
 |---|---|---|---|---|
@@ -693,7 +705,6 @@ New line texts in this tree: 110 supported, **20 unsupported**.
 | Juggernaut | Ascendant | Gain 1 Endurance Charge every second if you've been Hit Recently | Defence | `gain_endurance_charge_per_second_if_have_been_hit_recently` |
 | Last Rites | Notable | Enemies you Curse cannot Recharge Energy Shield | Defence | `enemies_you_curse_cannot_recharge_energy_shield` |
 | Life from Death | Notable | Minions Recover 4% of Life on Minion Death | Defence | `minion_recover_%_maximum_life_on_minion_death` |
-| Loyal Bodyguard | Luminary | If your Mercenary's Life is higher than your own, 20% of Damage from Hits is | Defence | — |
 | Loyal Bodyguard | Luminary | If your Mercenary's Life is lower than your own, 40% of Damage they take is Recouped as Life | Defence | `permanenet_mercenary_damage_taken_recouped_as_life_%_if_life_lower_than_parents_life` |
 | Mage Bane | Notable | 20% chance to gain a Power Charge when you Block | Defence | `chance_to_gain_power_charge_when_block_%` |
 | Mage Hunter | Notable | 20% chance to gain a Power Charge when you Block | Defence | `chance_to_gain_power_charge_when_block_%` |
@@ -731,7 +742,7 @@ New line texts in this tree: 110 supported, **20 unsupported**.
 | Whirling Barrier | Notable | 20% chance to gain a Power Charge when you Block | Defence | `chance_to_gain_power_charge_when_block_%` |
 | Wicked Ward | Keystone | Energy Shield Recharge is not interrupted by Damage if Recharge began Recently | Defence | — |
 
-## Unsupported · Utility (410)
+## Unsupported · Utility (409)
 
 | Source | Where | Line | Impact | Game stat id |
 |---|---|---|---|---|
@@ -1111,7 +1122,6 @@ New line texts in this tree: 110 supported, **20 unsupported**.
 | Legendary Rings | Luminary | Your Mercenary can equip Unique Rings | Utility | `mercenary_can_use_unique_ring` |
 | Liege of the Primordial | Elementalist | Summoned Golems are Resummoned 4 seconds after being Killed | Utility | `revive_golems_if_killed_by_enemies_ms` |
 | Lone Messenger | Keystone | You can only have one Herald | Utility | — |
-| Loyal Bodyguard | Luminary | taken from your Mercenary's Life before you | Utility | — |
 | Master Surgeon | Pathfinder | Life Flask Effects do not Queue | Utility | — |
 | Nature's Concoction | Notable | Flasks adjacent to active Tinctures gain 2 charges when you Hit an | Utility | — |
 | Noble Blood | Luminary | You can hire a Mercenary permanently | Utility | `can_have_active_mercenary_follower` |

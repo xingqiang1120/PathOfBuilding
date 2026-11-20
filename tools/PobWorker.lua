@@ -17,6 +17,7 @@ dofile("HeadlessWrapper.lua")
 local dkjson = require("dkjson")
 local S = dofile(SCRIPT_DIR .. "/lib/summary.lua")
 local I = dofile(SCRIPT_DIR .. "/lib/inference.lua")
+local Merc = dofile(SCRIPT_DIR .. "/lib/mercenary.lua")
 local round = S.round
 
 local loadedXml, dirty = nil, true
@@ -25,10 +26,15 @@ local blend = nil
 -- Config values as saved in the build, so inference never overrides what the user set
 local userConfig = { }
 
+local mercenaryApplied = nil
+
 local function loadFresh(params)
+	-- The mercenary's buffs are calculated in a throw-away build first (cached), then put into the player's Party tab
+	local mercExport = params.mercenary and Merc.export(params.mercenary)
 	loadBuildFromXML(params.xml, params.name or "build")
 	userConfig = copyTable(build.configTab.input)
 	blend = nil
+	mercenaryApplied = mercExport and Merc.apply(params.mercenary, mercExport) or nil
 end
 
 local function ensureBuild(params)
@@ -171,6 +177,8 @@ local function metrics()
 		mainSkill = skill and skill.activeEffect.grantedEffect.name,
 		playerDPS = round(o.CombinedDPS or 0, 1),
 		minionDPS = o.Minion and round(o.Minion.CombinedDPS or 0, 1) or nil,
+		mercenary = mercenaryApplied,
+		mercenaryDamageTakenPercent = (o.MercenaryAllyDamageMitigation or 0) > 0 and o.MercenaryAllyDamageMitigation or nil,
 	}
 	-- Only while the blended buff is still on (a later change could have switched it off)
 	if blend and blend.on > 0 and o.Minion and build.configTab.input[blend.key] then

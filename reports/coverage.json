@@ -1,5 +1,237 @@
 {
+  "treeDiff":{
+    "newSupported":110,
+    "previousTreeVersion":"3_29",
+    "newUnsupported":[{
+        "kind":"node",
+        "source":"Blackflame",
+        "detail":"Reliquarian",
+        "nodeId":48410,
+        "line":"Withered does not expire on Enemies Ignited by you",
+        "status":"unsupported",
+        "impact":"offence",
+        "statIds":["enemies_you_ignite_wither_does_not_expire"]
+      },{
+        "kind":"node",
+        "source":"Chain Reaction",
+        "detail":"Saboteur",
+        "nodeId":38918,
+        "line":"When your Traps Trigger, your Traps within 2 metres also Trigger",
+        "status":"unsupported",
+        "impact":"offence",
+        "statIds":["nearby_traps_within_x_units_also_trigger_on_triggering_trap"]
+      },{
+        "kind":"node",
+        "source":"Demolitions Specialist",
+        "detail":"Saboteur",
+        "nodeId":39834,
+        "line":"Mines Hinder Enemies within 3 metres for 2 seconds when they Land",
+        "status":"unsupported",
+        "impact":"offence",
+        "statIds":["mines_hinder_nearby_enemies_for_x_ms_on_arming"]
+      },{
+        "kind":"node",
+        "source":"Disorienting Display",
+        "detail":"Notable",
+        "nodeId":17255,
+        "line":"10% chance to Blind Enemies within 6 metres when you use an Elemental Skill",
+        "status":"unsupported",
+        "impact":"utility",
+        "statIds":["elemental_skill_chance_to_blind_nearby_enemies_%"]
+      },{
+        "kind":"node",
+        "source":"Fearsome Warrior",
+        "detail":"Notable",
+        "nodeId":20996,
+        "line":"25% chance to Intimidate Enemies within 4 metres for 4 seconds on Melee Kill",
+        "status":"unsupported",
+        "impact":"utility",
+        "statIds":["chance_to_intimidate_nearby_enemies_on_melee_kill_%"]
+      },{
+        "kind":"node",
+        "source":"Focal Point",
+        "detail":"Deadeye",
+        "nodeId":5443,
+        "line":"Your Mark Transfers to another Enemy within 3 metres when Marked Enemy dies",
+        "status":"unsupported",
+        "impact":"utility",
+        "statIds":["your_marks_transfer_to_nearby_enemies_on_death_%_chance"]
+      },{
+        "kind":"node",
+        "source":"Foulborn Tremor Rod",
+        "detail":"Reliquarian",
+        "nodeId":43857,
+        "line":"Mines can be Detonated an additional time",
+        "status":"unsupported",
+        "impact":"offence",
+        "statIds":["mine_extra_uses"]
+      },{
+        "kind":"node",
+        "source":"Frigid Wake",
+        "detail":"Occultist",
+        "nodeId":47630,
+        "line":"Every 4 seconds, 50% chance to Freeze Non-Frozen Enemies within 6 metres for 0.4 seconds",
+        "status":"unsupported",
+        "impact":"offence",
+        "statIds":["every_4_seconds_%_chance_freeze_non_frozen_enemies_for_300ms"]
+      },{
+        "kind":"node",
+        "source":"Golden Glory",
+        "detail":"Luminary",
+        "nodeId":31517,
+        "line":"Increases and Reductions to Light Radius also apply to Effect of",
+        "status":"unsupported",
+        "impact":"utility"
+      },{
+        "kind":"node",
+        "source":"Golden Glory",
+        "detail":"Luminary",
+        "nodeId":31517,
+        "line":"your Link Skill Buffs on your Mercenary at 50% of their value",
+        "status":"unsupported",
+        "impact":"utility"
+      },{
+        "kind":"node",
+        "source":"Master Alchemist",
+        "detail":"Pathfinder",
+        "nodeId":61805,
+        "line":"Removes Ailments when you use a Flask",
+        "status":"unsupported",
+        "impact":"defence",
+        "statIds":["dispel_status_ailments_on_flask_use"]
+      },{
+        "kind":"node",
+        "source":"Perfect Crime",
+        "detail":"Saboteur",
+        "nodeId":28535,
+        "line":"Grants Level 20 Summon Triggerbots",
+        "status":"unsupported",
+        "impact":"offence"
+      },{
+        "kind":"node",
+        "source":"Snaring Spirits",
+        "detail":"Notable",
+        "nodeId":2004,
+        "line":"Totems Hinder Enemies within 3 metres of them when Summoned",
+        "status":"unsupported",
+        "impact":"offence",
+        "statIds":["totem_hinder_nearby_enemies_when_summoned_with_25%_reduced_movement_speed"]
+      },{
+        "kind":"node",
+        "source":"That didn't happen!",
+        "detail":"Delirious",
+        "nodeId":52408,
+        "line":"Non-Cluster, Non-Passage, Non-Mycelium Jewels Socketed in your Passive Skill Tree have no effect",
+        "status":"unsupported",
+        "impact":"utility",
+        "statIds":["socketed_non_cluster_jewels_have_no_effect"]
+      },{
+        "kind":"node",
+        "source":"The Crustacean's Call",
+        "detail":"Reliquarian",
+        "nodeId":8081,
+        "line":"Skills Supported by Spell Totem are Crab Totems",
+        "status":"unsupported",
+        "impact":"offence",
+        "statIds":["spell_totems_are_crab_totems"]
+      },{
+        "kind":"node",
+        "source":"The Draugur's Lantern",
+        "detail":"Reliquarian",
+        "nodeId":17386,
+        "line":"Draugurflames burn enemies around you for 8 seconds after you Ignite a target",
+        "status":"unsupported",
+        "impact":"offence",
+        "statIds":["has_ghost_furnace"]
+      },{
+        "kind":"node",
+        "source":"The Living Blade",
+        "detail":"Reliquarian",
+        "nodeId":25795,
+        "line":"10% chance to remove 1 Mana Burn on Kill",
+        "status":"unsupported",
+        "impact":"utility",
+        "statIds":["chance_to_remove_1_tincture_toxicity_on_kill_%"]
+      },{
+        "kind":"node",
+        "source":"The Monastery Bell",
+        "detail":"Reliquarian",
+        "nodeId":26055,
+        "line":"Count as Blocking Attack Damage from the first target Hit with each Shield Attack",
+        "status":"unsupported",
+        "impact":"defence",
+        "statIds":["count_as_blocking_attack_from_shield_attack_first_target"]
+      },{
+        "kind":"node",
+        "source":"Tide Caller",
+        "detail":"Brinerot",
+        "nodeId":17080,
+        "line":"Grants Level 20 Surging Torrent",
+        "status":"unsupported",
+        "impact":"utility"
+      },{
+        "kind":"node",
+        "source":"Tidebreaker",
+        "detail":"Reliquarian",
+        "nodeId":27054,
+        "line":"Gain an Endurance Charge when you Stun an Enemy with a Melee Hit",
+        "status":"unsupported",
+        "impact":"defence",
+        "statIds":["gain_endurance_charge_on_melee_stun","gain_endurance_charge_on_melee_stun_%"]
+      }]
+  },
   "treeVersion":"3_30",
+  "generated":"2026-11-20 11:42",
+  "summary":{
+    "unique":{
+      "impact":{
+        "offence":268,
+        "defence":190,
+        "utility":330,
+        "cosmetic":16
+      },
+      "sourcesWithGap":547,
+      "supported":6475,
+      "lines":7279,
+      "sources":1335,
+      "unsupported":804,
+      "mapped":640
+    },
+    "node":{
+      "impact":{
+        "offence":130,
+        "defence":92,
+        "utility":79
+      },
+      "sourcesWithGap":238,
+      "supported":4791,
+      "lines":5092,
+      "sources":1750,
+      "unsupported":301,
+      "mapped":256
+    }
+  },
+  "diff":{
+    "removed":[{
+        "kind":"node",
+        "source":"Loyal Bodyguard",
+        "detail":"Luminary",
+        "nodeId":1564,
+        "line":"taken from your Mercenary's Life before you",
+        "status":"unsupported",
+        "impact":"utility"
+      }],
+    "added":[],
+    "fixed":[{
+        "kind":"node",
+        "source":"Loyal Bodyguard",
+        "detail":"Luminary",
+        "nodeId":1564,
+        "line":"If your Mercenary's Life is higher than your own, 20% of Damage from Hits is",
+        "status":"unsupported",
+        "impact":"defence"
+      }]
+  },
   "version":"2.68.1",
   "unsupported":[{
       "kind":"unique",
@@ -6473,7 +6705,7 @@
       "kind":"node",
       "source":"Banner Valour Gained",
       "detail":"Normal",
-      "nodeId":58336,
+      "nodeId":49635,
       "line":"20% increased Valour gained",
       "status":"unsupported",
       "impact":"utility",
@@ -6491,7 +6723,7 @@
       "kind":"node",
       "source":"Banner Valour Gained",
       "detail":"Normal",
-      "nodeId":49635,
+      "nodeId":60963,
       "line":"20% increased Valour gained",
       "status":"unsupported",
       "impact":"utility",
@@ -6500,7 +6732,7 @@
       "kind":"node",
       "source":"Banner Valour Gained",
       "detail":"Normal",
-      "nodeId":60963,
+      "nodeId":58336,
       "line":"20% increased Valour gained",
       "status":"unsupported",
       "impact":"utility",
@@ -7439,7 +7671,7 @@
       "kind":"node",
       "source":"Fortify on Melee Stun",
       "detail":"Normal",
-      "nodeId":56370,
+      "nodeId":50515,
       "line":"Melee Hits which Stun have 10% chance to Fortify",
       "status":"unsupported",
       "impact":"defence",
@@ -7448,7 +7680,7 @@
       "kind":"node",
       "source":"Fortify on Melee Stun",
       "detail":"Normal",
-      "nodeId":50515,
+      "nodeId":56370,
       "line":"Melee Hits which Stun have 10% chance to Fortify",
       "status":"unsupported",
       "impact":"defence",
@@ -7862,26 +8094,10 @@
       "source":"Loyal Bodyguard",
       "detail":"Luminary",
       "nodeId":1564,
-      "line":"If your Mercenary's Life is higher than your own, 20% of Damage from Hits is",
-      "status":"unsupported",
-      "impact":"defence"
-    },{
-      "kind":"node",
-      "source":"Loyal Bodyguard",
-      "detail":"Luminary",
-      "nodeId":1564,
       "line":"If your Mercenary's Life is lower than your own, 40% of Damage they take is Recouped as Life",
       "status":"unsupported",
       "impact":"defence",
       "statIds":["permanenet_mercenary_damage_taken_recouped_as_life_%_if_life_lower_than_parents_life"]
-    },{
-      "kind":"node",
-      "source":"Loyal Bodyguard",
-      "detail":"Luminary",
-      "nodeId":1564,
-      "line":"taken from your Mercenary's Life before you",
-      "status":"unsupported",
-      "impact":"utility"
     },{
       "kind":"node",
       "source":"Mage Bane",
@@ -7983,7 +8199,7 @@
       "kind":"node",
       "source":"Mercenary Life, Light Radius",
       "detail":"Luminary",
-      "nodeId":27123,
+      "nodeId":61133,
       "line":"Your Mercenary and their Minions have 15% increased maximum Life",
       "status":"unsupported",
       "impact":"defence",
@@ -7992,7 +8208,7 @@
       "kind":"node",
       "source":"Mercenary Life, Light Radius",
       "detail":"Luminary",
-      "nodeId":61133,
+      "nodeId":27123,
       "line":"Your Mercenary and their Minions have 15% increased maximum Life",
       "status":"unsupported",
       "impact":"defence",
@@ -8001,7 +8217,7 @@
       "kind":"node",
       "source":"Mine Detonation Speed",
       "detail":"Normal",
-      "nodeId":4546,
+      "nodeId":40409,
       "line":"Mines have 20% increased Detonation Speed",
       "status":"unsupported",
       "impact":"offence",
@@ -8010,7 +8226,7 @@
       "kind":"node",
       "source":"Mine Detonation Speed",
       "detail":"Normal",
-      "nodeId":40409,
+      "nodeId":4546,
       "line":"Mines have 20% increased Detonation Speed",
       "status":"unsupported",
       "impact":"offence",
@@ -8949,216 +9165,5 @@
       "status":"unsupported",
       "impact":"offence",
       "statIds":["cover_in_ash_on_hit_%_while_you_are_burning"]
-    }],
-  "generated":"2026-11-18 16:34",
-  "treeDiff":{
-    "newSupported":110,
-    "newUnsupported":[{
-        "kind":"node",
-        "source":"Blackflame",
-        "detail":"Reliquarian",
-        "nodeId":48410,
-        "line":"Withered does not expire on Enemies Ignited by you",
-        "status":"unsupported",
-        "impact":"offence",
-        "statIds":["enemies_you_ignite_wither_does_not_expire"]
-      },{
-        "kind":"node",
-        "source":"Chain Reaction",
-        "detail":"Saboteur",
-        "nodeId":38918,
-        "line":"When your Traps Trigger, your Traps within 2 metres also Trigger",
-        "status":"unsupported",
-        "impact":"offence",
-        "statIds":["nearby_traps_within_x_units_also_trigger_on_triggering_trap"]
-      },{
-        "kind":"node",
-        "source":"Demolitions Specialist",
-        "detail":"Saboteur",
-        "nodeId":39834,
-        "line":"Mines Hinder Enemies within 3 metres for 2 seconds when they Land",
-        "status":"unsupported",
-        "impact":"offence",
-        "statIds":["mines_hinder_nearby_enemies_for_x_ms_on_arming"]
-      },{
-        "kind":"node",
-        "source":"Disorienting Display",
-        "detail":"Notable",
-        "nodeId":17255,
-        "line":"10% chance to Blind Enemies within 6 metres when you use an Elemental Skill",
-        "status":"unsupported",
-        "impact":"utility",
-        "statIds":["elemental_skill_chance_to_blind_nearby_enemies_%"]
-      },{
-        "kind":"node",
-        "source":"Fearsome Warrior",
-        "detail":"Notable",
-        "nodeId":20996,
-        "line":"25% chance to Intimidate Enemies within 4 metres for 4 seconds on Melee Kill",
-        "status":"unsupported",
-        "impact":"utility",
-        "statIds":["chance_to_intimidate_nearby_enemies_on_melee_kill_%"]
-      },{
-        "kind":"node",
-        "source":"Focal Point",
-        "detail":"Deadeye",
-        "nodeId":5443,
-        "line":"Your Mark Transfers to another Enemy within 3 metres when Marked Enemy dies",
-        "status":"unsupported",
-        "impact":"utility",
-        "statIds":["your_marks_transfer_to_nearby_enemies_on_death_%_chance"]
-      },{
-        "kind":"node",
-        "source":"Foulborn Tremor Rod",
-        "detail":"Reliquarian",
-        "nodeId":43857,
-        "line":"Mines can be Detonated an additional time",
-        "status":"unsupported",
-        "impact":"offence",
-        "statIds":["mine_extra_uses"]
-      },{
-        "kind":"node",
-        "source":"Frigid Wake",
-        "detail":"Occultist",
-        "nodeId":47630,
-        "line":"Every 4 seconds, 50% chance to Freeze Non-Frozen Enemies within 6 metres for 0.4 seconds",
-        "status":"unsupported",
-        "impact":"offence",
-        "statIds":["every_4_seconds_%_chance_freeze_non_frozen_enemies_for_300ms"]
-      },{
-        "kind":"node",
-        "source":"Golden Glory",
-        "detail":"Luminary",
-        "nodeId":31517,
-        "line":"Increases and Reductions to Light Radius also apply to Effect of",
-        "status":"unsupported",
-        "impact":"utility"
-      },{
-        "kind":"node",
-        "source":"Golden Glory",
-        "detail":"Luminary",
-        "nodeId":31517,
-        "line":"your Link Skill Buffs on your Mercenary at 50% of their value",
-        "status":"unsupported",
-        "impact":"utility"
-      },{
-        "kind":"node",
-        "source":"Master Alchemist",
-        "detail":"Pathfinder",
-        "nodeId":61805,
-        "line":"Removes Ailments when you use a Flask",
-        "status":"unsupported",
-        "impact":"defence",
-        "statIds":["dispel_status_ailments_on_flask_use"]
-      },{
-        "kind":"node",
-        "source":"Perfect Crime",
-        "detail":"Saboteur",
-        "nodeId":28535,
-        "line":"Grants Level 20 Summon Triggerbots",
-        "status":"unsupported",
-        "impact":"offence"
-      },{
-        "kind":"node",
-        "source":"Snaring Spirits",
-        "detail":"Notable",
-        "nodeId":2004,
-        "line":"Totems Hinder Enemies within 3 metres of them when Summoned",
-        "status":"unsupported",
-        "impact":"offence",
-        "statIds":["totem_hinder_nearby_enemies_when_summoned_with_25%_reduced_movement_speed"]
-      },{
-        "kind":"node",
-        "source":"That didn't happen!",
-        "detail":"Delirious",
-        "nodeId":52408,
-        "line":"Non-Cluster, Non-Passage, Non-Mycelium Jewels Socketed in your Passive Skill Tree have no effect",
-        "status":"unsupported",
-        "impact":"utility",
-        "statIds":["socketed_non_cluster_jewels_have_no_effect"]
-      },{
-        "kind":"node",
-        "source":"The Crustacean's Call",
-        "detail":"Reliquarian",
-        "nodeId":8081,
-        "line":"Skills Supported by Spell Totem are Crab Totems",
-        "status":"unsupported",
-        "impact":"offence",
-        "statIds":["spell_totems_are_crab_totems"]
-      },{
-        "kind":"node",
-        "source":"The Draugur's Lantern",
-        "detail":"Reliquarian",
-        "nodeId":17386,
-        "line":"Draugurflames burn enemies around you for 8 seconds after you Ignite a target",
-        "status":"unsupported",
-        "impact":"offence",
-        "statIds":["has_ghost_furnace"]
-      },{
-        "kind":"node",
-        "source":"The Living Blade",
-        "detail":"Reliquarian",
-        "nodeId":25795,
-        "line":"10% chance to remove 1 Mana Burn on Kill",
-        "status":"unsupported",
-        "impact":"utility",
-        "statIds":["chance_to_remove_1_tincture_toxicity_on_kill_%"]
-      },{
-        "kind":"node",
-        "source":"The Monastery Bell",
-        "detail":"Reliquarian",
-        "nodeId":26055,
-        "line":"Count as Blocking Attack Damage from the first target Hit with each Shield Attack",
-        "status":"unsupported",
-        "impact":"defence",
-        "statIds":["count_as_blocking_attack_from_shield_attack_first_target"]
-      },{
-        "kind":"node",
-        "source":"Tide Caller",
-        "detail":"Brinerot",
-        "nodeId":17080,
-        "line":"Grants Level 20 Surging Torrent",
-        "status":"unsupported",
-        "impact":"utility"
-      },{
-        "kind":"node",
-        "source":"Tidebreaker",
-        "detail":"Reliquarian",
-        "nodeId":27054,
-        "line":"Gain an Endurance Charge when you Stun an Enemy with a Melee Hit",
-        "status":"unsupported",
-        "impact":"defence",
-        "statIds":["gain_endurance_charge_on_melee_stun","gain_endurance_charge_on_melee_stun_%"]
-      }],
-    "previousTreeVersion":"3_29"
-  },
-  "summary":{
-    "unique":{
-      "impact":{
-        "utility":330,
-        "cosmetic":16,
-        "offence":268,
-        "defence":190
-      },
-      "sources":1335,
-      "sourcesWithGap":547,
-      "lines":7279,
-      "mapped":640,
-      "supported":6475,
-      "unsupported":804
-    },
-    "node":{
-      "impact":{
-        "utility":80,
-        "offence":130,
-        "defence":93
-      },
-      "sources":1750,
-      "sourcesWithGap":238,
-      "lines":5093,
-      "mapped":256,
-      "supported":4790,
-      "unsupported":303
-    }
-  }
+    }]
 }

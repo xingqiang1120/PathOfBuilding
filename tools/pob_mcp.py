@@ -20,6 +20,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 import library  # noqa: E402
 import clientlog  # noqa: E402
+import simlog  # noqa: E402
 from pob_worker import WORKER, WorkerError  # noqa: E402
 
 SERVER_INFO = {"name": "path-of-building", "version": "0.1.0"}
@@ -174,6 +175,14 @@ TOOLS = [
                     "Filters: character (deaths), since (YYYY-MM-DD), level (area level).",
      "inputSchema": {"type": "object", "properties": {"character": {"type": "string"}, "since": {"type": "string"},
                                                       "level": {"type": "integer"}, "top": {"type": "integer"}}}},
+    {"name": "sim_stats",
+     "description": "What the build generator and optimizer learned from every candidate they tried in PoB (tools/simlog.py): the "
+                    "average DPS and EHP change of each change (passive per point, support, aura, item), filtered by context - "
+                    "skill (name or a word such as 'wand', 'minion', 'spell'), ascendancy, kind (passive_add, gem_add, gem_replace, "
+                    "group_add, item_set). Averages over different builds: a guide for what to try, not a calculation; confirm "
+                    "with pob_simulate. Without filters: a summary of runs and samples.",
+     "inputSchema": {"type": "object", "properties": {"kind": {"type": "string"}, "skill": {"type": "string"}, "ascendancy": {"type": "string"},
+                                                      "top": {"type": "integer"}}}},
     {"name": "library_item_usage",
      "description": "How often an item appears in the library, grouped by ascendancy, primary skill and slot, with the builds using it.",
      "inputSchema": {"type": "object", "properties": {"item": {"type": "string"}, "top": {"type": "integer"}}, "required": ["item"]}},
@@ -339,6 +348,8 @@ HANDLERS = {
     "library_item_usage": lambda a: library.query_item_usage(a["item"], a.get("top") or 10),
     "library_core_parts": lambda a: library.query_core_parts(filters_of(a), a.get("top") or 15),
     "play_log": tool_play_log,
+    "sim_stats": lambda a: simlog.stats(a.get("kind"), a.get("skill"), a.get("ascendancy"), a.get("top") or 20)
+                 if any(a.get(k) for k in ("kind", "skill", "ascendancy")) else simlog.summary(),
     "pob_mechanics": lambda a: WORKER.call("mechanics", {k: a[k] for k in ("id", "query") if a.get(k)}),
 }
 

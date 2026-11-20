@@ -38,6 +38,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import library  # noqa: E402
+import simlog  # noqa: E402
 from pob_worker import WORKER  # noqa: E402
 
 ROOT = library.ROOT
@@ -64,6 +65,8 @@ class Optimizer:
         self.state = []          # accepted changes
         self.history = []
         self.evaluations = 0
+        self.recorder = simlog.Recorder("optimize", skill=name, gear=f"from {goal['base']}", focus="targets",
+                                        skill_info={"targets": self.targets}, versions=WORKER.call("ping", {}))
 
     # --- evaluation -------------------------------------------------------
     def evaluate(self, candidates):
@@ -73,6 +76,9 @@ class Optimizer:
             res = WORKER.call("evaluate", dict(self.params, changes=self.base_changes + self.state, candidates=chunk))
             self.evaluations += len(chunk)
             out.extend(res)
+        before = getattr(self, "current", None)
+        if before:
+            self.recorder.record("optimize", self.base_changes + self.state, before, candidates, out, self.dps, score=lambda m: -self.penalty(m))
         return out
 
     def dps(self, m):
@@ -218,6 +224,7 @@ class Optimizer:
             self.current = best_m
             log("  accepted: " + "; ".join(describe(c) for c in best) + f"  -> penalty {self.penalty(best_m):.3f}, DPS {self.dps(best_m):,.0f}")
         self.elapsed = time.time() - started
+        self.recorder.finish(self.current)
         return self.current
 
     def export(self):

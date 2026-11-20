@@ -28,6 +28,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import library  # noqa: E402
+import simlog  # noqa: E402
 from pob_worker import WORKER  # noqa: E402
 
 OUT_DIR = os.path.join(library.ROOT, "src", "Builds", "generated")
@@ -140,17 +141,22 @@ class Generator:
         self.state = []
         self.history = []
         self.tries = 0
+        self.step = "start"
+        self.recorder = None
 
     # --- PoB calls ---------------------------------------------------------------------------------------------------
     def params(self):
         return {"xml": self.xml, "name": self.name, "infer": self.infer}
 
-    def try_all(self, candidates):
+    def try_all(self, candidates, costs=None):
         out = []
         for i in range(0, len(candidates), 40):
             chunk = candidates[i:i + 40]
             out.extend(WORKER.call("try", dict(self.params(), changes=self.state, candidates=chunk)))
             self.tries += len(chunk)
+        # every try is kept as data (tools/simlog.py), with the state it was tried in
+        if self.recorder and getattr(self, "current", None):
+            self.recorder.record(self.step, self.state, self.current, candidates, out, self.dps, score=self.score, costs=costs)
         return out
 
     # --- score -------------------------------------------------------------------------------------------------------
@@ -184,7 +190,7 @@ class Generator:
         """Try every move; return (move, metrics, gain) of the best one that improves the score, or None."""
         if not moves:
             return None
-        res = self.try_all(moves)
+        res = self.try_all(moves, costs=per_point)
         base = self.score(current)
         best = None
         for i, (move, r) in enumerate(zip(moves, res)):
@@ -228,6 +234,7 @@ class Generator:
         log(f"{r['class']} / {r['ascendancy']}, {r['skill']} ({', '.join(k for k in ('attack', 'spell', 'minion') if self.info[k])})")
 
     def pick_weapon(self):
+        self.step = "weapon"
         options = weapon_options(self.info, self.attribute)
         res = self.try_all([changes for _, changes in options])
         ranked = sorted(((self.score(r["metrics"]), label, changes, r["metrics"]) for (label, changes), r in zip(options, res)
@@ -239,6 +246,7 @@ class Generator:
         self.accept("weapon", changes, metrics, f"weapon: {label}")
 
     def pick_supports(self, count=5):
+        self.step = "support"
         cands = WORKER.call("candidates", dict(self.params(), changes=self.state))
         self.support_pool = [s for s in cands["supports"] if not DELIVERY.search(s)]
         self.points = cands["points"]
@@ -253,6 +261,7 @@ class Generator:
             self.accept("support", move, metrics, f"support: {move[0]['gem']}")
 
     def pick_ascendancy(self):
+        self.step = "ascendancy"
         while True:
             a = WORKER.call("ascendancy_candidates", dict(self.params(), changes=self.state))
             free = a["available"] - a["used"]
@@ -269,6 +278,7 @@ class Generator:
             self.accept("ascendancy", move, metrics, f"ascendancy: {node['name']}")
 
     def grow_tree(self, max_path=10, shortlist=30):
+        self.step = "tree"
         known = {}  # node id -> (gain per point, name, cost) from the last time it was tried
         while True:
             cands = WORKER.call("candidates", dict(self.params(), changes=self.state, maxPath=max_path))
@@ -294,6 +304,7 @@ class Generator:
             self.accept("tree", move, metrics, f"passive: {node['name']} ({node['cost']} points, {metrics.get('passivePointsUsed')}/{available})")
 
     def add_buffs(self):
+        self.step = "buff"
         present = {c.get("gems", [None])[0] for c in self.state if c["type"] == "group_add"}
         pool = [s for s in BUFF_SKILLS if s not in present]
         while pool:
@@ -305,6 +316,7 @@ class Generator:
             self.accept("buff", move, metrics, f"aura/buff: {move[0]['gems'][0]}")
 
     def retune_supports(self):
+        self.step = "support swap"
         for gem in list(self.links):
             pool = [s for s in self.support_pool if s not in self.links]
             moves = [[{"type": "gem_replace", "group": 1, "gem": gem, "with": s}] for s in pool]
@@ -318,6 +330,9 @@ class Generator:
     def run(self):
         started = time.time()
         self.create()
+        self.recorder = simlog.Recorder("generate", skill=self.skill, ascendancy=self.ascendancy, cls=self.class_name, focus=self.focus,
+                                        gear=f"from {self.gear_from}" if self.gear_from else "template", skill_info=self.info,
+                                        versions=WORKER.call("ping", {}))
         if not self.gear_from:
             self.pick_weapon()
         self.pick_supports()
@@ -326,6 +341,7 @@ class Generator:
         self.add_buffs()
         self.retune_supports()
         self.elapsed = time.time() - started
+        self.recorder.finish(self.current)
         return self.current
 
     # --- output ------------------------------------------------------------------------------------------------------

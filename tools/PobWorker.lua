@@ -1207,6 +1207,40 @@ end
 
 -- The build generator's search uses "try" (below)
 
+-- Damaging active skills (for the generator's self-play) and every ascendancy, from PoB's own data
+function methods.skill_list(p)
+	local skip = { SkillType.Aura, SkillType.Herald, SkillType.Triggered, SkillType.Golem, SkillType.Warcry, SkillType.Travel,
+		SkillType.Blink, SkillType.Guard, SkillType.Banner, SkillType.Hex, SkillType.Mark, SkillType.Vaal }
+	local skills, seen = { }, { }
+	for _, gem in pairs(data.gems) do
+		local effect = gem.grantedEffect
+		local t = effect and effect.skillTypes or { }
+		local ok = effect and not effect.support and not effect.hidden and gem.tags and gem.tags.grants_active_skill and not gem.vaalGem
+			and not gem.name:match("^Vaal ") and not seen[gem.name]
+		if ok then
+			for _, st in ipairs(skip) do if st and t[st] then ok = false end end
+		end
+		local damaging = t[SkillType.Attack] or (t[SkillType.Spell] and (t[SkillType.Damage] or t[SkillType.DamageOverTime])) or t[SkillType.Minion]
+		if ok and damaging then
+			seen[gem.name] = true
+			table.insert(skills, { name = gem.name, reqStr = gem.reqStr or 0, reqDex = gem.reqDex or 0, reqInt = gem.reqInt or 0,
+				attack = t[SkillType.Attack] or false, spell = t[SkillType.Spell] or false, minion = t[SkillType.Minion] or false,
+				transfigured = gem.name:find(" of ") ~= nil })
+		end
+	end
+	table.sort(skills, function(a, b) return a.name < b.name end)
+	local ascendancies = { }
+	for _, cls in pairs(build.spec.tree.classes) do
+		for ascId, asc in pairs(cls.classes or { }) do
+			if ascId ~= 0 and asc.name then
+				table.insert(ascendancies, { name = asc.name, class = cls.name })
+			end
+		end
+	end
+	table.sort(ascendancies, function(a, b) return a.name < b.name end)
+	return { skills = skills, ascendancies = ascendancies }
+end
+
 -- Fast evaluation for searches: load once, then apply each candidate, measure and undo it (no reload per candidate).
 -- Supports passive_add, gem_add, gem_replace, gem_level, group_add, item_equip, item_remove, config_set; others error.
 local function applyReversible(change)

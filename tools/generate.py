@@ -31,7 +31,7 @@ import library  # noqa: E402
 import simlog  # noqa: E402
 from pob_worker import WORKER  # noqa: E402
 
-OUT_DIR = os.path.join(library.ROOT, "src", "Builds", "generated")
+OUT_DIR = os.environ.get("POB_GENERATE_DIR") or os.path.join(library.ROOT, "src", "Builds", "generated")
 FOCUS = {"damage": 0.5, "balanced": 1.0, "defence": 2.0}
 
 

@@ -49,7 +49,7 @@ def db_path():
 
 def connect():
     os.makedirs(LIBRARY, exist_ok=True)
-    db = sqlite3.connect(db_path())
+    db = sqlite3.connect(db_path(), timeout=120)  # several generators may write at the same time
     db.executescript(SCHEMA)
     return db
 

@@ -430,6 +430,18 @@ local changeHandlers = {
 		build.spec:AddUndoState()
 		return string.format("removed %s (%d point%s freed)", node.dn, freed, freed == 1 and "" or "s")
 	end,
+	jewels_remove = function(c)
+		-- every jewel socketed in the tree (for comparisons without jewels)
+		local n = 0
+		for _, slot in pairs(build.itemsTab.slots) do
+			if slot.nodeId and slot.selItemId and slot.selItemId ~= 0 then
+				slot:SetSelItemId(0)
+				n = n + 1
+			end
+		end
+		build.itemsTab:PopulateSlots()
+		return string.format("removed %d tree jewels", n)
+	end,
 	config_set = function(c)
 		build.configTab.input[c.key] = c.value
 		build.configTab:BuildModList()
@@ -1048,6 +1060,12 @@ local function extendedMetrics()
 	m.minionLimit = o.ActiveMinionLimit
 	m.LifeUnreserved = o.LifeUnreserved and round(o.LifeUnreserved, 1)
 	m.ManaUnreserved = o.ManaUnreserved and round(o.ManaUnreserved, 1)
+	-- attribute points missing for the gems and items in use
+	local short = 0
+	for _, attr in ipairs({ "Str", "Dex", "Int" }) do
+		short = short + math.max(0, (o["Req" .. attr] or 0) - (o[attr] or 0))
+	end
+	m.attributeShortfall = short
 	return m
 end
 
@@ -1073,6 +1091,202 @@ function methods.evaluate(p)
 	return results
 end
 
+-- A new character for the build generator: class and ascendancy, level, one main skill group (6-link in the body
+-- armour) and any further changes (template items), returned as a build file.
+local function findAscendancy(name)
+	local want = name:lower()
+	for classId, cls in pairs(build.spec.tree.classes) do
+		if (cls.name or ""):lower() == want then
+			return classId, 0, cls.name, nil
+		end
+		for ascId, asc in pairs(cls.classes or { }) do
+			if ascId ~= 0 and (asc.name or ""):lower() == want then
+				return classId, ascId, cls.name, asc.name
+			end
+		end
+	end
+	error("no class or ascendancy named '" .. name .. "'")
+end
+
+local function skillInfo(effect)
+	local types = effect.skillTypes or { }
+	local weapons = { }
+	for name in pairs(effect.weaponTypes or { }) do table.insert(weapons, name) end
+	table.sort(weapons)
+	return {
+		name = effect.name,
+		attack = types[SkillType.Attack] or false, spell = types[SkillType.Spell] or false,
+		minion = types[SkillType.Minion] or false, totem = types[SkillType.SummonsTotem] or false,
+		melee = types[SkillType.Melee] or false, projectile = types[SkillType.Projectile] or false,
+		weaponTypes = weapons,
+	}
+end
+
+function methods.create_build(p)
+	dirty = true
+	newBuild()
+	local classId, ascId, className, ascName = findAscendancy(assert(p.ascendancy, "missing ascendancy"))
+	build.spec:SelectClass(classId)
+	build.spec:SelectAscendClass(ascId)
+	build.characterLevel = p.level or 95
+	build.characterLevelAutoMode = false
+	build.controls.characterLevel:SetText(tostring(build.characterLevel))
+	if build.configTab then build.configTab.input.enemyIsBoss = p.enemyIsBoss or "Pinnacle" build.configTab:BuildModList() end
+	local gem = { enableGlobal1 = true, enableGlobal2 = true, count = 1 }
+	local skillName = setGem(gem, assert(p.skill, "missing skill"), p.gemLevel or 20, p.gemQuality or 20)
+	local group = { label = "Main", enabled = true, includeInFullDPS = true, slot = "Body Armour", gemList = { gem }, mainActiveSkill = 1 }
+	table.insert(build.skillsTab.socketGroupList, group)
+	build.skillsTab:ProcessSocketGroup(group)
+	build.mainSocketGroup = 1
+	recalc()
+	local info = skillInfo(gem.grantedEffect or (gem.gemData and gem.gemData.grantedEffect))
+	local applied = { }
+	for _, change in ipairs(p.changes or { }) do table.insert(applied, changeHandlers[change.type](change)) end
+	recalc()
+	return { xml = build:SaveDB("generated"), class = className, ascendancy = ascName, skill = skillName, skillInfo = info,
+		applied = applied, metrics = extendedMetrics() }
+end
+
+-- A reference build's gear with an empty tree and only the main skill: to test the generator's tree and gem search
+-- against the author's own choices with the same items
+function methods.strip_build(p)
+	dirty = true
+	loadFresh(p)
+	selectMain(p)
+	local mainGroup = build.skillsTab.socketGroupList[build.mainSocketGroup]
+	local active = mainGroup and mainGroup.displaySkillList and mainGroup.displaySkillList[mainGroup.mainActiveSkill or 1]
+	local skillName = p.skill or (active and active.activeEffect.grantedEffect.name)
+	assert(skillName, "no main skill to keep")
+	local ascName = build.spec.curAscendClassName
+	-- "auto" level follows the points allocated: keep the author's level instead
+	build.characterLevelAutoMode = false
+	local jewels = 0
+	for nodeId, itemId in pairs(build.spec.jewels or { }) do
+		if itemId and itemId ~= 0 then jewels = jewels + 1 end
+	end
+	build.spec:ResetNodes()
+	build.spec:BuildAllDependsAndPaths()
+	-- keep only skills granted by items (they come back with the items); drop every gem group
+	local keep = { }
+	for _, group in ipairs(build.skillsTab.socketGroupList) do
+		if group.source then table.insert(keep, group) end
+	end
+	wipeTable(build.skillsTab.socketGroupList)
+	for _, group in ipairs(keep) do table.insert(build.skillsTab.socketGroupList, group) end
+	local gem = { enableGlobal1 = true, enableGlobal2 = true, count = 1 }
+	setGem(gem, skillName, p.gemLevel or 20, p.gemQuality or 20)
+	local group = { label = "Main", enabled = true, includeInFullDPS = true, slot = mainGroup and mainGroup.slot or "Body Armour", gemList = { gem }, mainActiveSkill = 1 }
+	table.insert(build.skillsTab.socketGroupList, 1, group)
+	build.skillsTab:ProcessSocketGroup(group)
+	build.mainSocketGroup = 1
+	recalc()
+	local info = skillInfo(gem.grantedEffect or (gem.gemData and gem.gemData.grantedEffect))
+	return { xml = build:SaveDB("stripped"), class = build.spec.curClassName, ascendancy = ascName, skill = skillName,
+		skillInfo = info, metrics = extendedMetrics(), jewelsDropped = jewels }
+end
+
+-- Ascendancy notables still free, with the points their path costs
+function methods.ascendancy_candidates(p)
+	dirty = true
+	ensureBuild(p)
+	loadFresh(p)
+	for _, change in ipairs(p.changes or { }) do changeHandlers[change.type](change) end
+	recalc()
+	local list, used = { }, 0
+	local asc = build.spec.curAscendClassName
+	for id, node in pairs(build.spec.nodes) do
+		if node.ascendancyName == asc and node.type == "Notable" and not node.alloc and node.path then
+			table.insert(list, { id = id, name = node.dn, cost = #node.path, lines = node.sd })
+		end
+		if node.ascendancyName == asc and node.alloc and node.type ~= "AscendClassStart" and not node.isMultipleChoiceOption then
+			used = used + 1
+		end
+	end
+	return { ascendancy = asc, used = used, available = 8, candidates = list }
+end
+
+-- The build generator's search uses "try" (below)
+
+-- Fast evaluation for searches: load once, then apply each candidate, measure and undo it (no reload per candidate).
+-- Supports passive_add, gem_add, gem_replace, gem_level, group_add, item_equip, item_remove, config_set; others error.
+local function applyReversible(change)
+	local t = change.type
+	if t == "passive_add" then
+		local before = { }
+		for id in pairs(build.spec.allocNodes) do before[id] = true end
+		local result = changeHandlers[t](change)
+		return result, function()
+			for id, node in pairs(build.spec.allocNodes) do
+				if not before[id] and node.alloc then build.spec:DeallocNode(node) end
+			end
+		end
+	elseif t == "gem_add" then
+		local group = findGroup(change.group)
+		local result = changeHandlers[t](change)
+		return result, function() table.remove(group.gemList) build.skillsTab:ProcessSocketGroup(group) end
+	elseif t == "gem_replace" or t == "gem_level" then
+		local group = findGroup(change.group or change.gem)
+		local saved = { }
+		for i, gem in ipairs(group.gemList) do saved[i] = { gem = gem, copy = copyTable(gem, true) } end
+		local result = changeHandlers[t](change)
+		return result, function()
+			for i, s in ipairs(saved) do
+				for k in pairs(s.gem) do s.gem[k] = nil end
+				for k, v in pairs(s.copy) do s.gem[k] = v end
+				group.gemList[i] = s.gem
+			end
+			build.skillsTab:ProcessSocketGroup(group)
+		end
+	elseif t == "group_add" then
+		local result = changeHandlers[t](change)
+		return result, function() table.remove(build.skillsTab.socketGroupList) end
+	elseif t == "item_equip" or t == "item_remove" then
+		local slot = assert(build.itemsTab.slots[change.slot], "no item slot '" .. tostring(change.slot) .. "'")
+		local old = slot.selItemId
+		local result = changeHandlers[t](change)
+		return result, function() slot:SetSelItemId(old) build.itemsTab:PopulateSlots() end
+	elseif t == "config_set" then
+		local old = build.configTab.input[change.key]
+		local result = changeHandlers[t](change)
+		return result, function() build.configTab.input[change.key] = old build.configTab:BuildModList() end
+	end
+	error("change type '" .. tostring(t) .. "' cannot be tried quickly")
+end
+
+function methods.try(p)
+	dirty = true
+	loadFresh(p)
+	selectMain(p)
+	for _, change in ipairs(p.changes or { }) do changeHandlers[change.type](change) end
+	recalc()
+	local mainGroup = build.mainSocketGroup
+	local results = { }
+	for _, candidate in ipairs(p.candidates or { { } }) do
+		local undo, applied = { }, { }
+		local config = copyTable(build.configTab.input)
+		local ok, res = pcall(function()
+			for _, change in ipairs(candidate) do
+				local result, revert = applyReversible(change)
+				table.insert(applied, result)
+				table.insert(undo, revert)
+			end
+			recalc()
+			local inferred = p.infer ~= false and applyInference(p) or nil
+			local m = extendedMetrics()
+			m.inferred = inferred and #inferred > 0 and inferred or nil
+			return { applied = applied, metrics = m }
+		end)
+		for i = #undo, 1, -1 do pcall(undo[i]) end
+		for key in pairs(build.configTab.input) do build.configTab.input[key] = nil end
+		for key, value in pairs(config) do build.configTab.input[key] = value end
+		build.configTab:BuildModList()
+		build.mainSocketGroup = mainGroup
+		blend = nil
+		table.insert(results, ok and res or { error = (tostring(res):gsub("^.-%.lua:%d+: ", "")) })
+	end
+	return results
+end
+
 -- What the optimizer may try for this build
 local defensiveSkills = { "Determination", "Grace", "Discipline", "Purity of Elements", "Vitality", "Defiance Banner", "Molten Shell",
 	"Steelskin", "Arctic Armour", "Petrified Blood", "Tempest Shield", "Flesh and Stone" }
@@ -1080,8 +1294,11 @@ local minionBuffSkills = { "Zealotry", "Dread Banner", "Haste", "Pride", "Malevo
 
 function methods.candidates(p)
 	dirty = true
-	ensureBuild(p)
+	loadFresh(p)
 	selectMain(p)
+	-- the candidates depend on the changes already made (e.g. a tree grown by the generator)
+	for _, change in ipairs(p.changes or { }) do changeHandlers[change.type](change) end
+	recalc()
 	local result = { supports = { }, skills = { }, passives = { }, uniques = { } }
 	local mainSkill = build.calcsTab.mainEnv.player.mainSkill
 	for _, gem in pairs(data.gems) do

@@ -34,6 +34,11 @@ INSTRUCTIONS = """Path of Building (PoB) for Path of Exile 1, run headless, plus
   carry "inferred" with the estimate and assumptions (e.g. all minions alive). Mention them; pass infer=false to compare.
 - Builds can carry play-verified settings (group, minion skill, Config); tools apply them automatically. Save new ones with
   pob_save_build_settings only after the user confirms them.
+- Results carry "buildChecks" when the build was corrected on load or looks inconsistent: the guardian's item set worn by
+  the player, or Animate Guardian (Weapon) left on the player's gear (both fixed automatically; checkBuild=false skips it), and
+  more mana/life reserved than available. Old Luminary builds put the mercenary's auras on the player because PoB had no
+  mercenary: ask which auras are the mercenary's and model them with the mercenary setting instead. Character import from
+  the official API has no guardian gear; it must be entered by hand in an item set named "Animate Guardian".
 - Use pob_simulate to check a suggestion before recommending it, and report the before/after numbers.
 - Tags (pob_list_tags) classify items and passives, e.g. minion, phantasm, energyshield, fire. Mechanic tags (unholymight,
   withered, ...) imply related tags (withered -> chaos). Check pob_mechanics for how a mechanic works and where its numbers
@@ -61,6 +66,7 @@ MAIN_PROPS = {
     "group": {"type": ["integer", "string"], "description": "Socket group to treat as main skill (default: saved setting, else strongest)"},
     "minionSkill": {"type": ["string", "integer"], "description": "Skill the minion really uses, e.g. 'Physical Projectile' (default: saved setting, else PoB's first skill)"},
     "ignoreSettings": {"type": "boolean", "description": "Ignore the build's saved play-verified settings"},
+    "checkBuild": {"type": "boolean", "description": "Correct item-set mistakes on load (guardian gear worn by the player, Animate Guardian's Weapon on the player's set); default true"},
     "infer": {"type": "boolean", "description": "Estimate Config values the build leaves at 0, e.g. withered stacks from wither chance x hits per second (default true)"},
     "minionCount": {"type": "integer", "description": "Minions alive for inference (default: the minion limit, i.e. steady state)"},
     "mercenary": {"type": "object", "description": "Luminary mercenary, modelled as a Party member. By class (see pob_mercenaries): {class, skills: [rolled "
@@ -184,7 +190,7 @@ def resolve_build(key):
 def worker_params(args, xml, name, settings):
     overrides = {"group": args.get("group"), "minionSkill": args.get("minionSkill"), "changes": args.get("changes") or [],
                  "infer": args.get("infer"), "minionCount": args.get("minionCount"), "summonRate": args.get("summonRate"),
-                 "mercenary": args.get("mercenary")}
+                 "mercenary": args.get("mercenary"), "checkBuild": args.get("checkBuild")}
     if args.get("ignoreSettings"):
         settings = {}
     return library.apply_settings({"xml": xml, "name": name}, settings, overrides)
@@ -224,7 +230,7 @@ def tool_simulate(args):
         settings = {}
     base = library.apply_settings({"xml": xml, "name": name}, settings, {"group": args.get("group"), "minionSkill": args.get("minionSkill"),
                                                                           "infer": args.get("infer"), "minionCount": args.get("minionCount"),
-                                                                          "summonRate": args.get("summonRate"), "mercenary": args.get("mercenary")})
+                                                                          "summonRate": args.get("summonRate"), "mercenary": args.get("mercenary"), "checkBuild": args.get("checkBuild")})
     # Saved settings form the baseline; the requested changes are what is compared
     saved_changes = base.pop("changes")
     params = dict(base, changes=saved_changes + list(args.get("changes") or []))
@@ -257,7 +263,7 @@ def tool_contributions(args):
                                          overrides={"group": args.get("group"), "minionSkill": args.get("minionSkill"),
                                                     "changes": args.get("changes") or [], "infer": args.get("infer"),
                                                     "minionCount": args.get("minionCount"), "summonRate": args.get("summonRate"),
-                                                    "mercenary": args.get("mercenary")},
+                                                    "mercenary": args.get("mercenary"), "checkBuild": args.get("checkBuild")},
                                          save=not args.get("changes") and not args.get("minionSkill") and args.get("group") is None)
     except LookupError as e:
         raise ToolError(str(e))

@@ -202,6 +202,22 @@ class McpTest(unittest.TestCase):
         self.assertTrue(err)
         self.assertIn("cannot roll", message)
 
+    def test_guardian_item_set_is_not_worn_by_the_player(self):
+        # A build saved with the guardian's item set active: the player would wear the guardian's gear
+        with open(os.path.join(ROOT, "spec", "TestBuilds", "3.13", "OccVortex.xml"), encoding="utf-8") as f:
+            xml = f.read()
+        xml = xml.replace('<Items activeItemSet="1"', '<Items activeItemSet="2"', 1)
+        xml = xml.replace("</Items>", '<ItemSet id="2" title="Animate Guardian" useSecondWeaponSet="false"></ItemSet></Items>', 1)
+        path = os.path.join(tempfile.mkdtemp(prefix="pob-guardian-"), "guardian.xml")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(xml)
+        err, base = self.call("pob_metrics", build="OccVortex")
+        err, result = self.call("pob_metrics", build=path)
+        self.assertFalse(err, result)
+        self.assertIn("wearing the guardian's gear", result["buildChecks"]["fixes"][0])
+        self.assertEqual(result["playerDPS"], base["playerDPS"])
+        self.assertEqual(result["Life"], base["Life"])
+
     def test_mechanics_lookup(self):
         err, result = self.call("pob_mechanics", id="withered")
         self.assertFalse(err, result)

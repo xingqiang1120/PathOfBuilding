@@ -501,7 +501,7 @@ def apply_settings(params, settings, overrides=None):
         value = overrides.get(key) if overrides.get(key) is not None else settings.get(key)
         if value is not None:
             params[key] = value
-    for key in ("infer", "minionCount"):
+    for key in ("infer", "minionCount", "checkBuild"):
         if overrides.get(key) is not None:
             params[key] = overrides[key]
     # Summons per second seen in play (Fresh Meat uptime); a saved value is play-verified

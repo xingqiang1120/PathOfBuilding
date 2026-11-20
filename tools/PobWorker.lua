@@ -27,6 +27,93 @@ local blend = nil
 local userConfig = { }
 
 local mercenaryApplied = nil
+-- What checkBuild() corrected or found suspicious in the loaded build
+local buildChecks = nil
+
+-- PoB keeps the equipment of Animate Guardian (and the weapon Animate Guardian's Weapon animates) in a separate item
+-- set that the skill points to; skills that point to no set fall back to the first one, usually the player's gear.
+-- Builds are often saved with the guardian's set active, or with Animate Guardian's Weapon left on the player's set.
+-- Character import from the official API brings no guardian gear, so such builds have to be built by hand.
+local function isGuardianSkill(effect)
+	return effect and effect.grantedEffect and effect.grantedEffect.minionHasItemSet
+end
+
+local function checkBuild(params)
+	local fixes, warnings = { }, { }
+	local itemsTab = build.itemsTab
+	local guardianSets = { }
+	for id, set in pairs(itemsTab.itemSets) do
+		if (set.title or ""):lower():find("guardian") then
+			guardianSets[id] = true
+		end
+	end
+	if not next(guardianSets) then
+		-- no set named for the guardian: the set Animate Guardian itself was given (if not the player's) is one
+		for _, group in ipairs(build.skillsTab.socketGroupList) do
+			for _, gem in ipairs(group.gemList) do
+				if gem.grantedEffect and gem.grantedEffect.name == "Animate Guardian" and gem.skillMinionItemSet
+					and gem.skillMinionItemSet ~= itemsTab.activeItemSetId and itemsTab.itemSets[gem.skillMinionItemSet] then
+					guardianSets[gem.skillMinionItemSet] = true
+				end
+			end
+		end
+	end
+	local function setName(id)
+		local set = itemsTab.itemSets[id]
+		return string.format("item set %d%s", id, set and set.title and (" '" .. set.title .. "'") or "")
+	end
+	if params.checkBuild ~= false and next(guardianSets) then
+		if guardianSets[itemsTab.activeItemSetId] then
+			for _, id in ipairs(itemsTab.itemSetOrderList) do
+				if not guardianSets[id] then
+					table.insert(fixes, string.format("the player was wearing the guardian's gear (%s); switched to %s", setName(itemsTab.activeItemSetId), setName(id)))
+					itemsTab:SetActiveItemSet(id)
+					-- skills granted by the player's items (e.g. Animate Guardian's Weapon) appear on recalculation
+					build.buildFlag = true
+					runCallback("OnFrame")
+					break
+				end
+			end
+		end
+		local guardianSet = nil
+		for _, id in ipairs(itemsTab.itemSetOrderList) do
+			if guardianSets[id] then guardianSet = id break end
+		end
+		local seen = { }
+		for _, group in ipairs(build.skillsTab.socketGroupList) do
+			for _, gem in ipairs(group.gemList) do
+				if isGuardianSkill(gem) and not seen[gem] then
+					seen[gem] = true
+					for _, suffix in ipairs({ "", "Calcs" }) do
+						local current = gem["skillMinionItemSet" .. suffix]
+						if (current == nil or current == itemsTab.activeItemSetId or not itemsTab.itemSets[current]) and guardianSet then
+							gem["skillMinionItemSet" .. suffix] = guardianSet
+							if suffix == "" then
+								table.insert(fixes, string.format("%s used %s; now uses %s", gem.grantedEffect.name,
+									current and setName(current) or "no item set (PoB then takes the first set)", setName(guardianSet)))
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+	build.buildFlag = true
+	runCallback("OnFrame")
+	local o = build.calcsTab.mainOutput
+	for _, pool in ipairs({ "Mana", "Life" }) do
+		local free = o[pool .. "Unreserved"]
+		if type(free) == "number" and free < 0 then
+			local hint = build.spec.curAscendClassName == "Luminary"
+				and " Luminary builds often put the mercenary's auras on the player because PoB had no mercenary: move them to the mercenary (mercenary setting) and remove them from the player."
+				or " Some auras are probably not all running in game, or a reservation source is not calculated."
+			table.insert(warnings, string.format("%d more %s reserved than available.%s", math.floor(-free + 0.5), pool:lower(), hint))
+		end
+	end
+	if #fixes > 0 or #warnings > 0 then
+		return { fixes = fixes, warnings = warnings }
+	end
+end
 
 local function loadFresh(params)
 	-- The mercenary's buffs are calculated in a throw-away build first (cached), then put into the player's Party tab
@@ -39,6 +126,7 @@ local function loadFresh(params)
 	userConfig = copyTable(build.configTab.input)
 	blend = nil
 	mercenaryApplied = mercExport and Merc.apply(mercSpec, mercExport, mercReport) or nil
+	buildChecks = checkBuild(params)
 end
 
 local function ensureBuild(params)
@@ -182,6 +270,7 @@ local function metrics()
 		playerDPS = round(o.CombinedDPS or 0, 1),
 		minionDPS = o.Minion and round(o.Minion.CombinedDPS or 0, 1) or nil,
 		mercenary = mercenaryApplied,
+		buildChecks = buildChecks,
 		mercenaryDamageTakenPercent = (o.MercenaryAllyDamageMitigation or 0) > 0 and o.MercenaryAllyDamageMitigation or nil,
 	}
 	-- Only while the blended buff is still on (a later change could have switched it off)

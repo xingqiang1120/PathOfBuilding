@@ -181,6 +181,27 @@ class McpTest(unittest.TestCase):
         err, result = self.call("pob_metrics", build="OccVortex", mercenary={"auras": [{"name": "No Such Aura"}]})
         self.assertTrue(err)
 
+    def test_mercenary_by_class(self):
+        err, roster = self.call("pob_mercenaries")
+        self.assertFalse(err, roster)
+        self.assertGreater(len(roster), 30)
+        err, mistress = self.call("pob_mercenaries", **{"class": "Cruel Mistress"})
+        self.assertEqual(mistress[0]["primary"][0], {"name": "Despair", "effect": "curse"})
+        self.assertEqual(mistress[0]["utility"]["pick"], 2)
+        # A class picks its skills from the roster; primary skills are always there
+        err, base = self.call("pob_metrics", build="OccVortex")
+        merc = {"class": "Fallen Reverend", "skills": ["Zealotry", "Frostblink", "Reinforce: Fallen Bishop"]}
+        err, result = self.call("pob_metrics", build="OccVortex", mercenary=merc)
+        self.assertFalse(err, result)
+        self.assertGreater(result["playerDPS"], base["playerDPS"])
+        self.assertEqual(result["mercenary"]["class"], "Fallen Reverend")
+        self.assertIn("Absolution", result["mercenary"]["skills"])
+        self.assertEqual(result["mercenary"]["auras"], ["Zealotry"])
+        # Skills outside the class pools are refused
+        err, message = self.call("pob_metrics", build="OccVortex", mercenary={"class": "Fallen Reverend", "skills": ["Envy"]})
+        self.assertTrue(err)
+        self.assertIn("cannot roll", message)
+
     def test_mechanics_lookup(self):
         err, result = self.call("pob_mechanics", id="withered")
         self.assertFalse(err, result)

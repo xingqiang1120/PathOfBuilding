@@ -30,11 +30,15 @@ local mercenaryApplied = nil
 
 local function loadFresh(params)
 	-- The mercenary's buffs are calculated in a throw-away build first (cached), then put into the player's Party tab
-	local mercExport = params.mercenary and Merc.export(params.mercenary)
+	local mercSpec, mercReport, mercExport
+	if params.mercenary then
+		mercSpec, mercReport = Merc.resolve(params.mercenary)
+		mercExport = Merc.export(mercSpec)
+	end
 	loadBuildFromXML(params.xml, params.name or "build")
 	userConfig = copyTable(build.configTab.input)
 	blend = nil
-	mercenaryApplied = mercExport and Merc.apply(params.mercenary, mercExport) or nil
+	mercenaryApplied = mercExport and Merc.apply(mercSpec, mercExport, mercReport) or nil
 end
 
 local function ensureBuild(params)
@@ -918,6 +922,11 @@ function methods.export(p)
 	end
 	local m = extendedMetrics()
 	return { xml = build:SaveDB("export"), metrics = m, applied = applied, inferred = inferred }
+end
+
+-- Mercenary roster: classes with their fixed skill pools (src/Data/Mercenaries.lua)
+function methods.mercenaries(p)
+	return Merc.describe(p.class)
 end
 
 -- Mechanics knowledge base entries, with the uniques and passives that carry each mechanic

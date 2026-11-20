@@ -62,9 +62,11 @@ MAIN_PROPS = {
     "ignoreSettings": {"type": "boolean", "description": "Ignore the build's saved play-verified settings"},
     "infer": {"type": "boolean", "description": "Estimate Config values the build leaves at 0, e.g. withered stacks from wither chance x hits per second (default true)"},
     "minionCount": {"type": "integer", "description": "Minions alive for inference (default: the minion limit, i.e. steady state)"},
-    "mercenary": {"type": "object", "description": "Luminary mercenary, modelled as a Party member: {auras: [{name, level, quality}], curses: [{name, level, quality}], "
-                                                   "life, auraEffect}. Auras (with Bestowed Knighthood's increased effect) reach you and your minions; curses share "
-                                                   "the curse slots; life enables Loyal Bodyguard. Default: saved setting"},
+    "mercenary": {"type": "object", "description": "Luminary mercenary, modelled as a Party member. By class (see pob_mercenaries): {class, skills: [rolled "
+                                                   "secondary and utility skills], supports: {skill: [e.g. 'Curse Effect III']}, levels: {skill: level}, life}; "
+                                                   "primary skills are always included. Or explicit: {auras: [{name, level}], curses: [{name, level}], life}. "
+                                                   "Auras (with Bestowed Knighthood's increased effect) reach you and your minions; curses share the curse "
+                                                   "slots; life enables Loyal Bodyguard. Skill numbers are gem-based estimates. Default: saved setting"},
     "summonRate": {"type": "number", "description": "Minions summoned per second in play (e.g. phantasms from corpses). Needed for Fresh Meat uptime; "
                                                      "minion DPS is then blended between buffed and unbuffed minions (default: saved setting)"},
 }
@@ -119,6 +121,11 @@ TOOLS = [
      "inputSchema": {"type": "object", "properties": {"build": BUILD_ARG, "group": MAIN_PROPS["group"], "minionSkill": MAIN_PROPS["minionSkill"],
                                                       "summonRate": MAIN_PROPS["summonRate"], "mercenary": MAIN_PROPS["mercenary"], "changes": {"type": "array", "items": CHANGE_SCHEMA}, "note": {"type": "string"}},
                      "required": ["build"]}},
+    {"name": "pob_mercenaries",
+     "description": "Mercenary roster (PoE Wiki): each class with its fixed skill pools - primary skills (always), secondary and utility "
+                    "skills (pick N of the options) - and what each skill does for the player: aura, curse, mark (calculated), ally (not "
+                    "calculated yet) or self. Filter by class name, attribute (e.g. 'Int') or house.",
+     "inputSchema": {"type": "object", "properties": {"class": {"type": "string"}}}},
     {"name": "pob_find_uniques",
      "description": "Find unique items by tags (all must match) and optional slot or item type, e.g. tags [minion, energy shield], slot Helmet.",
      "inputSchema": {"type": "object", "properties": {"tags": {"type": "array", "items": {"type": "string"}}, "slot": {"type": "string"},
@@ -291,6 +298,7 @@ HANDLERS = {
     "pob_full_analysis": tool_full_analysis,
     "pob_infer_conditions": tool_infer,
     "pob_save_build_settings": tool_save_settings,
+    "pob_mercenaries": lambda a: WORKER.call("mercenaries", {"class": a.get("class")} if a.get("class") else {}),
     "pob_find_uniques": lambda a: WORKER.call("find_uniques", {k: a[k] for k in ("tags", "slot", "limit") if a.get(k) is not None}),
     "pob_find_passives": lambda a: WORKER.call("find_passives", {k: a[k] for k in ("tags", "types", "ascendancy", "limit") if a.get(k) is not None}),
     "pob_list_tags": lambda a: WORKER.call("list_tags", {}),

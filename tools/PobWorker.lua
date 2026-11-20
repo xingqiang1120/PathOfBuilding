@@ -18,6 +18,7 @@ local dkjson = require("dkjson")
 local S = dofile(SCRIPT_DIR .. "/lib/summary.lua")
 local I = dofile(SCRIPT_DIR .. "/lib/inference.lua")
 local Merc = dofile(SCRIPT_DIR .. "/lib/mercenary.lua")
+local Scen = dofile(SCRIPT_DIR .. "/lib/scenarios.lua")
 local round = S.round
 
 local loadedXml, dirty = nil, true
@@ -852,6 +853,146 @@ end
 local configSkip = { bandit = true, pantheonMajorGod = true, pantheonMinorGod = true, resistancePenalty = true, enemySizePreset = true,
 	presetBossSkills = true, doomBlastSource = true, repeatMode = true, resourceGainMode = true, plagueBearerState = true,
 	ChanceToIgnoreEnemyPhysicalDamageReductionMode = true }
+
+-- The same build in different fights: the author's Config (asSaved), mapping, and a single boss. Each Config
+-- assumption the build relies on is checked against a rule (tools/lib/scenarios.lua) that says what it depends on.
+local function hasSkill(name)
+	local want = name:lower()
+	for _, group in ipairs(build.skillsTab.socketGroupList) do
+		if group.enabled ~= false then
+			for _, gem in ipairs(group.gemList) do
+				local n = gem.grantedEffect and gem.grantedEffect.name or gem.nameSpec
+				if gem.enabled ~= false and n and n:lower() == want then
+					return true
+				end
+			end
+		end
+	end
+	return false
+end
+
+-- Uses per second of a skill (casts, attacks or triggers) as PoB calculates it, by making it the main skill briefly
+local function skillRate(name, cache)
+	if cache[name] ~= nil then return cache[name] or nil end
+	local want = name:lower()
+	for index, group in ipairs(build.skillsTab.socketGroupList) do
+		for skillIndex, active in ipairs(group.displaySkillList or { }) do
+			if active.activeEffect.grantedEffect.name:lower() == want then
+				local mainGroup, mainSkill = build.mainSocketGroup, group.mainActiveSkill
+				build.mainSocketGroup, group.mainActiveSkill = index, skillIndex
+				local o = recalc()
+				local rate = o.Speed or 0
+				build.mainSocketGroup, group.mainActiveSkill = mainGroup, mainSkill
+				recalc()
+				cache[name] = rate
+				return rate
+			end
+		end
+	end
+	cache[name] = false
+	return nil
+end
+
+local function dpsOf(m)
+	return (m.playerDPS or 0) + (m.minionDPS or 0)
+end
+
+function methods.scenarios(p)
+	dirty = true
+	ensureBuild(p)
+	selectMain(p)
+	local inferred = applyInference(p)
+	local input = build.configTab.input
+	local saved = copyTable(input)
+	local asSaved = metrics()
+	local rateCache = { }
+	local o = build.calcsTab.mainOutput
+	local hits = (o.Speed or 0) * (o.HitChance or 100) / 100
+	local ctx = { lines = I.buildLines(build), hasSkill = hasSkill, rate = function(name) return skillRate(name, rateCache) end,
+		hitsPerSecond = hits > 0 and hits or nil, critsPerSecond = hits * (o.CritChance or 0) / 100 }
+	local rows = { }
+	for _, rule in ipairs(Scen.rules) do
+		local value = saved[rule.key]
+		local active = rule.kind == "fight" or (value ~= nil and value ~= false and value ~= 0)
+		if active then
+			local row = { key = rule.key, label = rule.label, kind = rule.kind, saved = value }
+			if rule.kind == "fightPhase" then
+				local share, reason = rule.share(ctx, value)
+				row.mapping, row.boss, row.share, row.reason = value, value, share, reason
+			elseif rule.kind == "sustained" then
+				local mv, bv, reason, sources, missing, uptime = rule.check(ctx, value)
+				row.mapping, row.boss, row.reason, row.sources, row.noSource = mv, bv, reason, sources, missing or nil
+				row.share = uptime
+			else
+				local mv, mreason = value, "the author's assumption (dense packs while mapping)"
+				if rule.mapping then mv, mreason = rule.mapping(ctx, value) end
+				local bv, breason = rule.boss(ctx, value)
+				row.mapping, row.mappingReason, row.boss, row.reason = mv, mreason, bv, breason
+			end
+			table.insert(rows, row)
+		end
+	end
+	local function run(which)
+		for _, row in ipairs(rows) do
+			input[row.key] = row[which]
+		end
+		build.configTab:BuildModList()
+		recalc()
+		local m = metrics()
+		for _, row in ipairs(rows) do
+			if row.share then
+				input[row.key] = false
+				build.configTab:BuildModList()
+				recalc()
+				local off = metrics()
+				input[row.key] = row[which]
+				for _, key in ipairs({ "playerDPS", "minionDPS" }) do
+					if m[key] and off[key] then
+						m[key] = round(off[key] + row.share * (m[key] - off[key]), 1)
+					end
+				end
+				m.blended = (m.blended or "") .. string.format("%s %.0f%% of the time; ", row.label, row.share * 100)
+			end
+		end
+		return m
+	end
+	local mapping = run("mapping")
+	local boss = run("boss")
+	-- What each boss value alone does, starting from the author's Config
+	for _, row in ipairs(rows) do
+		for _, r in ipairs(rows) do input[r.key] = saved[r.key] end
+		if row.boss ~= row.saved then
+			input[row.key] = row.boss
+			build.configTab:BuildModList()
+			recalc()
+			local m = metrics()
+			local base = dpsOf(asSaved)
+			row.bossDpsPct = base > 0 and round((dpsOf(m) / base - 1) * 100, 1) or nil
+		end
+	end
+	for key in pairs(input) do input[key] = nil end
+	for key, value in pairs(saved) do input[key] = value end
+	build.configTab:BuildModList()
+	recalc()
+	dirty = true
+	local function brief(m)
+		return { playerDPS = m.playerDPS, minionDPS = m.minionDPS, totalDPS = round(dpsOf(m), 1), blended = m.blended,
+			TotalEHP = m.TotalEHP, PhysicalMaximumHitTaken = m.PhysicalMaximumHitTaken }
+	end
+	return {
+		mainSkill = asSaved.mainSkill,
+		asSaved = brief(asSaved), mapping = brief(mapping), boss = brief(boss),
+		bossVsSavedPct = dpsOf(asSaved) > 0 and round((dpsOf(boss) / dpsOf(asSaved) - 1) * 100, 1) or nil,
+		assumptions = rows,
+		inferred = inferred,
+		notes = {
+			"asSaved: the build's own Config, usually what its author sees in the content they play",
+			"mapping: as saved against normal monsters; density assumptions (corpses, kills, nearby enemies) are the author's",
+			"boss: one pinnacle boss alone; corpses only from the build's own skills, no kills, enemy on low life 35% of the fight",
+			"sustained assumptions (charges, rage, buffs) are kept when the build has a source; noSource marks those it has none for",
+		},
+	}
+end
 
 function methods.config_sensitivity(p)
 	dirty = true

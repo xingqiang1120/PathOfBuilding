@@ -64,6 +64,8 @@ local function buildLines(build)
 	return lines
 end
 
+M.buildLines = buildLines
+
 local function combineChance(list)
 	local miss = 1
 	for _, c in ipairs(list) do

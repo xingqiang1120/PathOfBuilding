@@ -218,6 +218,17 @@ class McpTest(unittest.TestCase):
         self.assertEqual(result["playerDPS"], base["playerDPS"])
         self.assertEqual(result["Life"], base["Life"])
 
+    def test_scenarios(self):
+        err, result = self.call("pob_scenarios", build="OccVortex")
+        self.assertFalse(err, result)
+        for name in ("asSaved", "mapping", "boss"):
+            self.assertIn("totalDPS", result[name])
+        keys = {row["key"]: row for row in result["assumptions"]}
+        self.assertEqual(keys["enemyIsBoss"]["mapping"], "None")
+        self.assertIn(keys["enemyIsBoss"]["boss"], ("Pinnacle", "Uber"))
+        # boss modifiers lower the damage dealt
+        self.assertGreaterEqual(result["mapping"]["totalDPS"], result["boss"]["totalDPS"])
+
     def test_mechanics_lookup(self):
         err, result = self.call("pob_mechanics", id="withered")
         self.assertFalse(err, result)

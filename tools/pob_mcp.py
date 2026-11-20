@@ -39,6 +39,8 @@ INSTRUCTIONS = """Path of Building (PoB) for Path of Exile 1, run headless, plus
   more mana/life reserved than available. Old Luminary builds put the mercenary's auras on the player because PoB had no
   mercenary: ask which auras are the mercenary's and model them with the mercenary setting instead. Character import from
   the official API has no guardian gear; it must be entered by hand in an item set named "Animate Guardian".
+- A build's Config holds its author's assumptions (e.g. 50 corpses consumed recently, tested while mapping). Use
+  pob_scenarios to show which assumptions hold for mapping and which for a single boss, and say which content a build is for.
 - Use pob_simulate to check a suggestion before recommending it, and report the before/after numbers.
 - Tags (pob_list_tags) classify items and passives, e.g. minion, phantasm, energyshield, fire. Mechanic tags (unholymight,
   withered, ...) imply related tags (withered -> chaos). Check pob_mechanics for how a mechanic works and where its numbers
@@ -116,6 +118,14 @@ TOOLS = [
     {"name": "pob_config_sensitivity",
      "description": "Switch off each Config assumption the build turned on (conditions, charges, buffs, boss setting) and report the DPS "
                     "and EHP change, to show which assumptions the numbers depend on.",
+     "inputSchema": {"type": "object", "properties": dict(MAIN_PROPS, build=BUILD_ARG), "required": ["build"]}},
+    {"name": "pob_scenarios",
+     "description": "The build in three fights: asSaved (its own Config, the author's assumptions), mapping (normal monsters, the author's "
+                    "density assumptions kept) and boss (one pinnacle boss alone). Lists every Config assumption the build relies on "
+                    "with its kind - density (corpses, kills, nearby enemies: re-estimated for a boss from what the build makes itself), "
+                    "fightPhase (enemy on low life: blended by share of the fight), sustained (charges, rage, buffs: checked for a "
+                    "source in the build, uptime estimated where the wording allows; noSource = only a Config setting) - the value "
+                    "per scenario, the reason and the DPS change of the boss value alone. Use it to explain what a build is made for.",
      "inputSchema": {"type": "object", "properties": dict(MAIN_PROPS, build=BUILD_ARG), "required": ["build"]}},
     {"name": "pob_full_analysis",
      "description": "Full analysis of a library build, as tools/library.py report: numbers with and without inference, damage formula, "
@@ -318,6 +328,7 @@ HANDLERS = {
     "pob_damage_breakdown": lambda a: WORKER.call("damage_breakdown", worker_params(a, *resolve_build(a["build"])[:2], resolve_build(a["build"])[3])),
     "pob_config_sensitivity": lambda a: WORKER.call("config_sensitivity", worker_params(a, *resolve_build(a["build"])[:2], resolve_build(a["build"])[3])),
     "pob_full_analysis": tool_full_analysis,
+    "pob_scenarios": lambda a: WORKER.call("scenarios", worker_params(a, *resolve_build(a["build"])[:2], resolve_build(a["build"])[3])),
     "pob_infer_conditions": tool_infer,
     "pob_save_build_settings": tool_save_settings,
     "pob_mercenaries": lambda a: WORKER.call("mercenaries", {"class": a.get("class")} if a.get("class") else {}),

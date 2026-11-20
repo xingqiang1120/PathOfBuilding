@@ -145,6 +145,22 @@ Builds are named by library id prefix or name, or by a path to a `.xml` file. Ev
 the modifiers PoB does not calculate and the Config assumptions, so advice can say how far the
 numbers can be trusted.
 
+## Play log (Client.txt)
+
+The game writes `logs/Client.txt` in its install folder: areas generated (id, level, seed), areas entered, deaths and
+level-ups. `tools/clientlog.py` turns it into map runs (time per map, portals, deaths) for comparing play with PoB.
+
+1. On the game PC, export the useful lines (chat and whispers are removed) to `ClientLog-<date>.txt` on the Desktop:
+
+       irm https://raw.githubusercontent.com/xingqiang1120/PathOfBuilding/feature/ai-tools/tools/export_clientlog.ps1 | iex
+
+   or `powershell -ExecutionPolicy Bypass -File tools/export_clientlog.ps1 -Days 60 -Path "<game>\logs\Client.txt"`.
+2. Copy the file here and import it: `python tools/clientlog.py import <file>` (a raw Client.txt works too).
+3. `python tools/clientlog.py summary [--character NAME] [--level 83]`, or the `play_log` MCP tool.
+   `python tools/clientlog.py templates` lists system messages not recognised yet (e.g. from a localized client).
+
+The parsed log is stored in `library/playlogs/` (git-ignored). Client.txt has no hit sizes or causes of death.
+
 ## Running Lua scripts and tests
 
 ```

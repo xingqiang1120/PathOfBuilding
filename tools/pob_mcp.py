@@ -19,6 +19,7 @@ import traceback
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 import library  # noqa: E402
+import clientlog  # noqa: E402
 from pob_worker import WORKER, WorkerError  # noqa: E402
 
 SERVER_INFO = {"name": "path-of-building", "version": "0.1.0"}
@@ -150,6 +151,13 @@ TOOLS = [
      "description": "Across analysed library builds matching the filters (e.g. tag minion, ascendancy Necromancer): which items, supports "
                     "and passives are core for damage, defence, or functional (mechanics PoB does not measure), with average loss when removed.",
      "inputSchema": {"type": "object", "properties": dict(FILTER_PROPS, top={"type": "integer"})}},
+    {"name": "play_log",
+     "description": "The user's real play, from the game's own Client.txt (imported with tools/clientlog.py): map runs with time per "
+                    "map, portals used and deaths, by area level and map, the slowest runs and the latest deaths. Use it to compare "
+                    "PoB's predictions with play (e.g. deaths per map vs the one-shot threshold). It has no hit sizes or causes of death. "
+                    "Filters: character (deaths), since (YYYY-MM-DD), level (area level).",
+     "inputSchema": {"type": "object", "properties": {"character": {"type": "string"}, "since": {"type": "string"},
+                                                      "level": {"type": "integer"}, "top": {"type": "integer"}}}},
     {"name": "library_item_usage",
      "description": "How often an item appears in the library, grouped by ascendancy, primary skill and slot, with the builds using it.",
      "inputSchema": {"type": "object", "properties": {"item": {"type": "string"}, "top": {"type": "integer"}}, "required": ["item"]}},
@@ -283,6 +291,14 @@ def tool_save_settings(args):
     return {"build": name, "settings": saved, "note": args.get("note", current.get("note"))}
 
 
+def tool_play_log(args):
+    try:
+        data = clientlog.load()
+    except LookupError as e:
+        raise ToolError(str(e))
+    return clientlog.summarize(data, args.get("character"), args.get("since"), args.get("level"), args.get("top") or 10)
+
+
 def filters_of(args):
     return {k: args.get(k) for k in library.FILTERS if args.get(k)}
 
@@ -305,6 +321,7 @@ HANDLERS = {
     "library_common": lambda a: library.query_common(filters_of(a), a.get("top") or 10),
     "library_item_usage": lambda a: library.query_item_usage(a["item"], a.get("top") or 10),
     "library_core_parts": lambda a: library.query_core_parts(filters_of(a), a.get("top") or 15),
+    "play_log": tool_play_log,
     "pob_mechanics": lambda a: WORKER.call("mechanics", {k: a[k] for k in ("id", "query") if a.get(k)}),
 }
 

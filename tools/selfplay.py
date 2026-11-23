@@ -3,6 +3,9 @@
     python tools/selfplay.py --hours 9 --jobs 2            run overnight with two generators in parallel
     python tools/selfplay.py --dry-run --runs 20           show what would run
     python tools/selfplay.py --skills "Arc,Kinetic Blast" --runs 6
+    python tools/selfplay.py --hours 36 --jobs 4 --background   no window: keeps running if every window is closed
+    python tools/selfplay.py --status                          progress of a running (or the last) session
+    python tools/selfplay.py --stop                            finish the runs in progress, start no new ones
 
 Pairs: every damaging skill gem (PoB data) with the ascendancies whose class uses the gem's main attribute
 (Str: Marauder, Duelist, Templar, Scion; Dex: Ranger, Duelist, Shadow, Scion; Int: Witch, Templar, Shadow, Scion).
@@ -40,6 +43,53 @@ def keep_awake(on=True):
         return
     ES_CONTINUOUS, ES_SYSTEM_REQUIRED = 0x80000000, 0x00000001
     ctypes.windll.kernel32.SetThreadExecutionState(ES_CONTINUOUS | (ES_SYSTEM_REQUIRED if on else 0))
+
+
+STATUS = os.path.join(LOG_DIR, "status.json")
+STOP = os.path.join(LOG_DIR, "stop")
+NO_WINDOW = 0x08000000 if os.name == "nt" else 0  # CREATE_NO_WINDOW: generator processes never open a console
+
+
+def disable_quick_edit():
+    """A click in a console window with QuickEdit on pauses the program until a key is pressed (that stopped the first
+    overnight run). Turn QuickEdit off for this window only."""
+    if os.name != "nt":
+        return
+    k = ctypes.windll.kernel32
+    handle = k.GetStdHandle(-10)  # STD_INPUT_HANDLE
+    mode = ctypes.c_uint32()
+    if handle and k.GetConsoleMode(handle, ctypes.byref(mode)):
+        k.SetConsoleMode(handle, (mode.value & ~0x0040) | 0x0080)  # clear ENABLE_QUICK_EDIT_MODE, set ENABLE_EXTENDED_FLAGS
+
+
+def write_status(**fields):
+    fields["updated"] = datetime.datetime.now().isoformat(timespec="seconds")
+    tmp = STATUS + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(fields, f, ensure_ascii=False, indent=1)
+    os.replace(tmp, STATUS)
+
+
+def show_status():
+    s = simlog.summary()
+    print(f"simulation log: {s['runs']} runs ({s['finishedRuns']} finished), {s['samples']:,} samples")
+    try:
+        with open(STATUS, encoding="utf-8") as f:
+            st = json.load(f)
+    except OSError:
+        print("no self-play session found")
+        return
+    age = (datetime.datetime.now() - datetime.datetime.fromisoformat(st["updated"])).total_seconds()
+    if st.get("state") == "running":
+        state = "RUNNING" if age < 120 else "NOT RUNNING (stopped without finishing - start it again to continue)"
+    else:
+        state = st.get("state", "?").upper()
+    print(f"session {st.get('session')}: {state}; started {st.get('started')}, until {st.get('deadline')}, {st.get('jobs')} jobs")
+    print(f"  finished {st.get('finished', 0)}, failed {st.get('failed', 0)}, left in queue {st.get('queued', 0)}; last update {st['updated']}")
+    for r in st.get("running", []):
+        print(f"  running: {r}")
+    for line in st.get("recent", [])[-8:]:
+        print(f"  {line}")
 
 
 def main_attribute(skill):
@@ -87,7 +137,7 @@ def start(skill, asc, focus, log_file):
     out = open(log_file, "a", encoding="utf-8")
     out.write(f"\n===== {datetime.datetime.now():%Y-%m-%d %H:%M:%S} {skill} / {asc}\n")
     out.flush()
-    return subprocess.Popen(cmd, stdout=out, stderr=subprocess.STDOUT, cwd=ROOT, env=env), out
+    return subprocess.Popen(cmd, stdout=out, stderr=subprocess.STDOUT, cwd=ROOT, env=env, creationflags=NO_WINDOW), out
 
 
 def result_line(log_file):
@@ -114,7 +164,30 @@ def main():
     ap.add_argument("--seed", type=int)
     ap.add_argument("--timeout", type=float, default=40, help="minutes before one run is stopped")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--background", action="store_true", help="run without a window (output in library/selfplay/)")
+    ap.add_argument("--status", action="store_true", help="show progress and exit")
+    ap.add_argument("--stop", action="store_true", help="ask a running session to start no new runs")
     args = ap.parse_args()
+    if args.status:
+        show_status()
+        return
+    if args.stop:
+        os.makedirs(LOG_DIR, exist_ok=True)
+        open(STOP, "w").close()
+        print("asked the running session to stop: runs in progress finish first (a few minutes)")
+        return
+    if args.background:
+        os.makedirs(LOG_DIR, exist_ok=True)
+        argv = [a for a in sys.argv[1:] if a != "--background"]
+        out = open(os.path.join(LOG_DIR, "background.log"), "a", encoding="utf-8")
+        flags = (0x00000008 | 0x00000200 | NO_WINDOW) if os.name == "nt" else 0  # DETACHED_PROCESS, CREATE_NEW_PROCESS_GROUP
+        proc = subprocess.Popen([sys.executable, os.path.abspath(__file__), *argv], stdout=out, stderr=subprocess.STDOUT, cwd=ROOT,
+                                env=dict(os.environ, PYTHONIOENCODING="utf-8"), creationflags=flags)
+        print(f"self-play started in the background (process {proc.pid}). Windows can be closed.")
+        print("  progress: python tools/selfplay.py --status")
+        print("  stop:     python tools/selfplay.py --stop")
+        return
+    disable_quick_edit()
 
     queue, skipped, versions = plan(args.seed, args.skills, args.focus)
     if args.runs:
@@ -129,16 +202,24 @@ def main():
     session = datetime.datetime.now().strftime("%Y%m%d-%H%M")
     summary_path = os.path.join(LOG_DIR, f"selfplay-{session}.txt")
     deadline = time.time() + args.hours * 3600
-    running, finished, failed = [], 0, 0
+    running, finished, failed, recent = [], 0, 0, []
+    free_slots = list(range(args.jobs))  # one log file per parallel job, so runs never share a log
+    if os.path.exists(STOP):
+        os.remove(STOP)
+    common = {"session": session, "pid": os.getpid(), "started": datetime.datetime.now().isoformat(timespec="seconds"),
+              "deadline": datetime.datetime.fromtimestamp(deadline).isoformat(timespec="minutes"), "jobs": args.jobs}
     keep_awake(True)
     try:
         with open(summary_path, "a", encoding="utf-8") as summary:
             while queue or running:
-                while queue and len(running) < args.jobs and time.time() < deadline:
+                if os.path.exists(STOP):
+                    queue.clear()
+                while queue and free_slots and time.time() < deadline:
                     skill, asc = queue.pop(0)
-                    log_file = os.path.join(LOG_DIR, f"run-{session}-{len(running) % max(args.jobs, 1)}.log")
+                    slot = free_slots.pop(0)
+                    log_file = os.path.join(LOG_DIR, f"run-{session}-{slot}.log")
                     proc, out = start(skill, asc, args.focus, log_file)
-                    running.append({"proc": proc, "out": out, "skill": skill, "asc": asc, "log": log_file, "t": time.time()})
+                    running.append({"proc": proc, "out": out, "skill": skill, "asc": asc, "log": log_file, "t": time.time(), "slot": slot})
                     print(f"{datetime.datetime.now():%H:%M} start  {skill} / {asc}", flush=True)
                 if not running:
                     break
@@ -152,6 +233,7 @@ def main():
                         continue
                     r["out"].close()
                     running.remove(r)
+                    free_slots.append(r["slot"])
                     minutes = (time.time() - r["t"]) / 60
                     ok = code == 0
                     finished += ok
@@ -161,6 +243,9 @@ def main():
                     print(line, flush=True)
                     summary.write(line + "\n")
                     summary.flush()
+                    recent = (recent + [line])[-20:]
+                write_status(state="running", finished=finished, failed=failed, queued=len(queue), recent=recent,
+                             running=[f"{r['skill']} / {r['asc']} ({(time.time() - r['t']) / 60:.0f} min)" for r in running], **common)
                 if time.time() >= deadline:
                     queue.clear()
     except KeyboardInterrupt:
@@ -169,6 +254,7 @@ def main():
             r["proc"].kill()
     finally:
         keep_awake(False)
+        write_status(state="finished", finished=finished, failed=failed, queued=len(queue), recent=recent, running=[], **common)
     s = simlog.summary()
     print(f"\n{finished} runs finished, {failed} failed. Simulation log: {s['runs']} runs, {s['samples']:,} samples. Summary: {summary_path}")
 

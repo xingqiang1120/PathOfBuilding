@@ -26,6 +26,7 @@ local loadedXml, dirty = nil, true
 local blend = nil
 -- Config values as saved in the build, so inference never overrides what the user set
 local userConfig = { }
+local userStages = { } -- gem -> stage count saved in the loaded build (the author's; inference never changes it)
 
 local mercenaryApplied = nil
 -- What checkBuild() corrected or found suspicious in the loaded build
@@ -125,6 +126,12 @@ local function loadFresh(params)
 	end
 	loadBuildFromXML(params.xml, params.name or "build")
 	userConfig = copyTable(build.configTab.input)
+	userStages = { }
+	for _, group in ipairs(build.skillsTab.socketGroupList) do
+		for _, gem in ipairs(group.gemList or { }) do
+			if gem.skillStageCount then userStages[gem] = gem.skillStageCount end
+		end
+	end
 	blend = nil
 	mercenaryApplied = mercExport and Merc.apply(mercSpec, mercExport, mercReport) or nil
 	buildChecks = checkBuild(params)
@@ -159,7 +166,21 @@ local function applyInference(p)
 	local changed = false
 	for _, inf in ipairs(list) do
 		local saved = userConfig[inf.key]
-		if explicit[inf.key] then
+		if inf.kind == "stages" then
+			-- the stage count lives on the main skill's gem; a count saved in the build is the author's and is kept
+			local inst = build.calcsTab.mainEnv.player.mainSkill.activeEffect.srcInstance
+			if inst and userStages[inst] ~= nil then
+				inf.applied, inf.skipped = false, "the build sets " .. tostring(userStages[inst]) .. " stages"
+			elseif inst and inf.value then
+				if inst.skillStageCount ~= inf.value then
+					inst.skillStageCount = inf.value
+					changed = true
+				end
+				inf.applied = true
+			else
+				inf.applied, inf.skipped = false, inf.needs and ("needs " .. inf.needs) or "no estimate"
+			end
+		elseif explicit[inf.key] then
 			inf.applied, inf.skipped = false, "set explicitly in this request or the saved settings"
 		elseif inf.needs then
 			inf.applied, inf.skipped = false, "needs " .. inf.needs .. " from play"
@@ -1118,6 +1139,7 @@ local function skillInfo(effect)
 		attack = types[SkillType.Attack] or false, spell = types[SkillType.Spell] or false,
 		minion = types[SkillType.Minion] or false, totem = types[SkillType.SummonsTotem] or false,
 		melee = types[SkillType.Melee] or false, projectile = types[SkillType.Projectile] or false,
+		dualWield = types[SkillType.DualWieldOnly] or false, dualWieldDifferent = types[SkillType.DualWieldRequiresDifferentTypes] or false,
 		weaponTypes = weapons,
 	}
 end
@@ -1220,7 +1242,11 @@ function methods.skill_list(p)
 		if ok then
 			for _, st in ipairs(skip) do if st and t[st] then ok = false end end
 		end
-		local damaging = t[SkillType.Attack] or (t[SkillType.Spell] and (t[SkillType.Damage] or t[SkillType.DamageOverTime])) or t[SkillType.Minion]
+		-- minion skills only when they create minions (offerings and Convocation buff minions); buffs only when they hit.
+		-- Raise Spectre needs a chosen monster, which the generator cannot pick yet.
+		local damaging = t[SkillType.Attack] or (t[SkillType.Spell] and (t[SkillType.Damage] or t[SkillType.DamageOverTime])) or t[SkillType.CreatesMinion]
+		if t[SkillType.Buff] and not t[SkillType.CreatesMinion] and not t[SkillType.Damage] then damaging = false end
+		if t[SkillType.Offering] or gem.name:match("^Raise Spectre") then damaging = false end
 		if ok and damaging then
 			seen[gem.name] = true
 			table.insert(skills, { name = gem.name, reqStr = gem.reqStr or 0, reqDex = gem.reqDex or 0, reqInt = gem.reqInt or 0,

@@ -293,10 +293,80 @@ function M.inferFreshMeat(build, opts)
 	return result
 end
 
+---Skill stages that come from something else in the build. With no stage count set, PoB counts the maximum stages,
+---which is right for stages the skill builds itself (channelling, Blade Flurry, Incinerate), but not for stages that
+---need another skill or a fuse rate:
+--- * Blade Blast detonates Lingering Blades (left by Bladefall / Ethereal Knives of Lingering Blades); none -> only its own hit.
+--- * Blade Blast of Unloading detonates the player's Blade Vortex blades; no Blade Vortex -> only its own hit.
+--- * Explosive Arrow: fuses on one enemy = arrows that land within the fuse duration (attack rate x hit chance x duration).
+---Returns a stage inference (kind "stages"); the worker applies it to the main skill's gem.
+local function hasGem(build, pattern)
+	for _, group in ipairs(build.skillsTab.socketGroupList or { }) do
+		if group.enabled ~= false then
+			for _, gem in ipairs(group.gemList or { }) do
+				local name = gem.grantedEffect and gem.grantedEffect.name or gem.nameSpec or ""
+				if gem.enabled ~= false and name:match(pattern) then
+					return name
+				end
+			end
+		end
+	end
+end
+M.hasGem = hasGem
+
+local stageRules = {
+	["Blade Blast"] = function(build, out, max)
+		local source = hasGem(build, "^Bladefall") or hasGem(build, "^Ethereal Knives of Lingering Blades")
+		if source then
+			return nil, { string.format("Lingering Blades from %s: the number on the ground depends on play (PoB counts %d)", source, max) }
+		end
+		return 1, { "no skill in the build leaves Lingering Blades (Bladefall, Ethereal Knives of Lingering Blades): Blade Blast only hits once" }
+	end,
+	["Blade Blast of Unloading"] = function(build, out, max)
+		local source = hasGem(build, "^Blade Vortex")
+		if source then
+			return nil, { string.format("detonates the blades of %s (PoB counts %d)", source, max) }
+		end
+		return 1, { "no Blade Vortex in the build: no blades to detonate, only its own hit" }
+	end,
+	["Explosive Arrow"] = function(build, out, max)
+		local rate, duration = (out.Speed or 0) * (out.HitChance or 100) / 100, out.Duration or 0
+		if rate <= 0 or duration <= 0 then
+			return nil, { "attack rate or fuse duration unknown" }
+		end
+		local fuses = math.max(1, math.min(max, math.floor(rate * duration)))
+		return fuses, { string.format("%.2f arrows per second x %.2f s fuse duration on one enemy (more projectiles hitting the same enemy are not counted)", rate, duration) }
+	end,
+}
+
+function M.inferStages(build, opts)
+	local skill = build.calcsTab.mainEnv.player.mainSkill
+	local effect = skill and skill.activeEffect
+	local name = effect and effect.grantedEffect and effect.grantedEffect.name
+	local rule = name and stageRules[name]
+	local max = skill and skill.skillData and skill.skillData.stagesMax
+	if not (rule and max) then
+		return nil
+	end
+	local value, assumptions = rule(build, build.calcsTab.mainOutput, max)
+	return {
+		kind = "stages",
+		key = "skillStageCount",
+		skill = name,
+		label = name .. " stages",
+		value = value,
+		estimate = value,
+		maximum = max,
+		needs = value == nil and "the stage count from play" or nil,
+		assumptions = assumptions,
+		formula = "PoB counts the maximum stages when none is set; stages fed by another skill or by attack rate are estimated",
+	}
+end
+
 ---All inferences for the current state of the build.
 function M.infer(build, opts)
 	local list = { }
-	for _, fn in ipairs({ M.inferWithered, M.inferFeedingFrenzy, M.inferFreshMeat }) do
+	for _, fn in ipairs({ M.inferWithered, M.inferFeedingFrenzy, M.inferFreshMeat, M.inferStages }) do
 		local inference = fn(build, opts)
 		if inference then
 			table.insert(list, inference)

@@ -8,6 +8,7 @@ that suggests which candidates to try first. Answers still come from PoB; the lo
 Stored in library/simdata.db (git-ignored, local).
 
     python tools/simlog.py summary                       runs and samples so far
+    python tools/simlog.py compact                       convert an old (format 1) database to the compact format
     python tools/simlog.py stats [--kind passive_add] [--skill wand] [--ascendancy Necromancer] [--top 20]
 """
 import argparse
@@ -17,6 +18,7 @@ import json
 import os
 import sqlite3
 import sys
+import time
 import uuid
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -29,15 +31,21 @@ METRICS = ["playerDPS", "minionDPS", "Life", "EnergyShield", "Mana", "TotalEHP",
            "ManaUnreserved", "LifeUnreserved", "attributeShortfall", "passivePointsUsed", "passivePointsAvailable", "minionLimit",
            "Speed", "CritChance", "HitChance"]
 
+# Format 2: the numbers of a state ("before") are stored once in states; a sample keeps only the numbers that the change
+# altered ("after" = before + delta). runs.generator: version of the generator's rules (results of different versions
+# are not comparable); runs.outcome: e.g. "no damage" when a run stopped early.
+FORMAT = 2
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS runs (
     id TEXT PRIMARY KEY, started TEXT, tool TEXT, skill TEXT, ascendancy TEXT, class TEXT, focus TEXT, gear TEXT,
-    pob_version TEXT, tree_version TEXT, skill_info TEXT, finished TEXT, final TEXT);
+    pob_version TEXT, tree_version TEXT, skill_info TEXT, finished TEXT, final TEXT, generator INTEGER, outcome TEXT);
+CREATE TABLE IF NOT EXISTS states (
+    run_id TEXT, state_hash TEXT, metrics TEXT, PRIMARY KEY (run_id, state_hash)) WITHOUT ROWID;
 CREATE TABLE IF NOT EXISTS samples (
     id INTEGER PRIMARY KEY AUTOINCREMENT, run_id TEXT, step TEXT, state_hash TEXT, state_size INTEGER,
     kind TEXT, key TEXT, label TEXT, change TEXT, cost INTEGER,
     dps_before REAL, dps_after REAL, ehp_before REAL, ehp_after REAL, score_before REAL, score_after REAL,
-    before TEXT, after TEXT, error TEXT);
+    delta TEXT, error TEXT);
 CREATE INDEX IF NOT EXISTS samples_key ON samples(kind, key);
 CREATE INDEX IF NOT EXISTS samples_run ON samples(run_id);
 """
@@ -47,15 +55,89 @@ def db_path():
     return os.path.join(LIBRARY, "simdata.db")
 
 
-def connect():
+def columns(db, table):
+    return [r[1] for r in db.execute(f"PRAGMA table_info({table})")]
+
+
+def connect(migrate=False):
     os.makedirs(LIBRARY, exist_ok=True)
     db = sqlite3.connect(db_path(), timeout=120)  # several generators may write at the same time
+    if "before" in columns(db, "samples"):
+        if not migrate:
+            raise SystemExit(f"{db_path()} is in the old, large format: run  python tools/simlog.py compact  first")
+        return db
     db.executescript(SCHEMA)
+    for col, typ in (("generator", "INTEGER"), ("outcome", "TEXT")):
+        if col not in columns(db, "runs"):
+            db.execute(f"ALTER TABLE runs ADD COLUMN {col} {typ}")
+    db.execute(f"PRAGMA user_version = {FORMAT}")
     return db
 
 
 def pick(m):
     return {k: m.get(k) for k in METRICS if m and m.get(k) is not None}
+
+
+def dumps(obj):
+    return json.dumps(obj, separators=(",", ":"))
+
+
+def delta(before, after):
+    """Numbers of after that differ from before (None = the metric disappeared)."""
+    b, a = pick(before), pick(after)
+    d = {k: v for k, v in a.items() if b.get(k) != v}
+    d.update({k: None for k in b if k not in a})
+    return d
+
+
+def after_metrics(before, d):
+    """Rebuild a sample's numbers after the change from its state's numbers and the stored delta."""
+    m = dict(before or {})
+    for k, v in (d or {}).items():
+        if v is None:
+            m.pop(k, None)
+        else:
+            m[k] = v
+    return m
+
+
+def compact():
+    """Convert the old format (full before/after numbers in every sample) to format 2, then reclaim the space."""
+    db = connect(migrate=True)
+    if "before" not in columns(db, "samples"):
+        print("already in the compact format")
+        return
+    t = time.time()
+    db.executescript("""
+        CREATE TABLE IF NOT EXISTS states (run_id TEXT, state_hash TEXT, metrics TEXT, PRIMARY KEY (run_id, state_hash)) WITHOUT ROWID;
+        CREATE TABLE samples2 (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, run_id TEXT, step TEXT, state_hash TEXT, state_size INTEGER,
+            kind TEXT, key TEXT, label TEXT, change TEXT, cost INTEGER,
+            dps_before REAL, dps_after REAL, ehp_before REAL, ehp_after REAL, score_before REAL, score_after REAL,
+            delta TEXT, error TEXT);""")
+    runs = [r for (r,) in db.execute("SELECT id FROM runs")]
+    for i, run in enumerate(runs):
+        rows, states = [], {}
+        for r in db.execute("SELECT id, run_id, step, state_hash, state_size, kind, key, label, change, cost, dps_before, dps_after, "
+                            "ehp_before, ehp_after, score_before, score_after, before, after, error FROM samples WHERE run_id = ? ORDER BY id",
+                            (run,)):
+            before = json.loads(r[16]) if r[16] else {}
+            after = json.loads(r[17]) if r[17] else None
+            states.setdefault(r[3], dumps(before))
+            rows.append(r[:16] + (dumps(delta(before, after)) if after is not None else None, r[18]))
+        db.executemany("INSERT OR IGNORE INTO states VALUES (?,?,?)", [(run, h, m) for h, m in states.items()])
+        db.executemany("INSERT INTO samples2 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", rows)
+        db.commit()
+        if i % 50 == 0:
+            print(f"  {i}/{len(runs)} runs ({time.time() - t:.0f} s)", flush=True)
+    db.executescript("DROP TABLE samples; ALTER TABLE samples2 RENAME TO samples;")
+    db.commit()
+    db.close()
+    db = connect()
+    print(f"converted in {time.time() - t:.0f} s; reclaiming space (VACUUM)...", flush=True)
+    db.execute("VACUUM")
+    db.close()
+    print(f"done: {os.path.getsize(db_path()) / 2**20:,.0f} MB")
 
 
 def state_hash(state):
@@ -85,18 +167,19 @@ def change_key(change):
 class Recorder:
     """One run of a search tool. Disabled with POB_SIMLOG=0."""
 
-    def __init__(self, tool, skill=None, ascendancy=None, cls=None, focus=None, gear=None, skill_info=None, versions=None):
+    def __init__(self, tool, skill=None, ascendancy=None, cls=None, focus=None, gear=None, skill_info=None, versions=None, generator=None):
         self.enabled = os.environ.get("POB_SIMLOG", "1") != "0"
         self.id = uuid.uuid4().hex[:12]
         self.count = 0
+        self.states = set()
         if not self.enabled:
             return
         self.db = connect()
         versions = versions or {}
-        self.db.execute("INSERT INTO runs (id, started, tool, skill, ascendancy, class, focus, gear, pob_version, tree_version, skill_info) "
-                        "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+        self.db.execute("INSERT INTO runs (id, started, tool, skill, ascendancy, class, focus, gear, pob_version, tree_version, skill_info, "
+                        "generator) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
                         (self.id, datetime.datetime.now().isoformat(timespec="seconds"), tool, skill, ascendancy, cls, focus, gear,
-                         versions.get("pobVersion"), versions.get("treeVersion"), json.dumps(skill_info or {})))
+                         versions.get("pobVersion"), versions.get("treeVersion"), json.dumps(skill_info or {}), generator))
         self.db.commit()
 
     def update(self, **fields):
@@ -113,6 +196,9 @@ class Recorder:
             return
         ehp = ehp or (lambda m: m.get("TotalEHP"))
         h, size = state_hash(state), len(state)
+        if h not in self.states:
+            self.db.execute("INSERT OR IGNORE INTO states VALUES (?,?,?)", (self.id, h, dumps(pick(before))))
+            self.states.add(h)
         rows = []
         for i, (change, res) in enumerate(zip(candidates, results)):
             kind, key, label = change_key(change)
@@ -123,18 +209,18 @@ class Recorder:
                          dps(before) if before else None, dps(after) if after else None,
                          ehp(before) if before else None, ehp(after) if after else None,
                          score(before) if (score and before) else None, score(after) if (score and after) else None,
-                         json.dumps(pick(before)), json.dumps(pick(after)) if after else None, res.get("error")))
+                         dumps(delta(before, after)) if after else None, res.get("error")))
         self.db.executemany("INSERT INTO samples (run_id, step, state_hash, state_size, kind, key, label, change, cost, dps_before, "
-                            "dps_after, ehp_before, ehp_after, score_before, score_after, before, after, error) "
-                            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", rows)
+                            "dps_after, ehp_before, ehp_after, score_before, score_after, delta, error) "
+                            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", rows)
         self.db.commit()
         self.count += len(rows)
 
-    def finish(self, final=None):
+    def finish(self, final=None, outcome=None):
         if not self.enabled:
             return
-        self.db.execute("UPDATE runs SET finished = ?, final = ? WHERE id = ?",
-                        (datetime.datetime.now().isoformat(timespec="seconds"), json.dumps(pick(final or {})), self.id))
+        self.db.execute("UPDATE runs SET finished = ?, final = ?, outcome = ? WHERE id = ?",
+                        (datetime.datetime.now().isoformat(timespec="seconds"), json.dumps(pick(final or {})), outcome, self.id))
         self.db.commit()
 
 
@@ -196,13 +282,16 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("summary")
+    sub.add_parser("compact", help="convert an old, large database to the compact format")
     p = sub.add_parser("stats")
     p.add_argument("--kind")
     p.add_argument("--skill")
     p.add_argument("--ascendancy")
     p.add_argument("--top", type=int, default=20)
     args = ap.parse_args()
-    if args.cmd == "summary":
+    if args.cmd == "compact":
+        compact()
+    elif args.cmd == "summary":
         json.dump(summary(), sys.stdout, ensure_ascii=False, indent=1)
     else:
         for r in stats(args.kind, args.skill, args.ascendancy, args.top):

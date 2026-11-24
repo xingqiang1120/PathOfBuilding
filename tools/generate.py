@@ -33,6 +33,10 @@ from pob_worker import WORKER  # noqa: E402
 
 OUT_DIR = os.environ.get("POB_GENERATE_DIR") or os.path.join(library.ROOT, "src", "Builds", "generated")
 FOCUS = {"damage": 0.5, "balanced": 1.0, "defence": 2.0}
+# Version of the generator's rules, kept with every run: results of different versions are not comparable.
+# 2: realistic skill stages (Blade Blast, Explosive Arrow), dual-wield weapons, runs stop when the skill deals no damage.
+GENERATOR_VERSION = 2
+CHANGED_IN_V2 = {"Blade Blast", "Blade Blast of Unloading", "Explosive Arrow"}  # skills whose version-1 results are wrong
 
 
 def item(name, base, *lines, implicits=()):
@@ -102,13 +106,25 @@ def weapon_options(info, attribute):
         options.append(("spell sceptre + shield", [{"type": "item_equip", "slot": "Weapon 1", "raw": SPELL_WEAPON},
                                                     {"type": "item_equip", "slot": "Weapon 2", "raw": SPELL_SHIELD}]))
     if info["attack"]:
-        types = info["weaponTypes"] or list(WEAPONS)
-        for t in types:
-            if t not in WEAPONS:
-                continue
+        types = [t for t in (info["weaponTypes"] or list(WEAPONS)) if t in WEAPONS]
+        one_handed = [t for t in types if not WEAPONS[t][1]]
+
+        def weapon(t, slot="Weapon 1"):
             base, two_handed = WEAPONS[t]
-            weapon = {"type": "item_equip", "slot": "Weapon 1", "raw": item(f"Template {t}", base, *(TWO_HAND if two_handed else ONE_HAND))}
-            options.append((t, [weapon] if two_handed else [weapon, shield_change]))
+            return {"type": "item_equip", "slot": slot, "raw": item(f"Template {t}", base, *(TWO_HAND if two_handed else ONE_HAND))}
+
+        for t in types:
+            two_handed = WEAPONS[t][1]
+            if info.get("dualWield"):
+                # dual wield only (Dual Strike, Swordstorm, Cleave of Rage...): a second one-handed weapon, of another
+                # type when the skill needs different types. The off-hand has no resistances, unlike the shield.
+                if two_handed:
+                    continue
+                others = [o for o in one_handed if o != t] if info.get("dualWieldDifferent") else [t]
+                if others:
+                    options.append((f"{t} + {others[0]}", [weapon(t), weapon(others[0], "Weapon 2")]))
+            else:
+                options.append((t, [weapon(t)] if two_handed else [weapon(t), shield_change]))
     if not options:
         options.append(("spell sceptre + shield", [{"type": "item_equip", "slot": "Weapon 1", "raw": SPELL_WEAPON},
                                                     {"type": "item_equip", "slot": "Weapon 2", "raw": SPELL_SHIELD}]))
@@ -332,10 +348,17 @@ class Generator:
         self.create()
         self.recorder = simlog.Recorder("generate", skill=self.skill, ascendancy=self.ascendancy, cls=self.class_name, focus=self.focus,
                                         gear=f"from {self.gear_from}" if self.gear_from else "template", skill_info=self.info,
-                                        versions=WORKER.call("ping", {}))
+                                        versions=WORKER.call("ping", {}), generator=GENERATOR_VERSION)
         if not self.gear_from:
             self.pick_weapon()
         self.pick_supports()
+        if self.dps(self.current) <= 0:
+            # nothing the search does can be measured (PoB calculates no damage for this skill with this setup):
+            # stop instead of building a tree for defence only
+            self.elapsed = time.time() - started
+            self.outcome = "no damage"
+            self.recorder.finish(self.current, outcome=self.outcome)
+            return None
         self.pick_ascendancy()
         self.grow_tree()
         self.add_buffs()
@@ -350,6 +373,7 @@ class Generator:
         safe = re.sub(r"[^\w\- ]+", "_", self.name).strip()
         notes = self.notes()
         res = WORKER.call("export", dict(self.params(), changes=self.state, notes=notes))
+        res["metrics"]["inferred"] = res.get("inferred") or None  # estimates applied (stages, withered stacks...) go in the report
         path = os.path.join(OUT_DIR, safe + ".xml")
         with open(path, "w", encoding="utf-8", newline="\n") as f:
             f.write(res["xml"])
@@ -387,7 +411,10 @@ class Generator:
                   "- Enemy: pinnacle boss (Config). Condition values PoB leaves at 0 are inferred (pob_scenarios explains them).",
                   "- The search is greedy: it finds a good build, not a proven best one."]
         if m.get("inferred"):
-            lines += ["", "## Inferred conditions", ""] + [f"- {i.get('label')}: {i.get('value')}" for i in m["inferred"]]
+            lines += ["", "## Inferred conditions", ""] + [
+                f"- {i.get('label')}: {i.get('value') if i.get('applied') else 'not changed (' + str(i.get('skipped')) + ')'}"
+                + (f" (PoB's default: {i['maximum']})" if i.get("maximum") else "")
+                + (f" - {'; '.join(i['assumptions'])}" if i.get("assumptions") else "") for i in m["inferred"]]
         return "\n".join(lines) + "\n"
 
 
@@ -405,7 +432,10 @@ def main():
     ap.add_argument("--gear-from", help="library build whose items to use (tests the tree and gem search against its author)")
     args = ap.parse_args()
     g = Generator(args.skill, args.ascendancy, args.focus, args.level, args.name, gear_from=args.gear_from)
-    g.run()
+    if g.run() is None:
+        log(f"\nDPS 0 · no damage: PoB calculates no damage for {args.skill} with weapon '{g.weapon}' - run stopped "
+            f"({g.elapsed / 60:.1f} min)")
+        return
     path, report, m = g.export()
     log(f"\nDPS {g.dps(m):,.0f} · life {m.get('Life')} · EHP {m.get('TotalEHP'):,.0f} · {g.elapsed / 60:.1f} min")
     log(f"build:  {path}\nreport: {report}")

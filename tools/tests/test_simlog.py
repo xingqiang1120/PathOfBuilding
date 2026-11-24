@@ -41,6 +41,47 @@ class SimLogTest(unittest.TestCase):
         # Failed tries are kept but not averaged
         self.assertEqual(simlog.stats(kind="gem_add"), [])
 
+    def test_state_numbers_stored_once_and_rebuilt(self):
+        before = {"playerDPS": 1000, "TotalEHP": 5000, "Life": 3000}
+        rec = simlog.Recorder("generate", skill="Arc", generator=2)
+        moves = [[{"type": "passive_add", "node": 1}], [{"type": "passive_add", "node": 2}]]
+        results = [{"metrics": {"playerDPS": 1100, "TotalEHP": 5000, "Life": 3000}}, {"metrics": {"playerDPS": 1000, "TotalEHP": 5200}}]
+        rec.record("tree", [], before, moves, results, lambda m: m.get("playerDPS") or 0)
+        rec.finish(results[0]["metrics"], outcome="test")
+        db = simlog.connect()
+        self.assertEqual(db.execute("SELECT COUNT(*) FROM states").fetchone()[0], 1)
+        state = __import__("json").loads(db.execute("SELECT metrics FROM states").fetchone()[0])
+        deltas = [__import__("json").loads(d) for (d,) in db.execute("SELECT delta FROM samples ORDER BY id")]
+        self.assertEqual(deltas[0], {"playerDPS": 1100})  # only what changed
+        self.assertEqual(simlog.after_metrics(state, deltas[1]), {"playerDPS": 1000, "TotalEHP": 5200})  # Life gone
+        self.assertEqual(db.execute("SELECT generator, outcome FROM runs").fetchone(), (2, "test"))
+
+    def test_compact_converts_old_format(self):
+        import json
+        import sqlite3
+        os.makedirs(simlog.LIBRARY, exist_ok=True)
+        db = sqlite3.connect(simlog.db_path())
+        db.executescript("""
+            CREATE TABLE runs (id TEXT PRIMARY KEY, started TEXT, tool TEXT, skill TEXT, ascendancy TEXT, class TEXT, focus TEXT, gear TEXT,
+                pob_version TEXT, tree_version TEXT, skill_info TEXT, finished TEXT, final TEXT);
+            CREATE TABLE samples (id INTEGER PRIMARY KEY AUTOINCREMENT, run_id TEXT, step TEXT, state_hash TEXT, state_size INTEGER,
+                kind TEXT, key TEXT, label TEXT, change TEXT, cost INTEGER, dps_before REAL, dps_after REAL, ehp_before REAL,
+                ehp_after REAL, score_before REAL, score_after REAL, before TEXT, after TEXT, error TEXT);""")
+        db.execute("INSERT INTO runs (id, tool, skill, finished) VALUES ('r1', 'generate', 'Arc', 'x')")
+        b = json.dumps({"playerDPS": 10, "Life": 5})
+        for after in (json.dumps({"playerDPS": 12, "Life": 5}), None):
+            db.execute("INSERT INTO samples (run_id, state_hash, kind, dps_before, before, after) VALUES ('r1', 'h', 'passive_add', 10, ?, ?)",
+                       (b, after))
+        db.commit()
+        db.close()
+        with self.assertRaises(SystemExit):
+            simlog.connect()
+        simlog.compact()
+        db = simlog.connect()
+        self.assertEqual([json.loads(d) if d else d for (d,) in db.execute("SELECT delta FROM samples ORDER BY id")], [{"playerDPS": 12}, None])
+        self.assertEqual(json.loads(db.execute("SELECT metrics FROM states").fetchone()[0]), {"playerDPS": 10, "Life": 5})
+        self.assertIn("generator", simlog.columns(db, "runs"))
+
     def test_disabled(self):
         os.environ["POB_SIMLOG"] = "0"
         try:

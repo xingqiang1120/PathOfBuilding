@@ -27,6 +27,7 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import generate  # noqa: E402
 import library  # noqa: E402
 import simlog  # noqa: E402
 from pob_worker import WORKER  # noqa: E402
@@ -126,9 +127,17 @@ def plan(seed=None, skill_filter=None, focus="balanced"):
 
 def finished_pairs(pob_version, focus):
     db = simlog.connect()
-    rows = db.execute("SELECT skill, ascendancy FROM runs WHERE tool = 'generate' AND finished IS NOT NULL AND gear = 'template' "
-                      "AND focus = ? AND (pob_version = ? OR ? IS NULL)", (focus, pob_version, pob_version)).fetchall()
-    return {(s, a) for s, a in rows}
+    rows = db.execute("SELECT skill, ascendancy, generator, final FROM runs WHERE tool = 'generate' AND finished IS NOT NULL "
+                      "AND gear = 'template' AND focus = ? AND (pob_version = ? OR ? IS NULL)", (focus, pob_version, pob_version)).fetchall()
+    done = set()
+    for skill, asc, version, final in rows:
+        if (version or 1) < generate.GENERATOR_VERSION:
+            # an older generator: still valid unless its rules changed for this skill (stages, or no damage measured)
+            m = json.loads(final or "{}")
+            if skill in generate.CHANGED_IN_V2 or not ((m.get("playerDPS") or 0) > 0 or (m.get("minionDPS") or 0) > 0):
+                continue
+        done.add((skill, asc))
+    return done
 
 
 def start(skill, asc, focus, log_file):

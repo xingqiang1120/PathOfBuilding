@@ -43,7 +43,8 @@ CROSS_TAGS = {"attack", "spell", "minion", "melee", "projectile", "fire", "cold"
               "trap", "mine", "bow"}  # tags also combined with the ascendancy
 CATEGORIES = {  # generator step -> category
     "weapon": "weapon", "support": "support", "support swap": "support", "ascendancy": "ascendancy", "tree": "passive",
-    "buff": "aura", "curse": "curse", "pantheon": "pantheon", "flask": "flask", "jewel kind": "jewel", "jewel": "jewel"}
+    "buff": "aura", "curse": "curse", "pantheon": "pantheon", "flask": "flask", "jewel kind": "jewel", "jewel": "jewel",
+    "guard": "utility", "golem": "utility", "warcry": "utility"}
 ALL_CATEGORIES = sorted(set(CATEGORIES.values()) | {"mastery"})  # masteries are tried in the tree step
 
 
@@ -329,7 +330,7 @@ def suggest(skill, ascendancy, category=None, top=15, db=None, tags=None):
     return {"skill": skill, "ascendancy": ascendancy, "tags": sorted(tags), "contexts": ctxs, "suggestions": out}
 
 
-TOP_EXPORT = {"support": 10, "ascendancy": 8, "aura": 6, "curse": 6, "passive": 12, "mastery": 8, "pantheon": 4, "flask": 6, "jewel": 6, "weapon": 4}
+TOP_EXPORT = {"support": 10, "ascendancy": 8, "aura": 6, "curse": 6, "passive": 12, "mastery": 8, "pantheon": 4, "flask": 6, "jewel": 6, "utility": 6, "weapon": 4}
 
 
 def export(out_dir):

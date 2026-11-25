@@ -12,6 +12,7 @@ Steps (each step tries candidates in PoB and keeps the best by the score below):
   6. passive tree: grow from the class start, best score gain per point, until the points run out; masteries
      (one point, next to an allocated notable) and jewel sockets with a template rare jewel (the best of six kinds for
      the build) compete with the notables
+  5a. a guard skill (Steelskin, Molten Shell), a golem and up to three warcries, while they help
   5b. utility flasks (slots 2-5, always on), and charges when the build has a source (inferred)
   7. auras and curses again, flasks swapped, the pantheon (major and minor god), then supports again, now that the tree is known
 --archetype crit: weapons and amulet with crit rolls instead of the hybrid template, so the search builds for crit.
@@ -43,7 +44,7 @@ OUT_DIR = os.environ.get("POB_GENERATE_DIR") or os.path.join(library.ROOT, "src"
 FOCUS = {"damage": 0.5, "balanced": 1.0, "defence": 2.0}
 # Version of the generator's rules, kept with every run: results of different versions are not comparable.
 # 2: realistic skill stages (Blade Blast, Explosive Arrow), dual-wield weapons, runs stop when the skill deals no damage.
-GENERATOR_VERSION = 6
+GENERATOR_VERSION = 7
 
 
 def item(name, base, *lines, implicits=()):
@@ -158,7 +159,19 @@ def weapon_options(info, attribute, archetype=None):
 BUFF_SKILLS = ["Hatred", "Anger", "Wrath", "Zealotry", "Malevolence", "Pride", "Haste", "Grace", "Determination", "Discipline",
                "Precision", "Purity of Elements", "Herald of Ash", "Herald of Ice", "Herald of Thunder", "Herald of Agony",
                "Herald of Purity", "War Banner", "Dread Banner", "Defiance Banner", "Arctic Armour", "Tempest Shield",
-               "Flesh and Stone", "Vitality", "Enduring Cry"]  # Enduring Cry: endurance charges (inferred from the skill)
+               "Flesh and Stone", "Vitality", "Enduring Cry", "Blood Rage"]  # Enduring Cry: endurance charges (inferred)
+
+# Utility skills, with how many a build uses. PoB counts each as always up, so only those where that is fair:
+# - guard: Steelskin / Molten Shell absorb a hit (cast before a boss's big hit); one guard at a time in the game.
+#   Immortal Call is left out (a very short buff that PoB would count as permanent), as are movement skills such as
+#   Phase Run (a short buff fed by frenzy charges).
+# - golem: one golem (the game's limit without special items); its buff to the player counts.
+# - warcries: PoB averages exerted attacks over the warcry's cooldown (Config "warcryMode": average).
+UTILITY = [("guard", ["Steelskin", "Molten Shell"], 1),
+           ("golem", ["Summon Stone Golem", "Summon Flame Golem", "Summon Ice Golem", "Summon Lightning Golem",
+                      "Summon Chaos Golem", "Summon Carrion Golem"], 1),
+           ("warcry", ["Ancestral Cry", "Infernal Cry", "Intimidating Cry", "Rallying Cry", "Seismic Cry", "Battlemage's Cry",
+                       "General's Cry"], 3)]
 
 
 # Curses, marks and exposure: applied to the enemy as if always up (self-cast, on hit or by aura - not modelled which).
@@ -494,6 +507,23 @@ class Generator:
             pool.remove(move[0]["gems"][0])
             self.accept("buff", move, metrics, f"aura/buff: {move[0]['gems'][0]}")
 
+    def add_utility(self):
+        """Guard skill, golem and warcries, each kind up to its limit, while they improve the score."""
+        present = {c.get("gems", [None])[0] for c in self.state if c["type"] == "group_add"}
+        for kind, names, limit in UTILITY:
+            self.step = kind
+            have = [n for n in names if n in present]
+            pool = [n for n in names if n not in present]
+            while pool and len(have) < limit:
+                found = self.best([[{"type": "group_add", "gems": [n]}] for n in pool], self.current)
+                if not found or not found[0]:
+                    break
+                move, metrics, _ = found[0]
+                name = move[0]["gems"][0]
+                pool.remove(name)
+                have.append(name)
+                self.accept(kind, move, metrics, f"{kind}: {name}")
+
     def add_debuffs(self):
         self.step = "curse"
         present = {c.get("gems", [None])[0] for c in self.state if c["type"] == "group_add"}
@@ -570,12 +600,14 @@ class Generator:
         # Magic looked free while no aura reserved life yet), then again once the tree is known
         self.attributes_later = True
         self.add_buffs()
+        self.add_utility()
         self.add_debuffs()
         self.pick_flasks()
         self.attributes_later = False
         self.current = self.try_all([[]])[0]["metrics"]  # same build, scored again with the attribute penalty
         self.grow_tree()
         self.add_buffs()
+        self.add_utility()
         self.add_debuffs()
         self.pick_flasks()  # swaps, now that the tree is known
         self.retune_jewels()
@@ -608,6 +640,8 @@ class Generator:
             + (f" Archetype {ARCHETYPES[self.archetype]}." if self.archetype else ""),
             "Curses, marks and exposure count as always applied (how they are applied is not modelled).",
             "Utility flasks (quality 20, no mods) count as always on; flask slot 1 is left for a life flask.",
+            "A guard skill counts as up when hit; a golem's buff counts; warcries count averaged over their cooldown. "
+            "Immortal Call and movement skills are not used.",
             "Tree jewel sockets hold template rare jewels (life plus three good rolls of one kind); no cluster, abyss or unique jewels.",
             "Power, frenzy and endurance charges count at their maximum when the build has a source (none against a lone boss "
             "if every source needs kills).",

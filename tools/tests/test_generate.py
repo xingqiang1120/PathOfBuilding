@@ -82,7 +82,7 @@ class GenerateTest(unittest.TestCase):
 
 
     def test_every_curse_and_buff_gem_exists(self):
-        names = generate.DEBUFF_SKILLS + generate.BUFF_SKILLS
+        names = generate.DEBUFF_SKILLS + generate.BUFF_SKILLS + [n for _, group, _ in generate.UTILITY for n in group]
         res = WORKER.call("try", {"xml": self.new["xml"], "name": "t", "candidates": [[{"type": "group_add", "gems": [g]}] for g in names]})
         self.assertEqual([n for n, r in zip(names, res) if "metrics" not in r], [])
 

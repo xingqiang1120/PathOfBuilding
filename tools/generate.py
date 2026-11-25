@@ -14,7 +14,8 @@ Steps (each step tries candidates in PoB and keeps the best by the score below):
      the build) compete with the notables
   5a. a guard skill (Steelskin, Molten Shell), a golem and up to three warcries, while they help
   5b. utility flasks (slots 2-5, always on), and charges when the build has a source (inferred)
-  7. auras and curses again, flasks swapped, an amulet anoint and the skill's helmet enchant, the pantheon (major and minor god), then supports again, now that the tree is known
+  7. auras and curses again, flasks swapped, an amulet anoint and the skill's helmet enchant, unique items (each that
+     fits screened once, the best three per slot added while they help), the pantheon (major and minor god), then supports again, now that the tree is known
 --archetype crit: weapons and amulet with crit rolls instead of the hybrid template, so the search builds for crit.
 Score = ln(DPS) + w x defence - penalties, defence = (ln(EHP) + ln(smallest max hit)) / 2, w by --focus
 (damage 0.5, balanced 1, defence 2). Penalties: fire/cold/lightning resistance under 75%, missing attribute
@@ -204,6 +205,17 @@ def with_enchant(raw, line):
     return "\n".join(lines[:i] + [f"Implicits: {count + 1}", "{enchant}" + line] + lines[i + 1:])
 
 
+# A unique replacing a template rare loses the rare's resistances, attributes and enchantments. Players get those
+# back by re-rolling other gear (and anoint / enchant the unique), so they stay, as Config custom modifiers in a block
+# of this name; the rare's life is not kept - that is the price of the unique.
+MOVED_BLOCK = "Generator: kept from replaced rares"
+MOVED_LINE = re.compile(r"Resistance|to (Strength|Dexterity|Intelligence|all Attributes)|^\{enchant\}")
+
+
+def moved_lines(raw):
+    return [x.replace("{enchant}", "") for x in (raw or "").splitlines() if MOVED_LINE.search(x)]
+
+
 def jewel_item(name, *lines):
     return "\n".join(["Rarity: RARE", f"Template {name} Jewel", "Crimson Jewel", "Item Level: 86", "Implicits: 0", *lines])
 
@@ -250,12 +262,18 @@ def log(*args):
 
 class Generator:
     def __init__(self, skill, ascendancy, focus="balanced", level=95, name=None, infer=True, gear_from=None, archetype=None,
-                 guided=False, seed=None):
+                 guided=False, seed=None, max_uniques=0):
         self.skill, self.ascendancy, self.level = skill, ascendancy, level
         self.guided = guided
         self.rng = random.Random(seed)
         self.weights, self.guide = {}, None
         self.jewel = None  # the template jewel kind that suits this build best (found at the first socket)
+        self.moved = {}  # slot -> lines of the replaced rare kept as custom modifiers (see MOVED_BLOCK)
+        self.uniques = {}  # slot -> unique worn
+        # Uniques are opt-in (--uniques N): tested 2026-11-25, with no limit every slot became a unique and DPS tripled,
+        # from template rares that are plain, league-only items and uniques whose conditions PoB counts as always met
+        # (e.g. Flame-Touched without its fire damage taken) - and screening all of them takes minutes per run
+        self.max_uniques = max_uniques
         self.archetype = archetype
         self.gear_from = gear_from
         self.weight = FOCUS[focus]
@@ -589,6 +607,41 @@ class Generator:
                 line = next(x for x in move[0]["raw"].splitlines() if x.startswith("{enchant}"))[len("{enchant}"):]
                 self.accept(step, move, metrics, f"{label}: {line}")
 
+    def unique_move(self, slot, name):
+        moved = dict(self.moved)
+        if slot not in moved:
+            moved[slot] = moved_lines(self.worn(slot))
+        text = "\n".join(line for lines in moved.values() for line in lines)
+        return [{"type": "item_equip", "slot": slot, "unique": name}, {"type": "custom_block", "title": MOVED_BLOCK, "text": text}]
+
+    def pick_uniques(self, keep=3):
+        """Every unique that fits a slot (weapons: the types the skill uses) is tried once; the best few per slot are
+        then added one at a time while they improve the score, up to self.max_uniques (--uniques)."""
+        if not self.max_uniques:
+            return
+        cands = WORKER.call("candidates", dict(self.params(), changes=self.state))
+        self.step = "unique screen"
+        base = self.score(self.current)
+        shortlist = []
+        for slot, names in cands.get("uniques", {}).items():
+            if not names or slot in self.uniques:
+                continue
+            res = self.try_all([self.unique_move(slot, n) for n in names])
+            ranked = sorted(((self.score(r["metrics"]) - base, n) for n, r in zip(names, res) if "metrics" in r), reverse=True)
+            shortlist += [(slot, n) for g, n in ranked[:keep] if g > 1e-6]
+        self.step = "unique"
+        while shortlist and len(self.uniques) < self.max_uniques:
+            found = self.best([self.unique_move(slot, n) for slot, n in shortlist], self.current)
+            if not found or not found[0]:
+                break
+            move, metrics, _ = found[0]
+            slot, name = move[0]["slot"], move[0]["unique"]
+            self.moved.setdefault(slot, moved_lines(self.worn(slot)))
+            self.uniques[slot] = name
+            self.accept("unique", move, metrics, f"unique: {slot} -> {name}")
+            # a two-handed weapon empties the off-hand slot; a unique in one ring slot can still go in the other
+            shortlist = [(s, n) for s, n in shortlist if s != slot and n != name]
+
     def pick_pantheon(self):
         self.step = "pantheon"
         for key, gods in PANTHEON.items():
@@ -644,6 +697,7 @@ class Generator:
         self.pick_flasks()  # swaps, now that the tree is known
         self.retune_jewels()
         self.pick_enchants()
+        self.pick_uniques()
         self.pick_pantheon()
         self.retune_supports()
         self.elapsed = time.time() - started
@@ -681,7 +735,10 @@ class Generator:
             "if every source needs kills).",
             (f"Search guided by {self.guide}: supports tried in weight order (top {GUIDE_TOP} + {GUIDE_EXPLORE} at random)."
              if self.guide else "Search not guided: every candidate tried."),
-            "No uniques, cluster or abyss jewels yet. Sockets and gem colours are not checked.",
+            "No cluster or abyss jewels yet. Sockets and gem colours are not checked.",
+            ("A unique replacing a template rare keeps the rare's resistances, attributes and enchantment (as Config custom "
+             "modifiers: other gear would carry them) but not its life. Check each unique's conditions in PoB."
+             if self.max_uniques else "No unique items (--uniques N to try some)."),
         ])
 
     def report(self, final):
@@ -729,12 +786,14 @@ def main():
     ap.add_argument("--level", type=int, default=95)
     ap.add_argument("--name")
     ap.add_argument("--archetype", choices=["crit"], help="crit: weapon and amulet with crit rolls, so the search builds for crit")
+    ap.add_argument("--uniques", type=int, default=0, metavar="N",
+                    help="experimental: up to N unique items (each checked against the template rare it replaces)")
     ap.add_argument("--guided", action="store_true", help="experimental: try supports in library/weights.db order, only the best "
                                                           f"{GUIDE_TOP} + {GUIDE_EXPLORE} at random")
     ap.add_argument("--gear-from", help="library build whose items to use (tests the tree and gem search against its author)")
     args = ap.parse_args()
     g = Generator(args.skill, args.ascendancy, args.focus, args.level, args.name, gear_from=args.gear_from, archetype=args.archetype,
-                  guided=args.guided)
+                  guided=args.guided, max_uniques=args.uniques)
     if g.run() is None:
         log(f"\nDPS 0 · no damage: PoB calculates no damage for {args.skill} with weapon '{g.weapon}' - run stopped "
             f"({g.elapsed / 60:.1f} min)")

@@ -217,6 +217,8 @@ def change_key(change):
             lines = c["raw"].splitlines()
             keys.append(f"{c.get('slot')}:{lines[1] if len(lines) > 1 else ''}")
         else:
+            if c.get("type") == "custom_block":
+                continue  # the moved lines follow from the item change
             if c.get("type") == "config_set":
                 keys.append(f"{c.get('key')}={c.get('value')}")
                 continue

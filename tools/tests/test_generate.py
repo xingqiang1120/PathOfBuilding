@@ -127,5 +127,13 @@ class GenerateTest(unittest.TestCase):
         c = WORKER.call("candidates", {"xml": self.new["xml"], "name": "t"})
         self.assertIn("Eagle Eye", c["anoints"])
 
+    def test_unique_keeps_the_rares_resistances(self):
+        armour, _ = generate.armour_set("Str")
+        self.assertEqual(generate.moved_lines(generate.with_enchant(armour["Helmet"], "40% increased Cleave Damage")),
+                         ["40% increased Cleave Damage", "+40% to Fire Resistance", "+40% to Cold Resistance"])
+        c = WORKER.call("candidates", {"xml": self.new["xml"], "name": "t", "changes": self.gear(self.new, "Int")})
+        self.assertNotIn("Natural Hierarchy", c["uniques"]["Amulet"])  # Talisman league only
+        self.assertTrue(all(n for n in c["uniques"]["Weapon 1"]))
+
 if __name__ == "__main__":
     unittest.main()

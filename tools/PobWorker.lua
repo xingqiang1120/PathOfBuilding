@@ -599,6 +599,21 @@ local changeHandlers = {
 		build.itemsTab:PopulateSlots()
 		return string.format("removed %d tree jewels", n)
 	end,
+	custom_block = function(c)
+		local set = build.configTab.configSets[build.configTab.activeConfigSetId]
+		set.customModsList = set.customModsList or { }
+		local block
+		for _, b in ipairs(set.customModsList) do
+			if b.title == c.title then block = b end
+		end
+		if not block then
+			block = { title = c.title, enabled = true, text = "" }
+			table.insert(set.customModsList, block)
+		end
+		block.text = c.text or ""
+		build.configTab:BuildModList()
+		return string.format("custom modifiers '%s': %d lines", c.title, select(2, block.text:gsub("[^\n]+", "")))
+	end,
 	config_set = function(c)
 		build.configTab.input[c.key] = c.value
 		build.configTab:BuildModList()
@@ -1431,6 +1446,11 @@ local function applyReversible(change)
 			if build.itemsTab.activeItemSet[change.slot] then build.itemsTab.activeItemSet[change.slot].active = oldActive end
 			build.itemsTab:PopulateSlots()
 		end
+	elseif t == "custom_block" then
+		local set = build.configTab.configSets[build.configTab.activeConfigSetId]
+		local saved = copyTable(set.customModsList or { })
+		local result = changeHandlers[t](change)
+		return result, function() set.customModsList = saved build.configTab:BuildModList() end
 	elseif t == "config_set" then
 		local old = build.configTab.input[change.key]
 		local result = changeHandlers[t](change)
@@ -1570,10 +1590,15 @@ function methods.candidates(p)
 				-- Only slots the build uses (e.g. no off-hand with a two-handed weapon)
 				goto nextSlot
 			end
+			local weaponTypes = slotName == "Weapon 1" and mainSkill and mainSkill.activeEffect
+				and mainSkill.activeEffect.grantedEffect.weaponTypes
 			for _, item in pairs(main.uniqueDB.list) do
 				local primary = item:GetPrimarySlot()
 				if primary and (primary == slotName or primary:gsub(" %d$", "") == slotName:gsub(" %d$", ""))
-					and (item.requirements.level or 0) <= level and (not current or item.title ~= current.title) then
+					and (item.requirements.level or 0) <= level and (not current or item.title ~= current.title)
+					and (not weaponTypes or weaponTypes[item.type])
+					-- not obtainable in a normal league: only in a league's own Standard / Hardcore (e.g. Talisman)
+					and not (item.league and (item.league:find("Standard") or item.league:find("Hardcore"))) then
 					table.insert(list, item.title)
 				end
 			end

@@ -269,9 +269,19 @@ def parse_batch(text):
     return entries, problems
 
 
+def read_text(path):
+    """A text file saved by Notepad: UTF-8, or the Windows code page (Big5 / cp950 for Traditional Chinese names)."""
+    data = open(path, "rb").read()
+    for encoding in ("utf-8-sig", "cp950", "gbk"):
+        try:
+            return data.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    return data.decode("utf-8", errors="replace")
+
+
 def cmd_batch(args):
-    with open(args.file, encoding="utf-8") as f:
-        entries, problems = parse_batch(f.read())
+    entries, problems = parse_batch(read_text(args.file))
     builds = []
     for code, name, group, number in entries:
         try:

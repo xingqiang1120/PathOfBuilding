@@ -94,5 +94,20 @@ class GenerateTest(unittest.TestCase):
         self.assertIn("Global Critical Strike Chance", generate.armour_set("Int", "crit")[0]["Amulet"])
         self.assertEqual(generate.gear_label("crit"), "template crit")
 
+    def test_flasks_count_when_equipped_and_undo(self):
+        r = WORKER.call("create_build", {"ascendancy": "Slayer", "skill": "Cleave", "level": 90})
+        jade = [{"type": "item_equip", "slot": "Flask 2", "raw": generate.flask_item("Jade Flask")}]
+        base, on, after = (x["metrics"] for x in WORKER.call("try", {"xml": r["xml"], "name": "t", "candidates": [[], jade, []]}))
+        self.assertGreater(on["Evasion"], base["Evasion"])
+        self.assertEqual(after["Evasion"], base["Evasion"])
+
+    def test_charges_need_a_source(self):
+        r = WORKER.call("create_build", {"ascendancy": "Slayer", "skill": "Cleave", "level": 90})
+        cry = [{"type": "group_add", "gems": ["Enduring Cry"]}]
+        res = WORKER.call("try", {"xml": r["xml"], "name": "t", "inferCharges": True, "candidates": [[], cry]})
+        flags = [{i["key"]: i["value"] for i in x["metrics"]["inferred"] if i.get("kind") == "config"} for x in res]
+        self.assertFalse(flags[0]["useEnduranceCharges"])
+        self.assertTrue(flags[1]["useEnduranceCharges"])
+
 if __name__ == "__main__":
     unittest.main()

@@ -148,21 +148,28 @@ def plan(seed=None, skill_filter=None, focus="balanced", shard=None):
     skills = [s for s in skills if in_shard(s["name"], shard)]
     done, tried = finished_pairs(versions.get("pobVersion"), focus)
     rng = random.Random(seed)
-    per_skill = []
-    for s in skills:
-        attr = main_attribute(s)
-        ascs = [a for a in data["ascendancies"] if attr is None or attr in CLASS_ATTRIBUTES.get(a["class"], set())]
-        rng.shuffle(ascs)
-        pairs = [(s["name"], a["name"]) for a in ascs if (s["name"], a["name"]) not in done]
-        if pairs:
-            per_skill.append(pairs)
-    rng.shuffle(per_skill)
     queue = []
-    depth = 0
-    while any(depth < len(p) for p in per_skill):
-        queue.extend(p[depth] for p in per_skill if depth < len(p))
-        depth += 1
-    queue.sort(key=lambda pair: pair in tried)  # stable: pairs never run first, then re-runs of older generator results
+    # every pair with the template gear first; then the crit archetype for skills that hit (not minions), which
+    # builds for crit with crit gear and a Diamond Flask - the greedy search does not get there from hybrid gear
+    for archetype in (None, "crit"):
+        per_skill = []
+        for s in skills:
+            if archetype == "crit" and (s["minion"] or not (s["attack"] or s["spell"])):
+                continue
+            attr = main_attribute(s)
+            ascs = [a for a in data["ascendancies"] if attr is None or attr in CLASS_ATTRIBUTES.get(a["class"], set())]
+            rng.shuffle(ascs)
+            pairs = [(s["name"], a["name"], archetype) for a in ascs if (s["name"], a["name"], archetype) not in done]
+            if pairs:
+                per_skill.append(pairs)
+        rng.shuffle(per_skill)
+        part = []
+        depth = 0
+        while any(depth < len(p) for p in per_skill):
+            part.extend(p[depth] for p in per_skill if depth < len(p))
+            depth += 1
+        part.sort(key=lambda pair: pair in tried)  # stable: pairs never run first, then re-runs of older generator results
+        queue += part
     return queue, len(done), versions
 
 
@@ -170,22 +177,30 @@ def finished_pairs(pob_version, focus):
     """(done, tried): pairs finished by the current generator version, and pairs finished by any version. Results of an
     older generator stay in the log as data, but the pair is run again (after the pairs never run at all)."""
     db = simlog.connect()
-    rows = db.execute("SELECT skill, ascendancy, generator FROM runs WHERE tool = 'generate' AND finished IS NOT NULL "
-                      "AND gear = 'template' AND guide IS NULL AND focus = ? AND (pob_version = ? OR ? IS NULL)",
+    rows = db.execute("SELECT skill, ascendancy, generator, gear FROM runs WHERE tool = 'generate' AND finished IS NOT NULL "
+                      "AND gear IN ('template', 'template crit') AND guide IS NULL AND focus = ? AND (pob_version = ? OR ? IS NULL)",
                       (focus, pob_version, pob_version)).fetchall()
     done, tried = set(), set()
-    for skill, asc, version in rows:
-        tried.add((skill, asc))
+    for skill, asc, version, gear in rows:
+        key = (skill, asc, "crit" if gear == "template crit" else None)
+        tried.add(key)
         if (version or 1) >= generate.GENERATOR_VERSION:
-            done.add((skill, asc))
+            done.add(key)
     return done, tried
 
 
-def start(skill, asc, focus, log_file):
+def label(skill, asc, archetype):
+    return f"{skill} / {asc}" + (f" ({archetype})" if archetype else "")
+
+
+def start(skill, asc, focus, log_file, archetype=None):
     env = dict(os.environ, POB_GENERATE_DIR=OUT_DIR, PYTHONIOENCODING="utf-8")
-    cmd = [sys.executable, os.path.join(ROOT, "tools", "generate.py"), skill, asc, "--focus", focus, "--name", f"{skill} - {asc}"]
+    cmd = [sys.executable, os.path.join(ROOT, "tools", "generate.py"), skill, asc, "--focus", focus,
+           "--name", f"{skill} - {asc}" + (f" - {archetype}" if archetype else "")]
+    if archetype:
+        cmd += ["--archetype", archetype]
     out = open(log_file, "a", encoding="utf-8")
-    out.write(f"\n===== {datetime.datetime.now():%Y-%m-%d %H:%M:%S} {skill} / {asc}\n")
+    out.write(f"\n===== {datetime.datetime.now():%Y-%m-%d %H:%M:%S} {label(skill, asc, archetype)}\n")
     out.flush()
     return subprocess.Popen(cmd, stdout=out, stderr=subprocess.STDOUT, cwd=ROOT, env=env, creationflags=NO_WINDOW), out
 
@@ -259,8 +274,8 @@ def main():
     print(f"PoB {versions.get('pobVersion')}, tree {versions.get('treeVersion')}: {len(queue)} pairs to run, {skipped} already done"
           + (f" (share {shard[0]} of {shard[1]})" if shard else ""))
     if args.dry_run:
-        for skill, asc in queue[:50]:
-            print(f"  {skill} / {asc}")
+        for skill, asc, archetype in queue[:50]:
+            print(f"  {label(skill, asc, archetype)}")
         return
     os.makedirs(OUT_DIR, exist_ok=True)
     os.makedirs(LOG_DIR, exist_ok=True)
@@ -280,12 +295,13 @@ def main():
                 if os.path.exists(STOP):
                     queue.clear()
                 while queue and free_slots and time.time() < deadline:
-                    skill, asc = queue.pop(0)
+                    skill, asc, archetype = queue.pop(0)
                     slot = free_slots.pop(0)
                     log_file = os.path.join(LOG_DIR, f"run-{session}-{slot}.log")
-                    proc, out = start(skill, asc, args.focus, log_file)
-                    running.append({"proc": proc, "out": out, "skill": skill, "asc": asc, "log": log_file, "t": time.time(), "slot": slot})
-                    print(f"{datetime.datetime.now():%H:%M} start  {skill} / {asc}", flush=True)
+                    proc, out = start(skill, asc, args.focus, log_file, archetype)
+                    running.append({"proc": proc, "out": out, "skill": skill, "asc": asc, "label": label(skill, asc, archetype),
+                                    "log": log_file, "t": time.time(), "slot": slot})
+                    print(f"{datetime.datetime.now():%H:%M} start  {label(skill, asc, archetype)}", flush=True)
                 if not running:
                     break
                 time.sleep(5)
@@ -303,14 +319,14 @@ def main():
                     ok = code == 0
                     finished += ok
                     failed += not ok
-                    line = f"{datetime.datetime.now():%H:%M} {'done ' if ok else 'FAIL '} {r['skill']} / {r['asc']} " \
+                    line = f"{datetime.datetime.now():%H:%M} {'done ' if ok else 'FAIL '} {r['label']} " \
                            f"({minutes:.1f} min) {result_line(r['log']) if ok else 'exit ' + str(code)}"
                     print(line, flush=True)
                     summary.write(line + "\n")
                     summary.flush()
                     recent = (recent + [line])[-20:]
                 write_status(state="running", finished=finished, failed=failed, queued=len(queue), recent=recent,
-                             running=[f"{r['skill']} / {r['asc']} ({(time.time() - r['t']) / 60:.0f} min)" for r in running], **common)
+                             running=[f"{r['label']} ({(time.time() - r['t']) / 60:.0f} min)" for r in running], **common)
                 if time.time() >= deadline:
                     queue.clear()
     except KeyboardInterrupt:

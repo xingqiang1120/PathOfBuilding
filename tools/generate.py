@@ -11,7 +11,8 @@ Steps (each step tries candidates in PoB and keeps the best by the score below):
      sees what they reserve and add
   6. passive tree: grow from the class start, best score gain per point, until the points run out; masteries
      (one point, next to an allocated notable) compete with the notables
-  7. auras and curses again, the pantheon (major and minor god), then supports again, now that the tree is known
+  5b. utility flasks (slots 2-5, always on), and charges when the build has a source (inferred)
+  7. auras and curses again, flasks swapped, the pantheon (major and minor god), then supports again, now that the tree is known
 --archetype crit: weapons and amulet with crit rolls instead of the hybrid template, so the search builds for crit.
 Score = ln(DPS) + w x defence - penalties, defence = (ln(EHP) + ln(smallest max hit)) / 2, w by --focus
 (damage 0.5, balanced 1, defence 2). Penalties: fire/cold/lightning resistance under 75%, missing attribute
@@ -41,7 +42,7 @@ OUT_DIR = os.environ.get("POB_GENERATE_DIR") or os.path.join(library.ROOT, "src"
 FOCUS = {"damage": 0.5, "balanced": 1.0, "defence": 2.0}
 # Version of the generator's rules, kept with every run: results of different versions are not comparable.
 # 2: realistic skill stages (Blade Blast, Explosive Arrow), dual-wield weapons, runs stop when the skill deals no damage.
-GENERATOR_VERSION = 4
+GENERATOR_VERSION = 5
 
 
 def item(name, base, *lines, implicits=()):
@@ -104,6 +105,7 @@ CRIT_SPELL_WEAPON = item("Template Sceptre", "Void Sceptre", "70% increased Spel
                          "120% increased Critical Strike Chance for Spells", "+38% to Global Critical Strike Multiplier",
                          "+40 to Intelligence")
 ARCHETYPES = {None: "template gear (hybrid weapon rolls)", "crit": "crit: weapon and amulet with crit rolls"}
+NEVER_CRIT = {"Precise Technique", "Resolute Technique", "Elemental Overload"}  # keystones the crit archetype leaves out
 
 SPELL_WEAPON = item("Template Sceptre", "Void Sceptre", "90% increased Spell Damage", "20% increased Cast Speed",
                     "80% increased Critical Strike Chance for Spells", "+30% to Global Critical Strike Multiplier", "+40 to Intelligence")
@@ -155,7 +157,7 @@ def weapon_options(info, attribute, archetype=None):
 BUFF_SKILLS = ["Hatred", "Anger", "Wrath", "Zealotry", "Malevolence", "Pride", "Haste", "Grace", "Determination", "Discipline",
                "Precision", "Purity of Elements", "Herald of Ash", "Herald of Ice", "Herald of Thunder", "Herald of Agony",
                "Herald of Purity", "War Banner", "Dread Banner", "Defiance Banner", "Arctic Armour", "Tempest Shield",
-               "Flesh and Stone", "Vitality"]
+               "Flesh and Stone", "Vitality", "Enduring Cry"]  # Enduring Cry: endurance charges (inferred from the skill)
 
 
 # Curses, marks and exposure: applied to the enemy as if always up (self-cast, on hit or by aura - not modelled which).
@@ -163,6 +165,18 @@ BUFF_SKILLS = ["Hatred", "Anger", "Wrath", "Zealotry", "Malevolence", "Pride", "
 DEBUFF_SKILLS = ["Elemental Weakness", "Frostbite", "Flammability", "Conductivity", "Vulnerability", "Punishment", "Despair",
                  "Temporal Chains", "Enfeeble", "Assassin's Mark", "Warlord's Mark", "Sniper's Mark", "Poacher's Mark",
                  "Frost Bomb", "Wave of Conviction"]
+
+
+# Utility flasks in slots 2-5 (slot 1 is left for a life flask, which PoB's numbers do not use): quality 20, no
+# mods, switched on - PoB then counts their effect all the time (an assumption: real uptime depends on charges).
+FLASKS = ["Diamond Flask", "Granite Flask", "Jade Flask", "Silver Flask", "Sulphur Flask", "Basalt Flask", "Bismuth Flask",
+          "Ruby Flask", "Sapphire Flask", "Topaz Flask", "Amethyst Flask", "Quartz Flask", "Stibnite Flask", "Corundum Flask",
+          "Aquamarine Flask", "Iron Flask"]
+FLASK_SLOTS = ["Flask 2", "Flask 3", "Flask 4", "Flask 5"]
+
+
+def flask_item(base):
+    return f"Rarity: MAGIC\n{base}\nQuality: 20\nImplicits: 0"
 
 
 # Pantheon powers (Config): the best major and minor god for the score. The bandit quest stays "Kill all" (2 points).
@@ -211,7 +225,8 @@ class Generator:
 
     # --- PoB calls ---------------------------------------------------------------------------------------------------
     def params(self):
-        return {"xml": self.xml, "name": self.name, "infer": self.infer}
+        # inferCharges: power/frenzy/endurance charges on when the build has a source (tools/PobWorker.lua)
+        return {"xml": self.xml, "name": self.name, "infer": self.infer, "inferCharges": self.infer}
 
     def try_all(self, candidates, costs=None):
         out = []
@@ -374,7 +389,8 @@ class Generator:
             cands = WORKER.call("candidates", dict(self.params(), changes=self.state, maxPath=max_path))
             used, available = self.current.get("passivePointsUsed", 0), cands["points"][1]
             free = available - used
-            passives = [p for p in cands["passives"] if p["cost"] <= free]
+            passives = [p for p in cands["passives"] if p["cost"] <= free
+                        and not (self.archetype == "crit" and p["name"] in NEVER_CRIT)]
             if free >= 1:
                 # masteries next to allocated notables: one point, one effect each (an effect is taken only once)
                 passives += [{"id": f"m{m['id']}:{m['effect']}", "node": m["id"], "effect": m["effect"], "cost": 1,
@@ -429,6 +445,27 @@ class Generator:
             pool.remove(move[0]["gems"][0])
             self.accept("curse", move, metrics, f"curse/exposure: {move[0]['gems'][0]}")
 
+    def flasks_in(self):
+        """{slot: base} of the flasks in the current state (the last one equipped in each slot)."""
+        out = {}
+        for c in self.state:
+            if c["type"] == "item_equip" and c["slot"] in FLASK_SLOTS:
+                out[c["slot"]] = c["raw"].splitlines()[1]
+        return out
+
+    def pick_flasks(self):
+        """Fill the empty utility slots one at a time; once full, try swapping each flask for an unused one."""
+        self.step = "flask"
+        for slot in FLASK_SLOTS:
+            have = self.flasks_in()
+            pool = [b for b in FLASKS if b not in have.values()]  # a flask is only useful once
+            found = self.best([[{"type": "item_equip", "slot": slot, "raw": flask_item(b)}] for b in pool], self.current)
+            if found and found[0]:
+                move, metrics, _ = found[0]
+                base = move[0]["raw"].splitlines()[1]
+                note = f"flask: {base}" + (f" (instead of {have[slot]})" if slot in have else "")
+                self.accept("flask", move, metrics, note)
+
     def pick_pantheon(self):
         self.step = "pantheon"
         for key, gods in PANTHEON.items():
@@ -473,11 +510,13 @@ class Generator:
         self.attributes_later = True
         self.add_buffs()
         self.add_debuffs()
+        self.pick_flasks()
         self.attributes_later = False
         self.current = self.try_all([[]])[0]["metrics"]  # same build, scored again with the attribute penalty
         self.grow_tree()
         self.add_buffs()
         self.add_debuffs()
+        self.pick_flasks()  # swaps, now that the tree is known
         self.pick_pantheon()
         self.retune_supports()
         self.elapsed = time.time() - started
@@ -506,6 +545,9 @@ class Generator:
             "Template rare gear (life, two resistances, an attribute; typical weapon rolls) - an assumption, not real items."
             + (f" Archetype {ARCHETYPES[self.archetype]}." if self.archetype else ""),
             "Curses, marks and exposure count as always applied (how they are applied is not modelled).",
+            "Utility flasks (quality 20, no mods) count as always on; flask slot 1 is left for a life flask.",
+            "Power, frenzy and endurance charges count at their maximum when the build has a source (none against a lone boss "
+            "if every source needs kills).",
             (f"Search guided by {self.guide}: supports tried in weight order (top {GUIDE_TOP} + {GUIDE_EXPLORE} at random)."
              if self.guide else "Search not guided: every candidate tried."),
             "No uniques, jewels, flasks or cluster jewels yet. Sockets and gem colours are not checked.",

@@ -153,6 +153,103 @@ end
 
 -- Estimate and apply Config values the build leaves at 0 (e.g. withered stacks). Values the user
 -- saved in the build, or set through a config_set change in this request, are never overridden.
+local function hasSkill(name)
+	local want = name:lower()
+	for _, group in ipairs(build.skillsTab.socketGroupList) do
+		if group.enabled ~= false then
+			for _, gem in ipairs(group.gemList) do
+				local n = gem.grantedEffect and gem.grantedEffect.name or gem.nameSpec
+				if gem.enabled ~= false and n and n:lower() == want then
+					return true
+				end
+			end
+		end
+	end
+	return false
+end
+
+-- Charges: PoB counts none unless Config says so. On when the build has a source (an item, passive or skill line
+-- that grants the charge, or a skill such as Power Charge On Critical); off when it has none, or when every source
+-- needs kills (the generator's enemy is a lone pinnacle boss). The source rules are tools/lib/scenarios.lua's.
+local chargeKeys = { usePowerCharges = true, useFrenzyCharges = true, useEnduranceCharges = true }
+-- A source that needs a block counts only with this much chance to block (blocks are then frequent against a boss)
+local CHARGE_BLOCK_MIN = 20
+local chargeCache, chargeCacheKeys = { }, { }
+local function chargeKey()
+	-- what the sources can depend on: passives, items, skills (reading every line again for each candidate doubled
+	-- the time of a search)
+	local parts = { }
+	for id in pairs(build.spec.allocNodes) do parts[#parts + 1] = id end
+	table.sort(parts)
+	for name, slot in pairs(build.itemsTab.slots) do
+		local item = slot.selItemId and slot.selItemId ~= 0 and build.itemsTab.items[slot.selItemId]
+		if item then parts[#parts + 1] = name .. "=" .. tostring(item.name) .. "/" .. tostring(item.baseName) end
+	end
+	for _, group in ipairs(build.skillsTab.socketGroupList) do
+		for _, gem in ipairs(group.gemList) do parts[#parts + 1] = tostring(gem.nameSpec) end
+	end
+	return table.concat(parts, ",")
+end
+local function inferCharges()
+	local key = chargeKey()
+	local found = chargeCache[key]
+	if not found then
+		found = { }
+		local ctx = { lines = I.buildLines(build), hasSkill = hasSkill }
+		for _, rule in ipairs(Scen.rules) do
+			if chargeKeys[rule.key] then
+				local _, _, _, sources = rule.check(ctx, true)
+				-- keep the sources this build can trigger: a line about traps, mines, totems or minions needs a skill of
+				-- that kind; then decide from how they trigger (kills: none against a lone boss; blocks: see below)
+				local types = build.calcsTab.mainEnv.player.mainSkill.skillTypes or { }
+				local needs = { { "trap", SkillType.Trap }, { "mine", SkillType.Mine }, { "totem", SkillType.SummonsTotem },
+					{ "minion", SkillType.Minion } }
+				local kept, dropped = { }, { }
+				for _, text in ipairs(sources or { }) do
+					local ok = true
+					for _, n in ipairs(needs) do
+						if text:lower():find(n[1]) and not text:find("^skill:") and not types[n[2]] then ok = false end
+					end
+					-- a source on critical strikes needs a build that crits (Precise Technique, Resolute Technique: never)
+					local out = build.calcsTab.mainOutput or { }
+					if text:lower():find("critical") and (out.CritChance or 0) <= 0 then ok = false end
+					table.insert(ok and kept or dropped, text)
+				end
+				local onlyKills, onlyBlock = #kept > 0, #kept > 0
+				for _, text in ipairs(kept) do
+					if not text:find("%[kill%]$") then onlyKills = false end
+					if not text:find("%[block%]$") and not text:find("%[kill%]$") then onlyBlock = false end
+				end
+				local reason
+				if #kept == 0 then
+					reason = rule.label .. ": no source the build can use" .. (#dropped > 0 and (" (not used: " .. dropped[1] .. ")") or "")
+				elseif onlyKills then
+					reason = rule.label .. ": only gained on kill (" .. kept[1] .. ") - none against a lone boss"
+				else
+					reason = rule.label .. ": the build generates it (" .. kept[1] .. ")"
+				end
+				table.insert(found, { rule = rule, on = #kept > 0 and not onlyKills, reason = reason, sources = kept, onlyBlock = onlyBlock })
+			end
+		end
+		if #chargeCacheKeys > 2000 then chargeCache, chargeCacheKeys = { }, { } end
+		chargeCache[key] = found
+		chargeCacheKeys[#chargeCacheKeys + 1] = key
+	end
+	local block = build.calcsTab.mainOutput and build.calcsTab.mainOutput.EffectiveBlockChance or 0
+	local out = { }
+	for _, f in ipairs(found) do
+		local on, reason = f.on, f.reason
+		if on and f.onlyBlock and block < CHARGE_BLOCK_MIN then
+			on, reason = false, string.format("%s - but every source needs a block and the chance to block is %d%% (under %d%%)",
+				f.reason, block, CHARGE_BLOCK_MIN)
+		end
+		table.insert(out, { kind = "config", key = f.rule.key, label = f.rule.label, value = on, override = true,
+			assumptions = { reason, on and "at their maximum all the time" or nil }, sources = f.sources })
+	end
+	return out
+end
+
+local inferredStages = setmetatable({ }, { __mode = "k" })  -- gems whose stage count an estimate set
 local function applyInference(p)
 	if p.infer == false then
 		return nil
@@ -163,6 +260,9 @@ local function applyInference(p)
 	end
 	blend = nil
 	local list = I.infer(build, { minionCount = p.minionCount, summonRate = p.summonRate })
+	if p.inferCharges then
+		for _, inf in ipairs(inferCharges()) do table.insert(list, inf) end
+	end
 	local changed = false
 	for _, inf in ipairs(list) do
 		local saved = userConfig[inf.key]
@@ -174,10 +274,17 @@ local function applyInference(p)
 			elseif inst and inf.value then
 				if inst.skillStageCount ~= inf.value then
 					inst.skillStageCount = inf.value
+					inferredStages[inst] = true
 					changed = true
 				end
 				inf.applied = true
 			else
+				if inst and inferredStages[inst] then
+					-- set by an earlier estimate (the state before this candidate added a source): back to PoB's count
+					inst.skillStageCount = nil
+					inferredStages[inst] = nil
+					changed = true
+				end
 				inf.applied, inf.skipped = false, inf.needs and ("needs " .. inf.needs) or "no estimate"
 			end
 		elseif explicit[inf.key] then
@@ -187,11 +294,18 @@ local function applyInference(p)
 		elseif saved ~= nil and saved ~= 0 and not inf.override then
 			inf.applied, inf.skipped = false, "the build already sets " .. inf.key .. " = " .. tostring(saved)
 		elseif inf.value == false then
+			if inf.override and build.configTab.input[inf.key] then
+				-- switched on by an earlier estimate (e.g. the generator's state) and no longer supported
+				build.configTab.input[inf.key] = nil
+				changed = true
+			end
 			inf.applied, inf.skipped = false, "estimate too low to switch on"
 		else
-			build.configTab.input[inf.key] = inf.value
+			if build.configTab.input[inf.key] ~= inf.value then
+				build.configTab.input[inf.key] = inf.value
+				changed = true
+			end
 			inf.applied = true
-			changed = true
 		end
 	end
 	if changed then
@@ -425,6 +539,12 @@ local changeHandlers = {
 		item:NormaliseQuality()
 		build.itemsTab:AddItem(item, true)
 		slot:SetSelItemId(item.id)
+		if c.slot:match("^Flask") then
+			-- a flask counts only when switched on (the check box next to the slot); on unless asked otherwise
+			local on = c.active ~= false
+			slot.active = on
+			if build.itemsTab.activeItemSet[c.slot] then build.itemsTab.activeItemSet[c.slot].active = on end
+		end
 		build.itemsTab:PopulateSlots()
 		return string.format("%s: equipped %s", c.slot, item.name)
 	end,
@@ -905,21 +1025,6 @@ local configSkip = { bandit = true, pantheonMajorGod = true, pantheonMinorGod = 
 
 -- The same build in different fights: the author's Config (asSaved), mapping, and a single boss. Each Config
 -- assumption the build relies on is checked against a rule (tools/lib/scenarios.lua) that says what it depends on.
-local function hasSkill(name)
-	local want = name:lower()
-	for _, group in ipairs(build.skillsTab.socketGroupList) do
-		if group.enabled ~= false then
-			for _, gem in ipairs(group.gemList) do
-				local n = gem.grantedEffect and gem.grantedEffect.name or gem.nameSpec
-				if gem.enabled ~= false and n and n:lower() == want then
-					return true
-				end
-			end
-		end
-	end
-	return false
-end
-
 -- Uses per second of a skill (casts, attacks or triggers) as PoB calculates it, by making it the main skill briefly
 local function skillRate(name, cache)
 	if cache[name] ~= nil then return cache[name] or nil end
@@ -1318,9 +1423,14 @@ local function applyReversible(change)
 		return result, function() table.remove(build.skillsTab.socketGroupList) end
 	elseif t == "item_equip" or t == "item_remove" then
 		local slot = assert(build.itemsTab.slots[change.slot], "no item slot '" .. tostring(change.slot) .. "'")
-		local old = slot.selItemId
+		local old, oldActive = slot.selItemId, slot.active
 		local result = changeHandlers[t](change)
-		return result, function() slot:SetSelItemId(old) build.itemsTab:PopulateSlots() end
+		return result, function()
+			slot:SetSelItemId(old)
+			slot.active = oldActive
+			if build.itemsTab.activeItemSet[change.slot] then build.itemsTab.activeItemSet[change.slot].active = oldActive end
+			build.itemsTab:PopulateSlots()
+		end
 	elseif t == "config_set" then
 		local old = build.configTab.input[change.key]
 		local result = changeHandlers[t](change)
@@ -1335,6 +1445,8 @@ function methods.try(p)
 	selectMain(p)
 	for _, change in ipairs(p.changes or { }) do changeHandlers[change.type](change) end
 	recalc()
+	-- estimates for the state itself first, so a candidate that does not change them needs no second calculation
+	if p.infer ~= false then applyInference(p) end
 	local mainGroup = build.mainSocketGroup
 	local results = { }
 	for _, candidate in ipairs(p.candidates or { { } }) do

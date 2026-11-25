@@ -43,7 +43,7 @@ CROSS_TAGS = {"attack", "spell", "minion", "melee", "projectile", "fire", "cold"
               "trap", "mine", "bow"}  # tags also combined with the ascendancy
 CATEGORIES = {  # generator step -> category
     "weapon": "weapon", "support": "support", "support swap": "support", "ascendancy": "ascendancy", "tree": "passive",
-    "buff": "aura", "curse": "curse", "pantheon": "pantheon"}
+    "buff": "aura", "curse": "curse", "pantheon": "pantheon", "flask": "flask"}
 ALL_CATEGORIES = sorted(set(CATEGORIES.values()) | {"mastery"})  # masteries are tried in the tree step
 
 
@@ -61,13 +61,14 @@ def gem_tags():
     return out
 
 
-def contexts(skill, asc, tags):
-    """Context ids from general to specific."""
+def contexts(skill, asc, tags, archetype=None):
+    """Context ids from general to specific. The crit archetype (crit gear, no never-crit keystones) has its own set,
+    prefixed "crit:", so crit and non-crit builds do not blur each other's weights."""
     out = ["all", f"asc:{asc}"]
     out += [f"tag:{t}" for t in sorted(tags)]
     out += [f"tag:{t}|asc:{asc}" for t in sorted(tags & CROSS_TAGS)]
     out += [f"skill:{skill}", f"skill:{skill}|asc:{asc}"]
-    return out
+    return [f"{archetype}:{c}" for c in out] if archetype else out
 
 
 def candidate(kind, key, label, step):
@@ -77,6 +78,8 @@ def candidate(kind, key, label, step):
         return None
     if kind == "mastery_add":
         return "mastery", key, label or key  # label: "Two Hand Mastery: 3% chance to deal Triple Damage"
+    if cat == "flask":
+        return cat, key.split(":", 1)[-1], key.split(":", 1)[-1]  # "Flask 3:Jade Flask" -> the base, whatever the slot
     if cat == "weapon":
         key = "|".join(re.sub(r"^Weapon \d:", "", p) for p in key.split("|"))
         return cat, key, key.replace("Template ", "")
@@ -93,15 +96,15 @@ def holdout(run_id):
 
 def usable_runs(db):
     out = []
-    for rid, skill, asc, gen, outcome, final in db.execute(
-            "SELECT id, skill, ascendancy, generator, outcome, final FROM runs WHERE tool = 'generate' AND finished IS NOT NULL "
-            "AND gear = 'template' AND guide IS NULL"):  # a guided run tried only the candidates the weights liked
+    for rid, skill, asc, gen, outcome, final, gear in db.execute(
+            "SELECT id, skill, ascendancy, generator, outcome, final, gear FROM runs WHERE tool = 'generate' AND finished IS NOT NULL "
+            "AND gear IN ('template', 'template crit') AND guide IS NULL"):  # a guided run tried only what the weights liked
         m = json.loads(final or "{}")
         if outcome == "no damage" or not ((m.get("playerDPS") or 0) > 0 or (m.get("minionDPS") or 0) > 0):
             continue
         if (gen or 1) < 2 and skill in WRONG_IN_V1:
             continue
-        out.append((rid, skill, asc))
+        out.append((rid, skill, asc, "crit" if gear == "template crit" else None))
     return out
 
 
@@ -195,8 +198,8 @@ def build(exclude=(), path=None):
     tags = gem_tags()
     runs = [r for r in usable_runs(src) if r[1] not in set(exclude)]
     table, test = Table(), []
-    for i, (rid, skill, asc) in enumerate(runs):
-        ctxs = contexts(skill, asc, tags.get(skill, set()))
+    for i, (rid, skill, asc, archetype) in enumerate(runs):
+        ctxs = contexts(skill, asc, tags.get(skill, set()), archetype)
         held = holdout(rid)
         for cat, rows in batches(src, rid):
             table.add(ctxs, cat, rows, rid, train=not held)
@@ -323,7 +326,7 @@ def suggest(skill, ascendancy, category=None, top=15, db=None, tags=None):
     return {"skill": skill, "ascendancy": ascendancy, "tags": sorted(tags), "contexts": ctxs, "suggestions": out}
 
 
-TOP_EXPORT = {"support": 10, "ascendancy": 8, "aura": 6, "curse": 6, "passive": 12, "mastery": 8, "pantheon": 4, "weapon": 4}
+TOP_EXPORT = {"support": 10, "ascendancy": 8, "aura": 6, "curse": 6, "passive": 12, "mastery": 8, "pantheon": 4, "flask": 6, "weapon": 4}
 
 
 def export(out_dir):

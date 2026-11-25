@@ -1,9 +1,10 @@
 """Self-play: run the build generator over many skill x ascendancy pairs, unattended, to grow the simulation log.
 
-    python tools/selfplay.py --hours 9 --jobs 2            run overnight with two generators in parallel
+    python tools/selfplay.py --hours 9 --jobs 2            run overnight with two generators in parallel (in the background:
+                                                           the window can be closed)
     python tools/selfplay.py --dry-run --runs 20           show what would run
     python tools/selfplay.py --skills "Arc,Kinetic Blast" --runs 6
-    python tools/selfplay.py --hours 36 --jobs 4 --background   no window: keeps running if every window is closed
+    python tools/selfplay.py --hours 9 --foreground        run in this window instead (a click or closing it stops it)
     python tools/selfplay.py --status                          progress of a running (or the last) session
     python tools/selfplay.py --stop                            finish the runs in progress, start no new ones
 
@@ -71,18 +72,34 @@ def write_status(**fields):
     os.replace(tmp, STATUS)
 
 
-def show_status():
-    s = simlog.summary()
-    print(f"simulation log: {s['runs']} runs ({s['finishedRuns']} finished), {s['samples']:,} samples")
+def read_status():
     try:
         with open(STATUS, encoding="utf-8") as f:
             st = json.load(f)
-    except OSError:
+        return st, (datetime.datetime.now() - datetime.datetime.fromisoformat(st["updated"])).total_seconds()
+    except (OSError, ValueError, KeyError):
+        return None, None
+
+
+def running_session():
+    """Session id of a session that is running now (status written in the last 3 minutes), else None."""
+    st, age = read_status()
+    if st and st.get("state") in ("running", "starting") and age < 180:
+        return st.get("session") or "?"
+    return None
+
+
+def show_status():
+    s = simlog.summary()
+    print(f"simulation log: {s['runs']} runs ({s['finishedRuns']} finished), {s['samples']:,} samples")
+    st, age = read_status()
+    if not st:
         print("no self-play session found")
         return
-    age = (datetime.datetime.now() - datetime.datetime.fromisoformat(st["updated"])).total_seconds()
     if st.get("state") == "running":
-        state = "RUNNING" if age < 120 else "NOT RUNNING (stopped without finishing - start it again to continue)"
+        state = "RUNNING" if age < 180 else "NOT RUNNING (stopped without finishing - start it again to continue)"
+    elif st.get("state") == "starting":
+        state = "STARTING" if age < 180 else f"STUCK WHILE STARTING (process {st.get('pid')} never began a run - stop it and start again)"
     else:
         state = st.get("state", "?").upper()
     print(f"session {st.get('session')}: {state}; started {st.get('started')}, until {st.get('deadline')}, {st.get('jobs')} jobs")
@@ -173,7 +190,8 @@ def main():
     ap.add_argument("--seed", type=int)
     ap.add_argument("--timeout", type=float, default=40, help="minutes before one run is stopped")
     ap.add_argument("--dry-run", action="store_true")
-    ap.add_argument("--background", action="store_true", help="run without a window (output in library/selfplay/)")
+    ap.add_argument("--background", action="store_true", help="(default) run without a window (output in library/selfplay/)")
+    ap.add_argument("--foreground", action="store_true", help="run in this window (a click or a closed window can stop it)")
     ap.add_argument("--status", action="store_true", help="show progress and exit")
     ap.add_argument("--stop", action="store_true", help="ask a running session to start no new runs")
     args = ap.parse_args()
@@ -185,9 +203,15 @@ def main():
         open(STOP, "w").close()
         print("asked the running session to stop: runs in progress finish first (a few minutes)")
         return
-    if args.background:
+    active = running_session()
+    if active and not args.dry_run:
+        print(f"a self-play session is already running (session {active}): see  python tools/selfplay.py --status")
+        return
+    if not args.foreground and not args.dry_run:
+        # Always detached from the window: a run started in a console window stopped twice (a click paused it,
+        # once it never started), so the window only launches it
         os.makedirs(LOG_DIR, exist_ok=True)
-        argv = [a for a in sys.argv[1:] if a != "--background"]
+        argv = [a for a in sys.argv[1:] if a != "--background"] + ["--foreground"]
         out = open(os.path.join(LOG_DIR, "background.log"), "a", encoding="utf-8")
         flags = (0x00000008 | 0x00000200 | NO_WINDOW) if os.name == "nt" else 0  # DETACHED_PROCESS, CREATE_NEW_PROCESS_GROUP
         proc = subprocess.Popen([sys.executable, os.path.abspath(__file__), *argv], stdout=out, stderr=subprocess.STDOUT, cwd=ROOT,
@@ -197,6 +221,10 @@ def main():
         print("  stop:     python tools/selfplay.py --stop")
         return
     disable_quick_edit()
+    if not args.dry_run:
+        os.makedirs(LOG_DIR, exist_ok=True)
+        # written before anything slow, so --status can tell a session that never got going
+        write_status(state="starting", session="-", pid=os.getpid(), jobs=args.jobs, started=datetime.datetime.now().isoformat(timespec="seconds"))
 
     queue, skipped, versions = plan(args.seed, args.skills, args.focus)
     if args.runs:

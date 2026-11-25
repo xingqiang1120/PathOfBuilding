@@ -17,7 +17,7 @@ Held-out check: runs are split 80/20 by a hash of their id. Weights are computed
 every batch of the other 20%, which candidate PoB scores best; the hit rate is compared with picking at random. The
 check is stored with the weights, so a weight table always says how well it predicts.
 
-Excluded: unfinished runs, runs with no damage, runs not on template gear, and generator-1 runs of the skills whose
+Excluded: unfinished runs, runs with no damage, runs not on template gear, guided runs, and generator-1 runs of the skills whose
 stage counts were wrong then (Blade Blast, Blade Blast of Unloading, Explosive Arrow).
 """
 import argparse
@@ -92,7 +92,7 @@ def usable_runs(db):
     out = []
     for rid, skill, asc, gen, outcome, final in db.execute(
             "SELECT id, skill, ascendancy, generator, outcome, final FROM runs WHERE tool = 'generate' AND finished IS NOT NULL "
-            "AND gear = 'template'"):
+            "AND gear = 'template' AND guide IS NULL"):  # a guided run tried only the candidates the weights liked
         m = json.loads(final or "{}")
         if outcome == "no damage" or not ((m.get("playerDPS") or 0) > 0 or (m.get("minionDPS") or 0) > 0):
             continue
@@ -185,11 +185,12 @@ def estimate(table, ctxs, cat, k):
     return est, n_used
 
 
-def build():
+def build(exclude=(), path=None):
+    """exclude: skills left out (to test the guided generator on skills the weights have not seen); path: output file."""
     t0 = time.time()
     src = simlog.connect()
     tags = gem_tags()
-    runs = usable_runs(src)
+    runs = [r for r in usable_runs(src) if r[1] not in set(exclude)]
     table, test = Table(), []
     for i, (rid, skill, asc) in enumerate(runs):
         ctxs = contexts(skill, asc, tags.get(skill, set()))
@@ -202,7 +203,7 @@ def build():
             print(f"  {i + 1}/{len(runs)} runs ({time.time() - t0:.0f} s)", flush=True)
     check = validate(table, test)
 
-    path = db_path()
+    path = path or db_path()
     tmp = path + ".tmp"
     if os.path.exists(tmp):
         os.remove(tmp)
@@ -356,7 +357,9 @@ def level(ctx):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("build")
+    p = sub.add_parser("build")
+    p.add_argument("--exclude", help="comma-separated skills to leave out (for tests)")
+    p.add_argument("--out", help="write to this file instead of library/weights.db")
     sub.add_parser("check")
     p = sub.add_parser("suggest")
     p.add_argument("skill")
@@ -367,7 +370,7 @@ def main():
     p.add_argument("dir")
     args = ap.parse_args()
     if args.cmd == "build":
-        build()
+        build([x.strip() for x in (args.exclude or "").split(",") if x.strip()], args.out)
     elif args.cmd == "export":
         export(args.dir)
     elif args.cmd == "check":

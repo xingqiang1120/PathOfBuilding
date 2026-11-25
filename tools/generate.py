@@ -22,15 +22,18 @@ Output: src/Builds/generated/<name>.xml (open in PoB) and library/reports/genera
 """
 import argparse
 import datetime
+import json
 import math
 import os
 import re
 import sys
+import random
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import library  # noqa: E402
 import simlog  # noqa: E402
+import weights as weightlib  # noqa: E402
 from pob_worker import WORKER  # noqa: E402
 
 OUT_DIR = os.environ.get("POB_GENERATE_DIR") or os.path.join(library.ROOT, "src", "Builds", "generated")
@@ -166,13 +169,27 @@ DELIVERY = re.compile(r"Trap|Mine|Totem|Ballista|Cast On|Cast on|Cast when|Cast 
                       r"Automation|Autoexertion|Mark On Hit|Arcanist|Blessing|Call to Arms|Manaforged|Kinetic Instability", re.I)
 
 
+# Guided search (--guided; library/weights.db from tools/weights.py). Off by default: tested 2026-11-25 on three skills
+# the weights had not seen, it tried 37% fewer candidates but lost 27% and 13% DPS on two of them - supports that are
+# only strong in one combination (Cold to Fire + Fire Penetration for Ice Crash, Brutality for Lacerate) have low
+# average weights and were cut. When on: supports are tried in weight order, the best GUIDE_TOP
+# plus GUIDE_EXPLORE others at random (so the data keeps learning about the rest); passives never tried before are
+# tried in weight order. Auras, curses, ascendancy nodes and weapons are few: all of them are always tried.
+GUIDE_TOP = 15
+GUIDE_EXPLORE = 5
+
+
 def log(*args):
     print(*args, flush=True)
 
 
 class Generator:
-    def __init__(self, skill, ascendancy, focus="balanced", level=95, name=None, infer=True, gear_from=None, archetype=None):
+    def __init__(self, skill, ascendancy, focus="balanced", level=95, name=None, infer=True, gear_from=None, archetype=None,
+                 guided=False, seed=None):
         self.skill, self.ascendancy, self.level = skill, ascendancy, level
+        self.guided = guided
+        self.rng = random.Random(seed)
+        self.weights, self.guide = {}, None
         self.archetype = archetype
         self.gear_from = gear_from
         self.weight = FOCUS[focus]
@@ -200,6 +217,30 @@ class Generator:
         if self.recorder and getattr(self, "current", None):
             self.recorder.record(self.step, self.state, self.current, candidates, out, self.dps, score=self.score, costs=costs)
         return out
+
+    # --- guide -------------------------------------------------------------------------------------------------------
+    def load_weights(self):
+        """{category: {key: weight}} for this skill and ascendancy, or nothing (every candidate tried)."""
+        if not self.guided or not os.path.exists(weightlib.db_path()):
+            return
+        try:
+            db = weightlib.open_weights()
+            r = weightlib.suggest(self.skill, self.ascendancy, top=100000, db=db)
+            meta = {k: json.loads(v) for k, v in db.execute("SELECT key, value FROM meta")}
+        except (SystemExit, Exception) as e:  # an unknown gem name or an old file: search unguided
+            log(f"  (weights not used: {e})")
+            return
+        self.weights = {cat: {x["key"]: x["weight"] for x in rows} for cat, rows in r["suggestions"].items()}
+        self.guide = f"weights {meta.get('built')} ({meta.get('runs')} runs)"
+
+    def narrow(self, cat, keys):
+        """The best GUIDE_TOP by weight plus GUIDE_EXPLORE random others; all of them when unguided."""
+        w = self.weights.get(cat)
+        if not w or len(keys) <= GUIDE_TOP + GUIDE_EXPLORE:
+            return list(keys)
+        order = sorted(keys, key=lambda k: -w.get(str(k), 0.5))  # never seen: in the middle
+        rest = order[GUIDE_TOP:]
+        return order[:GUIDE_TOP] + self.rng.sample(rest, min(GUIDE_EXPLORE, len(rest)))
 
     # --- score -------------------------------------------------------------------------------------------------------
     def dps(self, m):
@@ -295,7 +336,7 @@ class Generator:
         self.points = cands["points"]
         self.links = []
         for _ in range(count):
-            pool = [s for s in self.support_pool if s not in self.links]
+            pool = self.narrow("support", [s for s in self.support_pool if s not in self.links])
             found = self.best([[{"type": "gem_add", "group": 1, "gem": s}] for s in pool], self.current)
             if not found or not found[0]:
                 break
@@ -332,7 +373,13 @@ class Generator:
                 break
             # Re-try the best-known candidates and every candidate never tried
             ranked = sorted(passives, key=lambda p: -(known.get(p["id"], (math.inf,))[0]))
-            batch = [p for p in ranked if p["id"] not in known][:80] + [p for p in ranked if p["id"] in known][:shortlist]
+            untried = [p for p in ranked if p["id"] not in known]
+            if self.weights.get("passive"):  # the 80 never tried: best weights first (some at random, to keep learning)
+                w = self.weights["passive"]
+                by_weight = sorted(untried, key=lambda p: -w.get(str(p["id"]), 0.5))
+                head, rest = by_weight[:70], by_weight[70:]
+                untried = head + self.rng.sample(rest, min(10, len(rest)))
+            batch = untried[:80] + [p for p in ranked if p["id"] in known][:shortlist]
             moves = [[{"type": "passive_add", "node": p["id"]}] for p in batch]
             found, res = self.best(moves, self.current, per_point=[p["cost"] for p in batch])
             base = self.score(self.current)
@@ -373,7 +420,7 @@ class Generator:
     def retune_supports(self):
         self.step = "support swap"
         for gem in list(self.links):
-            pool = [s for s in self.support_pool if s not in self.links]
+            pool = self.narrow("support", [s for s in self.support_pool if s not in self.links])
             moves = [[{"type": "gem_replace", "group": 1, "gem": gem, "with": s}] for s in pool]
             found = self.best(moves, self.current)
             if found and found[0]:
@@ -385,9 +432,11 @@ class Generator:
     def run(self):
         started = time.time()
         self.create()
+        self.load_weights()
         self.recorder = simlog.Recorder("generate", skill=self.skill, ascendancy=self.ascendancy, cls=self.class_name, focus=self.focus,
                                         gear=f"from {self.gear_from}" if self.gear_from else gear_label(self.archetype), skill_info=self.info,
-                                        versions=WORKER.call("ping", {}), generator=GENERATOR_VERSION)
+                                        versions=WORKER.call("ping", {}), generator=GENERATOR_VERSION,
+                                        guide=self.guide)
         if not self.gear_from:
             self.pick_weapon()
         self.pick_supports()
@@ -436,6 +485,8 @@ class Generator:
             "Template rare gear (life, two resistances, an attribute; typical weapon rolls) - an assumption, not real items."
             + (f" Archetype {ARCHETYPES[self.archetype]}." if self.archetype else ""),
             "Curses, marks and exposure count as always applied (how they are applied is not modelled).",
+            (f"Search guided by {self.guide}: supports tried in weight order (top {GUIDE_TOP} + {GUIDE_EXPLORE} at random)."
+             if self.guide else "Search not guided: every candidate tried."),
             "No uniques, jewels, flasks or cluster jewels yet. Sockets and gem colours are not checked.",
         ])
 
@@ -484,9 +535,12 @@ def main():
     ap.add_argument("--level", type=int, default=95)
     ap.add_argument("--name")
     ap.add_argument("--archetype", choices=["crit"], help="crit: weapon and amulet with crit rolls, so the search builds for crit")
+    ap.add_argument("--guided", action="store_true", help="experimental: try supports in library/weights.db order, only the best "
+                                                          f"{GUIDE_TOP} + {GUIDE_EXPLORE} at random")
     ap.add_argument("--gear-from", help="library build whose items to use (tests the tree and gem search against its author)")
     args = ap.parse_args()
-    g = Generator(args.skill, args.ascendancy, args.focus, args.level, args.name, gear_from=args.gear_from, archetype=args.archetype)
+    g = Generator(args.skill, args.ascendancy, args.focus, args.level, args.name, gear_from=args.gear_from, archetype=args.archetype,
+                  guided=args.guided)
     if g.run() is None:
         log(f"\nDPS 0 · no damage: PoB calculates no damage for {args.skill} with weapon '{g.weapon}' - run stopped "
             f"({g.elapsed / 60:.1f} min)")

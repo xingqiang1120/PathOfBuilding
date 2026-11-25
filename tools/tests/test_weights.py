@@ -57,6 +57,17 @@ class WeightsTest(unittest.TestCase):
         rank = {k: r for k, _, r, *_ in rows}
         self.assertEqual((rank["A"], rank["B"], rank["C"], rank["D"]), (1.0, 0.5, 0.0, 0.0))
 
+    def test_generator_narrows_supports_by_weight(self):
+        import generate
+        g = generate.Generator("Glacial Hammer", "Champion", seed=1)
+        pool = [f"S{i}" for i in range(40)]
+        self.assertEqual(g.narrow("support", pool), pool)  # no weights: everything is tried
+        g.weights = {"support": {f"S{i}": i / 40 for i in range(40)}}
+        picked = g.narrow("support", pool)
+        self.assertEqual(len(picked), generate.GUIDE_TOP + generate.GUIDE_EXPLORE)
+        self.assertEqual(picked[:generate.GUIDE_TOP], [f"S{i}" for i in range(39, 39 - generate.GUIDE_TOP, -1)])
+        self.assertTrue(set(picked[generate.GUIDE_TOP:]) <= set(pool[:40 - generate.GUIDE_TOP]))  # explored at random
+
 
 if __name__ == "__main__":
     unittest.main()

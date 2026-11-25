@@ -171,7 +171,8 @@ def finished_pairs(pob_version, focus):
     older generator stay in the log as data, but the pair is run again (after the pairs never run at all)."""
     db = simlog.connect()
     rows = db.execute("SELECT skill, ascendancy, generator FROM runs WHERE tool = 'generate' AND finished IS NOT NULL "
-                      "AND gear = 'template' AND focus = ? AND (pob_version = ? OR ? IS NULL)", (focus, pob_version, pob_version)).fetchall()
+                      "AND gear = 'template' AND guide IS NULL AND focus = ? AND (pob_version = ? OR ? IS NULL)",
+                      (focus, pob_version, pob_version)).fetchall()
     done, tried = set(), set()
     for skill, asc, version in rows:
         tried.add((skill, asc))

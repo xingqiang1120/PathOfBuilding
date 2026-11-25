@@ -34,12 +34,13 @@ METRICS = ["playerDPS", "minionDPS", "Life", "EnergyShield", "Mana", "TotalEHP",
 
 # Format 2: the numbers of a state ("before") are stored once in states; a sample keeps only the numbers that the change
 # altered ("after" = before + delta). runs.generator: version of the generator's rules (results of different versions
-# are not comparable); runs.outcome: e.g. "no damage" when a run stopped early.
+# are not comparable); runs.outcome: e.g. "no damage" when a run stopped early; runs.guide: the weights that ordered
+# and narrowed the candidates (NULL = every candidate tried).
 FORMAT = 2
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS runs (
     id TEXT PRIMARY KEY, started TEXT, tool TEXT, skill TEXT, ascendancy TEXT, class TEXT, focus TEXT, gear TEXT,
-    pob_version TEXT, tree_version TEXT, skill_info TEXT, finished TEXT, final TEXT, generator INTEGER, outcome TEXT);
+    pob_version TEXT, tree_version TEXT, skill_info TEXT, finished TEXT, final TEXT, generator INTEGER, outcome TEXT, guide TEXT);
 CREATE TABLE IF NOT EXISTS states (
     run_id TEXT, state_hash TEXT, metrics TEXT, PRIMARY KEY (run_id, state_hash)) WITHOUT ROWID;
 CREATE TABLE IF NOT EXISTS samples (
@@ -68,7 +69,7 @@ def connect(migrate=False):
             raise SystemExit(f"{db_path()} is in the old, large format: run  python tools/simlog.py compact  first")
         return db
     db.executescript(SCHEMA)
-    for col, typ in (("generator", "INTEGER"), ("outcome", "TEXT")):
+    for col, typ in (("generator", "INTEGER"), ("outcome", "TEXT"), ("guide", "TEXT")):
         if col not in columns(db, "runs"):
             db.execute(f"ALTER TABLE runs ADD COLUMN {col} {typ}")
     db.execute(f"PRAGMA user_version = {FORMAT}")
@@ -225,7 +226,7 @@ def change_key(change):
 class Recorder:
     """One run of a search tool. Disabled with POB_SIMLOG=0."""
 
-    def __init__(self, tool, skill=None, ascendancy=None, cls=None, focus=None, gear=None, skill_info=None, versions=None, generator=None):
+    def __init__(self, tool, skill=None, ascendancy=None, cls=None, focus=None, gear=None, skill_info=None, versions=None, generator=None, guide=None):
         self.enabled = os.environ.get("POB_SIMLOG", "1") != "0"
         self.id = uuid.uuid4().hex[:12]
         self.count = 0
@@ -235,9 +236,9 @@ class Recorder:
         self.db = connect()
         versions = versions or {}
         self.db.execute("INSERT INTO runs (id, started, tool, skill, ascendancy, class, focus, gear, pob_version, tree_version, skill_info, "
-                        "generator) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                        "generator, guide) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
                         (self.id, datetime.datetime.now().isoformat(timespec="seconds"), tool, skill, ascendancy, cls, focus, gear,
-                         versions.get("pobVersion"), versions.get("treeVersion"), json.dumps(skill_info or {}), generator))
+                         versions.get("pobVersion"), versions.get("treeVersion"), json.dumps(skill_info or {}), generator, guide))
         self.db.commit()
 
     def update(self, **fields):

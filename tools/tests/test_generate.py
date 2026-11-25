@@ -109,5 +109,14 @@ class GenerateTest(unittest.TestCase):
         self.assertFalse(flags[0]["useEnduranceCharges"])
         self.assertTrue(flags[1]["useEnduranceCharges"])
 
+    def test_jewel_counts_only_in_an_allocated_socket(self):
+        r = WORKER.call("create_build", {"ascendancy": "Slayer", "skill": "Cleave", "level": 90})
+        sock = min(WORKER.call("candidates", {"xml": r["xml"], "name": "t", "maxPath": 12})["jewelSockets"], key=lambda j: j["cost"])
+        jewel = {"type": "item_equip", "slot": sock["slot"], "raw": generate.JEWELS["Defence"]}
+        base, loose, socketed = (x["metrics"] for x in WORKER.call("try", {"xml": r["xml"], "name": "t", "candidates": [
+            [], [jewel], [{"type": "passive_add", "node": sock["id"]}, jewel]]}))
+        self.assertEqual(loose["FireResist"], base["FireResist"])  # not allocated: the jewel does nothing
+        self.assertEqual(socketed["FireResist"], base["FireResist"] + 12)
+
 if __name__ == "__main__":
     unittest.main()

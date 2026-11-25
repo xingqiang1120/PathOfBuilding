@@ -10,7 +10,8 @@ Steps (each step tries candidates in PoB and keeps the best by the score below):
   5. auras and buffs (while reservation allows), then curses, marks and exposure - before the tree, so the tree
      sees what they reserve and add
   6. passive tree: grow from the class start, best score gain per point, until the points run out; masteries
-     (one point, next to an allocated notable) compete with the notables
+     (one point, next to an allocated notable) and jewel sockets with a template rare jewel (the best of six kinds for
+     the build) compete with the notables
   5b. utility flasks (slots 2-5, always on), and charges when the build has a source (inferred)
   7. auras and curses again, flasks swapped, the pantheon (major and minor god), then supports again, now that the tree is known
 --archetype crit: weapons and amulet with crit rolls instead of the hybrid template, so the search builds for crit.
@@ -42,7 +43,7 @@ OUT_DIR = os.environ.get("POB_GENERATE_DIR") or os.path.join(library.ROOT, "src"
 FOCUS = {"damage": 0.5, "balanced": 1.0, "defence": 2.0}
 # Version of the generator's rules, kept with every run: results of different versions are not comparable.
 # 2: realistic skill stages (Blade Blast, Explosive Arrow), dual-wield weapons, runs stop when the skill deals no damage.
-GENERATOR_VERSION = 5
+GENERATOR_VERSION = 6
 
 
 def item(name, base, *lines, implicits=()):
@@ -179,6 +180,28 @@ def flask_item(base):
     return f"Rarity: MAGIC\n{base}\nQuality: 20\nImplicits: 0"
 
 
+# Template rare jewels for the tree's jewel sockets (not cluster jewels): good ordinary rolls, one kind per build
+# type; the generator finds the best kind once, then a socket plus that jewel competes with the passives.
+def jewel_item(name, *lines):
+    return "\n".join(["Rarity: RARE", f"Template {name} Jewel", "Crimson Jewel", "Item Level: 86", "Implicits: 0", *lines])
+
+
+JEWELS = {
+    "Attack": jewel_item("Attack", "7% increased maximum Life", "5% increased Attack Speed", "16% increased Attack Damage",
+                         "+15% to Global Critical Strike Multiplier"),
+    "Spell": jewel_item("Spell", "7% increased maximum Life", "5% increased Cast Speed", "16% increased Spell Damage",
+                        "+15% to Global Critical Strike Multiplier"),
+    "Crit": jewel_item("Crit", "7% increased maximum Life", "16% increased Global Critical Strike Chance",
+                       "+15% to Global Critical Strike Multiplier", "12% increased Damage"),
+    "Minion": jewel_item("Minion", "7% increased maximum Life", "Minions deal 16% increased Damage", "Minions have 10% increased maximum Life",
+                         "Minions have 5% increased Attack Speed", "Minions have 5% increased Cast Speed"),
+    "Damage over Time": jewel_item("Damage over Time", "7% increased maximum Life", "16% increased Damage over Time",
+                                   "8% increased Skill Effect Duration", "12% increased Damage"),
+    "Defence": jewel_item("Defence", "7% increased maximum Life", "+12% to all Elemental Resistances", "12% increased Armour",
+                          "12% increased Evasion Rating"),
+}
+
+
 # Pantheon powers (Config): the best major and minor god for the score. The bandit quest stays "Kill all" (2 points).
 PANTHEON = {"pantheonMajorGod": ["TheBrineKing", "Lunaris", "Solaris", "Arakaali"],
             "pantheonMinorGod": ["Gruthkul", "Yugul", "Abberath", "Tukohama", "Garukhan", "Ralakesh", "Ryslatha", "Shakari"]}
@@ -210,6 +233,7 @@ class Generator:
         self.guided = guided
         self.rng = random.Random(seed)
         self.weights, self.guide = {}, None
+        self.jewel = None  # the template jewel kind that suits this build best (found at the first socket)
         self.archetype = archetype
         self.gear_from = gear_from
         self.weight = FOCUS[focus]
@@ -395,6 +419,12 @@ class Generator:
                 # masteries next to allocated notables: one point, one effect each (an effect is taken only once)
                 passives += [{"id": f"m{m['id']}:{m['effect']}", "node": m["id"], "effect": m["effect"], "cost": 1,
                               "name": f"{m['name']}: {m['text']}", "mastery": True} for m in cands.get("masteries", [])]
+            sockets = [j for j in cands.get("jewelSockets", []) if j["cost"] <= free]
+            if sockets and self.jewel is None:
+                self.pick_jewel_kind(min(sockets, key=lambda j: j["cost"]))
+            if self.jewel:
+                passives += [{"id": f"j{j['id']}", "node": j["id"], "slot": j["slot"], "cost": j["cost"], "jewel": self.jewel,
+                              "name": f"jewel socket {j['id']} with a {self.jewel} jewel"} for j in sockets]
             if not passives:
                 break
             # Re-try the best-known candidates and every candidate never tried
@@ -406,7 +436,8 @@ class Generator:
                 head, rest = by_weight[:70], by_weight[70:]
                 untried = head + self.rng.sample(rest, min(10, len(rest)))
             batch = untried[:80] + [p for p in ranked if p["id"] in known][:shortlist]
-            moves = [[{"type": "mastery_add", "node": p["node"], "effect": p["effect"]} if p.get("mastery") else
+            moves = [self.socket_move(p) if p.get("jewel") else
+                     [{"type": "mastery_add", "node": p["node"], "effect": p["effect"]} if p.get("mastery") else
                       {"type": "passive_add", "node": p["id"]}] for p in batch]
             found, res = self.best(moves, self.current, per_point=[p["cost"] for p in batch])
             base = self.score(self.current)
@@ -418,8 +449,38 @@ class Generator:
             move, metrics, _ = found
             node = batch[moves.index(move)]
             known.pop(node["id"], None)
-            what = "mastery" if node.get("mastery") else "passive"
+            what = "mastery" if node.get("mastery") else "jewel" if node.get("jewel") else "passive"
             self.accept("tree", move, metrics, f"{what}: {node['name']} ({node['cost']} points, {metrics.get('passivePointsUsed')}/{available})")
+
+    def socket_move(self, sock, kind=None):
+        """Allocate a jewel socket (unless it already is) and put a template jewel in it."""
+        move = [{"type": "passive_add", "node": sock["node"] if "node" in sock else sock["id"]}] if sock["cost"] else []
+        return move + [{"type": "item_equip", "slot": sock["slot"], "raw": JEWELS[kind or sock.get("jewel") or self.jewel]}]
+
+    def pick_jewel_kind(self, sock):
+        """Try every template jewel in the cheapest socket once; the best kind is used for every socket after."""
+        step, self.step = self.step, "jewel kind"
+        kinds = list(JEWELS)
+        res = self.try_all([self.socket_move(sock, k) for k in kinds])
+        scored = [(self.score(r["metrics"]), k) for k, r in zip(kinds, res) if "metrics" in r]
+        self.jewel = max(scored)[1] if scored else None
+        self.step = step
+        if self.jewel:
+            log(f"  [jewel] template jewel for this build: {self.jewel}")
+
+    def retune_jewels(self):
+        """Once the tree is done: each placed jewel may be better as another kind (e.g. defence once damage is high)."""
+        self.step = "jewel"
+        placed = {}
+        for c in self.state:
+            if c["type"] == "item_equip" and c["slot"].startswith("Jewel "):
+                placed[c["slot"]] = c["raw"].splitlines()[1]
+        for slot, name in placed.items():
+            others = [k for k in JEWELS if f"Template {k} Jewel" != name]
+            found = self.best([[{"type": "item_equip", "slot": slot, "raw": JEWELS[k]}] for k in others], self.current)
+            if found and found[0]:
+                move, metrics, _ = found[0]
+                self.accept("jewel", move, metrics, f"jewel: {slot} -> {move[0]['raw'].splitlines()[1]}")
 
     def add_buffs(self):
         self.step = "buff"
@@ -517,6 +578,7 @@ class Generator:
         self.add_buffs()
         self.add_debuffs()
         self.pick_flasks()  # swaps, now that the tree is known
+        self.retune_jewels()
         self.pick_pantheon()
         self.retune_supports()
         self.elapsed = time.time() - started
@@ -546,11 +608,12 @@ class Generator:
             + (f" Archetype {ARCHETYPES[self.archetype]}." if self.archetype else ""),
             "Curses, marks and exposure count as always applied (how they are applied is not modelled).",
             "Utility flasks (quality 20, no mods) count as always on; flask slot 1 is left for a life flask.",
+            "Tree jewel sockets hold template rare jewels (life plus three good rolls of one kind); no cluster, abyss or unique jewels.",
             "Power, frenzy and endurance charges count at their maximum when the build has a source (none against a lone boss "
             "if every source needs kills).",
             (f"Search guided by {self.guide}: supports tried in weight order (top {GUIDE_TOP} + {GUIDE_EXPLORE} at random)."
              if self.guide else "Search not guided: every candidate tried."),
-            "No uniques, jewels, flasks or cluster jewels yet. Sockets and gem colours are not checked.",
+            "No uniques, cluster or abyss jewels yet. Sockets and gem colours are not checked.",
         ])
 
     def report(self, final):

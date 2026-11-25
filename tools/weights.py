@@ -43,7 +43,7 @@ CROSS_TAGS = {"attack", "spell", "minion", "melee", "projectile", "fire", "cold"
               "trap", "mine", "bow"}  # tags also combined with the ascendancy
 CATEGORIES = {  # generator step -> category
     "weapon": "weapon", "support": "support", "support swap": "support", "ascendancy": "ascendancy", "tree": "passive",
-    "buff": "aura", "curse": "curse", "pantheon": "pantheon", "flask": "flask"}
+    "buff": "aura", "curse": "curse", "pantheon": "pantheon", "flask": "flask", "jewel kind": "jewel", "jewel": "jewel"}
 ALL_CATEGORIES = sorted(set(CATEGORIES.values()) | {"mastery"})  # masteries are tried in the tree step
 
 
@@ -76,6 +76,9 @@ def candidate(kind, key, label, step):
     cat = CATEGORIES.get(step)
     if not cat:
         return None
+    if "item_equip" in kind and ("Jewel " in key):
+        name = re.search(r"Template ([\w ]+?) Jewel", key)
+        return "jewel", name.group(1) if name else key, (name.group(1) + " jewel") if name else key
     if kind == "mastery_add":
         return "mastery", key, label or key  # label: "Two Hand Mastery: 3% chance to deal Triple Damage"
     if cat == "flask":
@@ -326,7 +329,7 @@ def suggest(skill, ascendancy, category=None, top=15, db=None, tags=None):
     return {"skill": skill, "ascendancy": ascendancy, "tags": sorted(tags), "contexts": ctxs, "suggestions": out}
 
 
-TOP_EXPORT = {"support": 10, "ascendancy": 8, "aura": 6, "curse": 6, "passive": 12, "mastery": 8, "pantheon": 4, "flask": 6, "weapon": 4}
+TOP_EXPORT = {"support": 10, "ascendancy": 8, "aura": 6, "curse": 6, "passive": 12, "mastery": 8, "pantheon": 4, "flask": 6, "jewel": 6, "weapon": 4}
 
 
 def export(out_dir):

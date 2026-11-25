@@ -1508,6 +1508,20 @@ function methods.candidates(p)
 			table.insert(result.passives, { id = id, name = node.dn, type = node.type, cost = #node.path })
 		end
 	end
+	-- Jewel sockets of the passive tree (not cluster-jewel sub-trees): reachable ones with their path cost, and
+	-- allocated ones still empty (cost 0). A jewel counts only in an allocated socket.
+	result.jewelSockets = { }
+	for id, node in pairs(build.spec.nodes) do
+		local slot = build.itemsTab.slots["Jewel " .. id]
+		if node.isJewelSocket and not node.expansionJewel and not node.ascendancyName and slot then
+			local empty = not slot.selItemId or slot.selItemId == 0
+			if node.alloc and empty then
+				table.insert(result.jewelSockets, { id = id, slot = slot.slotName, cost = 0 })
+			elseif not node.alloc and node.path and #node.path <= (p.maxPath or 6) then
+				table.insert(result.jewelSockets, { id = id, slot = slot.slotName, cost = #node.path })
+			end
+		end
+	end
 	-- Masteries next to allocated notables (one point each), one candidate per effect not taken elsewhere
 	result.masteries = { }
 	local taken = { }

@@ -216,6 +216,16 @@ def moved_lines(raw):
     return [x.replace("{enchant}", "") for x in (raw or "").splitlines() if MOVED_LINE.search(x)]
 
 
+PROFILES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "unique_profiles.json")
+
+
+def unique_profile(name):
+    """The build-around profile of a unique (tools/data/unique_profiles.json), or None."""
+    with open(PROFILES, encoding="utf-8") as f:
+        profiles = json.load(f)
+    return profiles.get(name)
+
+
 def jewel_item(name, *lines):
     return "\n".join(["Rarity: RARE", f"Template {name} Jewel", "Crimson Jewel", "Item Level: 86", "Implicits: 0", *lines])
 
@@ -262,7 +272,7 @@ def log(*args):
 
 class Generator:
     def __init__(self, skill, ascendancy, focus="balanced", level=95, name=None, infer=True, gear_from=None, archetype=None,
-                 guided=False, seed=None, max_uniques=0):
+                 guided=False, seed=None, max_uniques=0, build_around=None):
         self.skill, self.ascendancy, self.level = skill, ascendancy, level
         self.guided = guided
         self.rng = random.Random(seed)
@@ -274,6 +284,12 @@ class Generator:
         # from template rares that are plain, league-only items and uniques whose conditions PoB counts as always met
         # (e.g. Flame-Touched without its fire damage taken) - and screening all of them takes minutes per run
         self.max_uniques = max_uniques
+        # --build-around: a unique worn from the start, with its profile's gear changes, so the whole search builds
+        # around it (a unique added at the end is only ever a stat stick)
+        self.around = build_around
+        self.profile = unique_profile(build_around) if build_around else None
+        if build_around and not self.profile:
+            raise SystemExit(f"no build-around profile for {build_around!r} in {PROFILES}")
         self.archetype = archetype
         self.gear_from = gear_from
         self.weight = FOCUS[focus]
@@ -336,8 +352,10 @@ class Generator:
 
     def penalty(self, m):
         p = 0.0
+        ignored = set(self.profile.get("ignoreResistPenalty", [])) if self.profile else set()
         for res in ("FireResist", "ColdResist", "LightningResist"):
-            p += max(0, 75 - (m.get(res) or 0)) * 0.05
+            if res not in ignored:
+                p += max(0, 75 - (m.get(res) or 0)) * 0.05
         # before the tree, missing attributes are left to the tree (a curse needing Int would never be tried otherwise)
         p += (m.get("attributeShortfall") or 0) * (0 if self.attributes_later else 0.02)
         if (m.get("ManaUnreserved") if m.get("ManaUnreserved") is not None else 0) < 0:
@@ -396,11 +414,36 @@ class Generator:
         r = WORKER.call("create_build", {"ascendancy": self.ascendancy, "skill": self.skill, "level": self.level})
         self.info, self.class_name = r["skillInfo"], r["class"]
         self.attribute = CLASS_ATTRIBUTE.get(self.class_name, "Str")
-        armour, _ = armour_set(self.attribute, self.archetype)
+        bases = (self.profile or {}).get("armourBases") or self.attribute  # a build-around unique may ask for armour
+        armour, _ = armour_set(bases, self.archetype)
         self.xml = r["xml"]
         self.state = [{"type": "item_equip", "slot": slot, "raw": raw} for slot, raw in armour.items()]
+        if self.profile:
+            self.wear_around()
         self.current = self.try_all([[]])[0]["metrics"]
-        log(f"{r['class']} / {r['ascendancy']}, {r['skill']} ({', '.join(k for k in ('attack', 'spell', 'minion') if self.info[k])})")
+        log(f"{r['class']} / {r['ascendancy']}, {r['skill']} ({', '.join(k for k in ('attack', 'spell', 'minion') if self.info[k])})"
+            + (f", built around {self.around}" if self.around else ""))
+
+    def wear_around(self):
+        """Put on the build-around unique (keeping the replaced rare's resistances, like any unique) and change the
+        template rares as its profile says (e.g. Doryani's Prototype: rings with negative lightning resistance)."""
+        prof = self.profile
+        tags = set(weightlib.gem_tags().get(self.skill, set()))
+        missing = [t for t in prof.get("skillTags", []) if t not in tags]
+        if missing:
+            log(f"  note: {self.skill} has no {', '.join(missing)} tag - {self.around} may not suit it")
+        for slot, lines in prof.get("gear", {}).items():
+            raw = self.worn(slot)
+            for old, new in lines.items():
+                raw = raw.replace(old, new)
+            self.state.append({"type": "item_equip", "slot": slot, "raw": raw})
+        self.state += self.unique_move(prof["slot"], self.around)
+        self.moved.setdefault(prof["slot"], moved_lines(self.worn_before_unique(prof["slot"])))
+        self.uniques[prof["slot"]] = self.around
+
+    def worn_before_unique(self, slot):
+        raws = [c.get("raw") for c in self.state if c["type"] == "item_equip" and c["slot"] == slot and c.get("raw")]
+        return raws[-1] if raws else None
 
     def pick_weapon(self):
         self.step = "weapon"
@@ -667,7 +710,8 @@ class Generator:
         self.create()
         self.load_weights()
         self.recorder = simlog.Recorder("generate", skill=self.skill, ascendancy=self.ascendancy, cls=self.class_name, focus=self.focus,
-                                        gear=f"from {self.gear_from}" if self.gear_from else gear_label(self.archetype), skill_info=self.info,
+                                        gear=f"from {self.gear_from}" if self.gear_from else
+                                        (f"template around {self.around}" if self.around else gear_label(self.archetype)), skill_info=self.info,
                                         versions=WORKER.call("ping", {}), generator=GENERATOR_VERSION,
                                         guide=self.guide)
         if not self.gear_from:
@@ -726,6 +770,8 @@ class Generator:
             "Template rare gear (life, two resistances, an attribute; typical weapon rolls) - an assumption, not real items."
             + (f" Archetype {ARCHETYPES[self.archetype]}." if self.archetype else ""),
             "Curses, marks and exposure count as always applied (how they are applied is not modelled).",
+            (f"Built around {self.around}: " + " ".join(self.profile.get("why", [])) +
+             f" Gear changed for it: {json.dumps(self.profile.get('gear', {}))}." if self.profile else ""),
             "Utility flasks (quality 20, no mods) count as always on; flask slot 1 is left for a life flask.",
             "A guard skill counts as up when hit; a golem's buff counts; warcries count averaged over their cooldown. "
             "Immortal Call and movement skills are not used.",
@@ -786,6 +832,8 @@ def main():
     ap.add_argument("--level", type=int, default=95)
     ap.add_argument("--name")
     ap.add_argument("--archetype", choices=["crit"], help="crit: weapon and amulet with crit rolls, so the search builds for crit")
+    ap.add_argument("--build-around", metavar="UNIQUE",
+                    help="wear this unique from the start and build around it (profile in tools/data/unique_profiles.json)")
     ap.add_argument("--uniques", type=int, default=0, metavar="N",
                     help="experimental: up to N unique items (each checked against the template rare it replaces)")
     ap.add_argument("--guided", action="store_true", help="experimental: try supports in library/weights.db order, only the best "
@@ -793,7 +841,8 @@ def main():
     ap.add_argument("--gear-from", help="library build whose items to use (tests the tree and gem search against its author)")
     args = ap.parse_args()
     g = Generator(args.skill, args.ascendancy, args.focus, args.level, args.name, gear_from=args.gear_from, archetype=args.archetype,
-                  guided=args.guided, max_uniques=args.uniques)
+                  guided=args.guided, max_uniques=args.uniques,
+                  build_around=args.build_around)
     if g.run() is None:
         log(f"\nDPS 0 · no damage: PoB calculates no damage for {args.skill} with weapon '{g.weapon}' - run stopped "
             f"({g.elapsed / 60:.1f} min)")

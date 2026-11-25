@@ -135,5 +135,13 @@ class GenerateTest(unittest.TestCase):
         self.assertNotIn("Natural Hierarchy", c["uniques"]["Amulet"])  # Talisman league only
         self.assertTrue(all(n for n in c["uniques"]["Weapon 1"]))
 
+    def test_build_around_profile(self):
+        prof = generate.unique_profile("Doryani's Prototype")
+        self.assertEqual(prof["slot"], "Body Armour")
+        g = generate.Generator("Storm Call", "Assassin", build_around="Doryani's Prototype")
+        self.assertEqual(g.penalty({"FireResist": 75, "ColdResist": 75, "LightningResist": -160}), 0)  # lightning ignored
+        with self.assertRaises(SystemExit):
+            generate.Generator("Storm Call", "Assassin", build_around="No Such Unique")
+
 if __name__ == "__main__":
     unittest.main()

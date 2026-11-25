@@ -1,0 +1,31 @@
+{
+  "_about": "Build-around profiles for unique items (tools/generate.py --build-around). Each says what the unique asks of the rest of the build, with where that comes from. 'gear': lines of the template rares to replace (template line -> new line). 'ignoreResistPenalty': resistances the score should not require at 75% because the unique makes them irrelevant for damage taken. 'skillTags': gem tags the main skill should have. 'armourBases': attribute whose armour bases the template gear uses (Str = armour), when the unique asks for a defence the class's own bases lack.",
+  "Doryani's Prototype": {
+    "slot": "Body Armour",
+    "skillTags": [
+      "lightning"
+    ],
+    "ignoreResistPenalty": [
+      "LightningResist"
+    ],
+    "gear": {
+      "Ring 1": {
+        "+40% to Lightning Resistance": "-130% to Lightning Resistance"
+      },
+      "Ring 2": {
+        "+40% to Lightning Resistance": "-130% to Lightning Resistance"
+      }
+    },
+    "why": [
+      "Nearby enemies have Lightning Resistance equal to yours: push your own lightning resistance down (to -200%) and the enemy's follows.",
+      "Lightning Resistance does not affect Lightning Damage taken, and Armour also applies to Lightning Damage from Hits: the negative resistance costs nothing, armour protects instead.",
+      "Deal no Non-Lightning Damage: the skill must deal lightning damage (or convert to it).",
+      "Real builds stack armour (20-33k): the template gear uses armour bases."
+    ],
+    "sources": [
+      "7 builds from poe.ninja, collected by hand 2026-11-25 (library tag \"doryani's prototype\"): all at -170% to -200% own lightning resistance, from rare rings with -67% to -140% lightning resistance (5 of 7 with Kalandra's Touch, several Thread of Hope); armour 20-33k except two block Gladiators.",
+      "PoB check on the Storm Call Assassin build: lightning resistance back to +73% costs 89% of its DPS, EHP unchanged."
+    ],
+    "armourBases": "Str"
+  }
+}

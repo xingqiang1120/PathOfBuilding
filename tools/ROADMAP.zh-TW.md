@@ -32,6 +32,12 @@
    問題：不限件數時 8 個欄位全換、DPS 變 3 倍；限 3 件仍偏高，原因是 PoB 對條件型傳奇過度樂觀
    （例：Annihilation's Approach 的 Flame-Touched 沒算每秒 6000 火傷、Servant of Decay 的虛空衍生物視為常在）。
    下一步：每件傳奇做「條件檢查」（它依賴哪些 Config 條件、有沒有代價），再決定能不能放進自我對弈。
+   **圍繞傳奇建 build**（`--build-around "傳奇名稱"`，特性檔案在 tools/data/unique_profiles.json）：
+   一開始就穿上傳奇，並依特性檔案改模板裝備。第一件 Doryani's Prototype（依 7 個 poe.ninja 真人 build）：
+   戒指改成 -130% 閃電抗性、評分不要求閃電抗性、改用護甲底材。
+   Storm Call / Assassin：一般 15.3M → 圍繞 Doryani's 81.2M（真人 174M，裝備更好）；Smite / Slayer 15.6M（真人 188M）。
+   待改進：護甲只有 3 千（真人 2～3 萬）、閃電承受上限偏低——Determination 被 Wrath / Zealotry 擠掉，
+   特性檔案要能指定「優先的光環／天賦方向」；也要讓真人 build 的差距自動列出（缺哪些來源）。
 4. 因素大致補齊後：**組合權重**（「已經有 A 時，B 值多少」）→ 再試權重引導搜尋
    （2026-11-25 測過平均權重引導：少試 37%，但有 2/3 組變差，因為成套搭配被刪掉）。
 5. 細化假設：藥劑實際持續率、球的實際維持率（目前都視為常駐／滿球）。

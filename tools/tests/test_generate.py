@@ -81,5 +81,18 @@ class GenerateTest(unittest.TestCase):
             self.assertIn(kept, names)
 
 
+    def test_every_curse_and_buff_gem_exists(self):
+        names = generate.DEBUFF_SKILLS + generate.BUFF_SKILLS
+        res = WORKER.call("try", {"xml": self.new["xml"], "name": "t", "candidates": [[{"type": "group_add", "gems": [g]}] for g in names]})
+        self.assertEqual([n for n, r in zip(names, res) if "metrics" not in r], [])
+
+    def test_crit_archetype_gear(self):
+        hybrid = generate.weapon_options(self.new["skillInfo"], "Int")[0][1][0]["raw"]
+        crit = generate.weapon_options(self.new["skillInfo"], "Int", "crit")[0][1][0]["raw"]
+        self.assertIn("38% increased Critical Strike Chance", crit)
+        self.assertNotIn("38% increased Critical Strike Chance", hybrid)
+        self.assertIn("Global Critical Strike Chance", generate.armour_set("Int", "crit")[0]["Amulet"])
+        self.assertEqual(generate.gear_label("crit"), "template crit")
+
 if __name__ == "__main__":
     unittest.main()

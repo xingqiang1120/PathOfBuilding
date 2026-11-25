@@ -7,9 +7,11 @@ Steps (each step tries candidates in PoB and keeps the best by the score below):
   2. weapon: one template per weapon type the skill can use (attack), or a spell / minion weapon
   3. supports: five, picked one at a time from every support PoB says can support the skill
   4. ascendancy: up to 8 points of ascendancy notables
-  5. passive tree: grow from the class start, best score gain per point, until the points run out
-  6. auras and buffs: added while reservation allows
-  7. supports again, now that the tree and auras are known
+  5. auras and buffs (while reservation allows), then curses, marks and exposure - before the tree, so the tree
+     sees what they reserve and add
+  6. passive tree: grow from the class start, best score gain per point, until the points run out
+  7. auras and curses again, then supports again, now that the tree is known
+--archetype crit: weapons and amulet with crit rolls instead of the hybrid template, so the search builds for crit.
 Score = ln(DPS) + w x defence - penalties, defence = (ln(EHP) + ln(smallest max hit)) / 2, w by --focus
 (damage 0.5, balanced 1, defence 2). Penalties: fire/cold/lightning resistance under 75%, missing attribute
 points, reserved more than available, more passive points than the character has.
@@ -35,8 +37,7 @@ OUT_DIR = os.environ.get("POB_GENERATE_DIR") or os.path.join(library.ROOT, "src"
 FOCUS = {"damage": 0.5, "balanced": 1.0, "defence": 2.0}
 # Version of the generator's rules, kept with every run: results of different versions are not comparable.
 # 2: realistic skill stages (Blade Blast, Explosive Arrow), dual-wield weapons, runs stop when the skill deals no damage.
-GENERATOR_VERSION = 2
-CHANGED_IN_V2 = {"Blade Blast", "Blade Blast of Unloading", "Explosive Arrow"}  # skills whose version-1 results are wrong
+GENERATOR_VERSION = 3
 
 
 def item(name, base, *lines, implicits=()):
@@ -57,8 +58,9 @@ CLASS_ATTRIBUTE = {"Marauder": "Str", "Ranger": "Dex", "Witch": "Int", "Duelist"
                    "Scion": "Str"}
 
 
-def armour_set(attribute):
+def armour_set(attribute, archetype=None):
     b = ARMOUR_BASES[attribute]
+    amulet_extra = CRIT_AMULET if archetype == "crit" else []
     return {
         "Helmet": item("Template Helmet", b["Helmet"], "+90 to maximum Life", "+40% to Fire Resistance", "+40% to Cold Resistance"),
         "Body Armour": item("Template Body Armour", b["Body Armour"], "+110 to maximum Life", "+40% to Fire Resistance", "+40% to Cold Resistance"),
@@ -66,7 +68,7 @@ def armour_set(attribute):
         "Boots": item("Template Boots", b["Boots"], "+80 to maximum Life", "+40% to Fire Resistance", "+40% to Lightning Resistance",
                       "30% increased Movement Speed"),
         "Amulet": item("Template Amulet", "Onyx Amulet", "+70 to maximum Life", "+40% to Lightning Resistance", "+40 to Strength",
-                       implicits=("+16 to all Attributes",)),
+                       *amulet_extra, implicits=("+16 to all Attributes",)),
         "Ring 1": item("Template Ring", "Two-Stone Ring", "+60 to maximum Life", "+40% to Lightning Resistance", "+40 to Dexterity",
                        implicits=("+16% to Fire and Cold Resistances",)),
         "Ring 2": item("Template Ring", "Two-Stone Ring", "+60 to maximum Life", "+40% to Lightning Resistance", "+40 to Intelligence",
@@ -87,6 +89,18 @@ WEAPONS = {  # PoB weapon type -> (base, two-handed)
     "Bow": ("Thicket Bow", True), "Staff": ("Eclipse Staff", True), "Two Handed Sword": ("Reaver Sword", True),
     "Two Handed Axe": ("Vaal Axe", True), "Two Handed Mace": ("Coronal Maul", True),
 }
+# The crit archetype: the same weapons with crit rolls instead of the hybrid ones, and crit on the amulet. Without it the
+# greedy search never commits to crit (each crit node alone is weak until the others are there).
+CRIT_ONE_HAND = ["Adds 25 to 50 Physical Damage", "150% increased Physical Damage", "15% increased Attack Speed",
+                 "38% increased Critical Strike Chance", "+38% to Global Critical Strike Multiplier", "+400 to Accuracy Rating"]
+CRIT_TWO_HAND = ["Adds 45 to 95 Physical Damage", "150% increased Physical Damage", "12% increased Attack Speed",
+                 "38% increased Critical Strike Chance", "+38% to Global Critical Strike Multiplier", "+400 to Accuracy Rating"]
+CRIT_AMULET = ["+35% to Global Critical Strike Multiplier", "30% increased Global Critical Strike Chance"]
+CRIT_SPELL_WEAPON = item("Template Sceptre", "Void Sceptre", "70% increased Spell Damage", "20% increased Cast Speed",
+                         "120% increased Critical Strike Chance for Spells", "+38% to Global Critical Strike Multiplier",
+                         "+40 to Intelligence")
+ARCHETYPES = {None: "template gear (hybrid weapon rolls)", "crit": "crit: weapon and amulet with crit rolls"}
+
 SPELL_WEAPON = item("Template Sceptre", "Void Sceptre", "90% increased Spell Damage", "20% increased Cast Speed",
                     "80% increased Critical Strike Chance for Spells", "+30% to Global Critical Strike Multiplier", "+40 to Intelligence")
 SPELL_SHIELD = item("Template Shield", "Titanium Spirit Shield", "+80 to maximum Life", "60% increased Spell Damage",
@@ -95,15 +109,17 @@ MINION_WEAPON = item("Template Wand", "Convoking Wand", "+1 to Level of all Mini
                      "Minions have 25% increased Attack Speed", "Minions have 25% increased Cast Speed")
 
 
-def weapon_options(info, attribute):
+def weapon_options(info, attribute, archetype=None):
     """[(label, [changes])] - weapon (and shield) setups the skill can use."""
     armour, shield = armour_set(attribute)
+    crit = archetype == "crit"
+    spell_weapon = CRIT_SPELL_WEAPON if crit else SPELL_WEAPON
     shield_change = {"type": "item_equip", "slot": "Weapon 2", "raw": shield}
     options = []
     if info["minion"]:
         options.append(("minion wand + shield", [{"type": "item_equip", "slot": "Weapon 1", "raw": MINION_WEAPON}, shield_change]))
     if info["spell"] and not info["attack"]:
-        options.append(("spell sceptre + shield", [{"type": "item_equip", "slot": "Weapon 1", "raw": SPELL_WEAPON},
+        options.append(("spell sceptre + shield", [{"type": "item_equip", "slot": "Weapon 1", "raw": spell_weapon},
                                                     {"type": "item_equip", "slot": "Weapon 2", "raw": SPELL_SHIELD}]))
     if info["attack"]:
         types = [t for t in (info["weaponTypes"] or list(WEAPONS)) if t in WEAPONS]
@@ -111,7 +127,8 @@ def weapon_options(info, attribute):
 
         def weapon(t, slot="Weapon 1"):
             base, two_handed = WEAPONS[t]
-            return {"type": "item_equip", "slot": slot, "raw": item(f"Template {t}", base, *(TWO_HAND if two_handed else ONE_HAND))}
+            lines = (CRIT_TWO_HAND if two_handed else CRIT_ONE_HAND) if crit else (TWO_HAND if two_handed else ONE_HAND)
+            return {"type": "item_equip", "slot": slot, "raw": item(f"Template {t}", base, *lines)}
 
         for t in types:
             two_handed = WEAPONS[t][1]
@@ -126,7 +143,7 @@ def weapon_options(info, attribute):
             else:
                 options.append((t, [weapon(t)] if two_handed else [weapon(t), shield_change]))
     if not options:
-        options.append(("spell sceptre + shield", [{"type": "item_equip", "slot": "Weapon 1", "raw": SPELL_WEAPON},
+        options.append(("spell sceptre + shield", [{"type": "item_equip", "slot": "Weapon 1", "raw": spell_weapon},
                                                     {"type": "item_equip", "slot": "Weapon 2", "raw": SPELL_SHIELD}]))
     return options
 
@@ -135,6 +152,13 @@ BUFF_SKILLS = ["Hatred", "Anger", "Wrath", "Zealotry", "Malevolence", "Pride", "
                "Precision", "Purity of Elements", "Herald of Ash", "Herald of Ice", "Herald of Thunder", "Herald of Agony",
                "Herald of Purity", "War Banner", "Dread Banner", "Defiance Banner", "Arctic Armour", "Tempest Shield",
                "Flesh and Stone", "Vitality"]
+
+
+# Curses, marks and exposure: applied to the enemy as if always up (self-cast, on hit or by aura - not modelled which).
+# PoB's curse limit (one curse, one mark by default) decides how many count.
+DEBUFF_SKILLS = ["Elemental Weakness", "Frostbite", "Flammability", "Conductivity", "Vulnerability", "Punishment", "Despair",
+                 "Temporal Chains", "Enfeeble", "Assassin's Mark", "Warlord's Mark", "Sniper's Mark", "Poacher's Mark",
+                 "Frost Bomb", "Wave of Conviction"]
 
 
 # Supports that change how the skill is used (trap, mine, totem, trigger, another minion): not the build asked for
@@ -147,8 +171,9 @@ def log(*args):
 
 
 class Generator:
-    def __init__(self, skill, ascendancy, focus="balanced", level=95, name=None, infer=True, gear_from=None):
+    def __init__(self, skill, ascendancy, focus="balanced", level=95, name=None, infer=True, gear_from=None, archetype=None):
         self.skill, self.ascendancy, self.level = skill, ascendancy, level
+        self.archetype = archetype
         self.gear_from = gear_from
         self.weight = FOCUS[focus]
         self.focus = focus
@@ -159,6 +184,7 @@ class Generator:
         self.tries = 0
         self.step = "start"
         self.recorder = None
+        self.attributes_later = False
 
     # --- PoB calls ---------------------------------------------------------------------------------------------------
     def params(self):
@@ -186,7 +212,8 @@ class Generator:
         p = 0.0
         for res in ("FireResist", "ColdResist", "LightningResist"):
             p += max(0, 75 - (m.get(res) or 0)) * 0.05
-        p += (m.get("attributeShortfall") or 0) * 0.02
+        # before the tree, missing attributes are left to the tree (a curse needing Int would never be tried otherwise)
+        p += (m.get("attributeShortfall") or 0) * (0 if self.attributes_later else 0.02)
         if (m.get("ManaUnreserved") if m.get("ManaUnreserved") is not None else 0) < 0:
             p += 5
         if (m.get("LifeUnreserved") if m.get("LifeUnreserved") is not None else 1) < 1:
@@ -243,7 +270,7 @@ class Generator:
         r = WORKER.call("create_build", {"ascendancy": self.ascendancy, "skill": self.skill, "level": self.level})
         self.info, self.class_name = r["skillInfo"], r["class"]
         self.attribute = CLASS_ATTRIBUTE.get(self.class_name, "Str")
-        armour, _ = armour_set(self.attribute)
+        armour, _ = armour_set(self.attribute, self.archetype)
         self.xml = r["xml"]
         self.state = [{"type": "item_equip", "slot": slot, "raw": raw} for slot, raw in armour.items()]
         self.current = self.try_all([[]])[0]["metrics"]
@@ -251,7 +278,7 @@ class Generator:
 
     def pick_weapon(self):
         self.step = "weapon"
-        options = weapon_options(self.info, self.attribute)
+        options = weapon_options(self.info, self.attribute, self.archetype)
         res = self.try_all([changes for _, changes in options])
         ranked = sorted(((self.score(r["metrics"]), label, changes, r["metrics"]) for (label, changes), r in zip(options, res)
                          if "metrics" in r), key=lambda x: -x[0])
@@ -331,6 +358,18 @@ class Generator:
             pool.remove(move[0]["gems"][0])
             self.accept("buff", move, metrics, f"aura/buff: {move[0]['gems'][0]}")
 
+    def add_debuffs(self):
+        self.step = "curse"
+        present = {c.get("gems", [None])[0] for c in self.state if c["type"] == "group_add"}
+        pool = [s for s in DEBUFF_SKILLS if s not in present]
+        while pool:
+            found = self.best([[{"type": "group_add", "gems": [s]}] for s in pool], self.current)
+            if not found or not found[0]:
+                break
+            move, metrics, _ = found[0]
+            pool.remove(move[0]["gems"][0])
+            self.accept("curse", move, metrics, f"curse/exposure: {move[0]['gems'][0]}")
+
     def retune_supports(self):
         self.step = "support swap"
         for gem in list(self.links):
@@ -347,7 +386,7 @@ class Generator:
         started = time.time()
         self.create()
         self.recorder = simlog.Recorder("generate", skill=self.skill, ascendancy=self.ascendancy, cls=self.class_name, focus=self.focus,
-                                        gear=f"from {self.gear_from}" if self.gear_from else "template", skill_info=self.info,
+                                        gear=f"from {self.gear_from}" if self.gear_from else gear_label(self.archetype), skill_info=self.info,
                                         versions=WORKER.call("ping", {}), generator=GENERATOR_VERSION)
         if not self.gear_from:
             self.pick_weapon()
@@ -360,8 +399,16 @@ class Generator:
             self.recorder.finish(self.current, outcome=self.outcome)
             return None
         self.pick_ascendancy()
+        # auras and curses before the tree, so the tree sees what they reserve and add (a keystone such as Blood
+        # Magic looked free while no aura reserved life yet), then again once the tree is known
+        self.attributes_later = True
+        self.add_buffs()
+        self.add_debuffs()
+        self.attributes_later = False
+        self.current = self.try_all([[]])[0]["metrics"]  # same build, scored again with the attribute penalty
         self.grow_tree()
         self.add_buffs()
+        self.add_debuffs()
         self.retune_supports()
         self.elapsed = time.time() - started
         self.recorder.finish(self.current)
@@ -386,7 +433,9 @@ class Generator:
     def notes(self):
         return "\n".join([
             f"Generated {datetime.date.today()} by tools/generate.py: {self.skill}, {self.ascendancy}, focus {self.focus}.",
-            "Template rare gear (life, two resistances, an attribute; typical weapon rolls) - an assumption, not real items.",
+            "Template rare gear (life, two resistances, an attribute; typical weapon rolls) - an assumption, not real items."
+            + (f" Archetype {ARCHETYPES[self.archetype]}." if self.archetype else ""),
+            "Curses, marks and exposure count as always applied (how they are applied is not modelled).",
             "No uniques, jewels, flasks or cluster jewels yet. Sockets and gem colours are not checked.",
         ])
 
@@ -418,6 +467,11 @@ class Generator:
         return "\n".join(lines) + "\n"
 
 
+def gear_label(archetype):
+    """runs.gear in the simulation log: 'template' (hybrid rolls) or 'template crit'."""
+    return "template" + (f" {archetype}" if archetype else "")
+
+
 def describe(move):
     return "; ".join(f"{c['type']} {c.get('gem') or c.get('with') or c.get('node') or c.get('slot') or ''}" for c in move)
 
@@ -429,9 +483,10 @@ def main():
     ap.add_argument("--focus", choices=list(FOCUS), default="balanced")
     ap.add_argument("--level", type=int, default=95)
     ap.add_argument("--name")
+    ap.add_argument("--archetype", choices=["crit"], help="crit: weapon and amulet with crit rolls, so the search builds for crit")
     ap.add_argument("--gear-from", help="library build whose items to use (tests the tree and gem search against its author)")
     args = ap.parse_args()
-    g = Generator(args.skill, args.ascendancy, args.focus, args.level, args.name, gear_from=args.gear_from)
+    g = Generator(args.skill, args.ascendancy, args.focus, args.level, args.name, gear_from=args.gear_from, archetype=args.archetype)
     if g.run() is None:
         log(f"\nDPS 0 · no damage: PoB calculates no damage for {args.skill} with weapon '{g.weapon}' - run stopped "
             f"({g.elapsed / 60:.1f} min)")

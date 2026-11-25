@@ -146,7 +146,7 @@ def plan(seed=None, skill_filter=None, focus="balanced", shard=None):
         wanted = [w.strip().lower() for w in skill_filter.split(",") if w.strip()]
         skills = [s for s in skills if any(w in s["name"].lower() for w in wanted)]
     skills = [s for s in skills if in_shard(s["name"], shard)]
-    done = finished_pairs(versions.get("pobVersion"), focus)
+    done, tried = finished_pairs(versions.get("pobVersion"), focus)
     rng = random.Random(seed)
     per_skill = []
     for s in skills:
@@ -162,22 +162,22 @@ def plan(seed=None, skill_filter=None, focus="balanced", shard=None):
     while any(depth < len(p) for p in per_skill):
         queue.extend(p[depth] for p in per_skill if depth < len(p))
         depth += 1
+    queue.sort(key=lambda pair: pair in tried)  # stable: pairs never run first, then re-runs of older generator results
     return queue, len(done), versions
 
 
 def finished_pairs(pob_version, focus):
+    """(done, tried): pairs finished by the current generator version, and pairs finished by any version. Results of an
+    older generator stay in the log as data, but the pair is run again (after the pairs never run at all)."""
     db = simlog.connect()
-    rows = db.execute("SELECT skill, ascendancy, generator, final FROM runs WHERE tool = 'generate' AND finished IS NOT NULL "
+    rows = db.execute("SELECT skill, ascendancy, generator FROM runs WHERE tool = 'generate' AND finished IS NOT NULL "
                       "AND gear = 'template' AND focus = ? AND (pob_version = ? OR ? IS NULL)", (focus, pob_version, pob_version)).fetchall()
-    done = set()
-    for skill, asc, version, final in rows:
-        if (version or 1) < generate.GENERATOR_VERSION:
-            # an older generator: still valid unless its rules changed for this skill (stages, or no damage measured)
-            m = json.loads(final or "{}")
-            if skill in generate.CHANGED_IN_V2 or not ((m.get("playerDPS") or 0) > 0 or (m.get("minionDPS") or 0) > 0):
-                continue
-        done.add((skill, asc))
-    return done
+    done, tried = set(), set()
+    for skill, asc, version in rows:
+        tried.add((skill, asc))
+        if (version or 1) >= generate.GENERATOR_VERSION:
+            done.add((skill, asc))
+    return done, tried
 
 
 def start(skill, asc, focus, log_file):

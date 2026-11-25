@@ -16,6 +16,7 @@ import datetime
 import hashlib
 import json
 import os
+import pathlib
 import sqlite3
 import sys
 import time
@@ -138,6 +139,63 @@ def compact():
     db.execute("VACUUM")
     db.close()
     print(f"done: {os.path.getsize(db_path()) / 2**20:,.0f} MB")
+
+
+def seed(path):
+    """Write a small file with this computer's list of runs (no samples) for another computer: copied to that
+    computer's library/simdata.db, it makes self-play there skip the pairs already done here. Merging that computer's
+    log back later skips these runs, since this computer has them in full."""
+    if os.path.exists(path):
+        raise SystemExit(f"already exists: {path}")
+    db = connect()
+    out = sqlite3.connect(path)
+    out.executescript(SCHEMA)
+    out.execute(f"PRAGMA user_version = {FORMAT}")
+    cols = [c for c in columns(db, "runs") if c in columns(out, "runs")]
+    rows = db.execute(f"SELECT {', '.join(cols)} FROM runs WHERE finished IS NOT NULL").fetchall()
+    out.executemany(f"INSERT INTO runs ({', '.join(cols)}) VALUES ({', '.join('?' * len(cols))})", rows)
+    out.commit()
+    out.close()
+    db.close()
+    print(f"wrote {len(rows)} finished runs (no samples) to {path}: {os.path.getsize(path) / 2**20:.1f} MB")
+    return len(rows)
+
+
+def merge(path):
+    """Copy the finished runs of another computer's simulation log into this one. Run ids are random, so runs from
+    different computers never clash; runs already here are skipped, so merging the same file twice is harmless.
+    Unfinished runs are left out (they are copied by a later merge, once finished)."""
+    if not os.path.exists(path):
+        raise SystemExit(f"not found: {path}")
+    if os.path.abspath(path) == os.path.abspath(db_path()):
+        raise SystemExit("that is this computer's own simulation log")
+    src = sqlite3.connect(pathlib.Path(os.path.abspath(path)).as_uri() + "?mode=ro", uri=True)
+    if "before" in columns(src, "samples"):
+        raise SystemExit(f"{path} is in the old, large format: run  python tools/simlog.py compact  on that computer first")
+    db = connect()
+    run_cols = [c for c in columns(db, "runs") if c in columns(src, "runs")]
+    sample_cols = [c for c in columns(db, "samples") if c != "id" and c in columns(src, "samples")]
+    here = {r for (r,) in db.execute("SELECT id FROM runs")}
+    rows = src.execute(f"SELECT {', '.join(run_cols)} FROM runs WHERE finished IS NOT NULL").fetchall()
+    unfinished = src.execute("SELECT COUNT(*) FROM runs WHERE finished IS NULL").fetchone()[0]
+    new = [r for r in rows if r[0] not in here]
+    t, samples = time.time(), 0
+    for i, run in enumerate(new):
+        rid = run[0]
+        db.execute(f"INSERT INTO runs ({', '.join(run_cols)}) VALUES ({', '.join('?' * len(run_cols))})", run)
+        db.executemany("INSERT OR IGNORE INTO states VALUES (?,?,?)",
+                       src.execute("SELECT run_id, state_hash, metrics FROM states WHERE run_id = ?", (rid,)))
+        cur = db.executemany(f"INSERT INTO samples ({', '.join(sample_cols)}) VALUES ({', '.join('?' * len(sample_cols))})",
+                             src.execute(f"SELECT {', '.join(sample_cols)} FROM samples WHERE run_id = ? ORDER BY id", (rid,)))
+        samples += cur.rowcount
+        db.commit()  # one run at a time: generators running here wait at most a moment
+        if i % 50 == 49:
+            print(f"  {i + 1}/{len(new)} runs ({time.time() - t:.0f} s)", flush=True)
+    src.close()
+    db.close()
+    print(f"merged {len(new)} runs ({samples:,} samples) in {time.time() - t:.0f} s; "
+          f"{len(rows) - len(new)} were already here, {unfinished} unfinished left out")
+    return len(new)
 
 
 def state_hash(state):
@@ -283,6 +341,10 @@ def main():
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("summary")
     sub.add_parser("compact", help="convert an old, large database to the compact format")
+    p = sub.add_parser("seed", help="write the list of finished runs (small, no samples) for another computer to skip them")
+    p.add_argument("file")
+    p = sub.add_parser("merge", help="copy the finished runs of another computer's simdata.db into this one")
+    p.add_argument("file")
     p = sub.add_parser("stats")
     p.add_argument("--kind")
     p.add_argument("--skill")
@@ -291,6 +353,10 @@ def main():
     args = ap.parse_args()
     if args.cmd == "compact":
         compact()
+    elif args.cmd == "seed":
+        seed(args.file)
+    elif args.cmd == "merge":
+        merge(args.file)
     elif args.cmd == "summary":
         json.dump(summary(), sys.stdout, ensure_ascii=False, indent=1)
     else:

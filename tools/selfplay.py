@@ -4,6 +4,7 @@
                                                            the window can be closed)
     python tools/selfplay.py --dry-run --runs 20           show what would run
     python tools/selfplay.py --skills "Arc,Kinetic Blast" --runs 6
+    python tools/selfplay.py --hours 9 --jobs 4 --shard 2/2   run only share 2 of 2 (two computers: tools/MULTI_PC.zh-TW.md)
     python tools/selfplay.py --hours 9 --foreground        run in this window instead (a click or closing it stops it)
     python tools/selfplay.py --status                          progress of a running (or the last) session
     python tools/selfplay.py --stop                            finish the runs in progress, start no new ones
@@ -26,6 +27,7 @@ import re
 import subprocess
 import sys
 import time
+import zlib
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import generate  # noqa: E402
@@ -102,7 +104,8 @@ def show_status():
         state = "STARTING" if age < 180 else f"STUCK WHILE STARTING (process {st.get('pid')} never began a run - stop it and start again)"
     else:
         state = st.get("state", "?").upper()
-    print(f"session {st.get('session')}: {state}; started {st.get('started')}, until {st.get('deadline')}, {st.get('jobs')} jobs")
+    print(f"session {st.get('session')}: {state}; started {st.get('started')}, until {st.get('deadline')}, {st.get('jobs')} jobs"
+          + (f", share {st['shard']}" if st.get("shard") else ""))
     print(f"  finished {st.get('finished', 0)}, failed {st.get('failed', 0)}, left in queue {st.get('queued', 0)}; last update {st['updated']}")
     for r in st.get("running", []):
         print(f"  running: {r}")
@@ -115,7 +118,26 @@ def main_attribute(skill):
     return max(reqs, key=reqs.get) if any(reqs.values()) else None
 
 
-def plan(seed=None, skill_filter=None, focus="balanced"):
+def in_shard(skill, shard):
+    """shard = (k, n): this computer runs share k of n. Split by skill name with a fixed hash, so every computer gets
+    the same split without talking to the others, and all ascendancies of a skill stay on one computer."""
+    if not shard:
+        return True
+    k, n = shard
+    return zlib.crc32(skill.encode("utf-8")) % n == k - 1
+
+
+def parse_shard(text):
+    try:
+        k, n = (int(x) for x in text.split("/"))
+    except ValueError:
+        raise SystemExit(f"--shard needs the form K/N, e.g. 2/2 (got {text!r})")
+    if not 1 <= k <= n:
+        raise SystemExit(f"--shard {text}: K must be between 1 and N")
+    return k, n
+
+
+def plan(seed=None, skill_filter=None, focus="balanced", shard=None):
     WORKER.call("create_build", {"ascendancy": "Witch", "skill": "Fireball"})  # any build: skill_list reads PoB data
     data = WORKER.call("skill_list", {})
     versions = WORKER.call("ping", {})
@@ -123,6 +145,7 @@ def plan(seed=None, skill_filter=None, focus="balanced"):
     if skill_filter:
         wanted = [w.strip().lower() for w in skill_filter.split(",") if w.strip()]
         skills = [s for s in skills if any(w in s["name"].lower() for w in wanted)]
+    skills = [s for s in skills if in_shard(s["name"], shard)]
     done = finished_pairs(versions.get("pobVersion"), focus)
     rng = random.Random(seed)
     per_skill = []
@@ -187,6 +210,8 @@ def main():
     ap.add_argument("--jobs", type=int, default=1, help="generators running at the same time (each uses one CPU core)")
     ap.add_argument("--focus", default="balanced", choices=["damage", "balanced", "defence"])
     ap.add_argument("--skills", help="comma-separated parts of skill names to limit the run to")
+    ap.add_argument("--shard", help="K/N: run only share K of N, to split the work over N computers (e.g. 1/2 here, 2/2 on the "
+                                     "other one); merge their results with  python tools/simlog.py merge <file>")
     ap.add_argument("--seed", type=int)
     ap.add_argument("--timeout", type=float, default=40, help="minutes before one run is stopped")
     ap.add_argument("--dry-run", action="store_true")
@@ -226,10 +251,12 @@ def main():
         # written before anything slow, so --status can tell a session that never got going
         write_status(state="starting", session="-", pid=os.getpid(), jobs=args.jobs, started=datetime.datetime.now().isoformat(timespec="seconds"))
 
-    queue, skipped, versions = plan(args.seed, args.skills, args.focus)
+    shard = parse_shard(args.shard) if args.shard else None
+    queue, skipped, versions = plan(args.seed, args.skills, args.focus, shard)
     if args.runs:
         queue = queue[:args.runs]
-    print(f"PoB {versions.get('pobVersion')}, tree {versions.get('treeVersion')}: {len(queue)} pairs to run, {skipped} already done")
+    print(f"PoB {versions.get('pobVersion')}, tree {versions.get('treeVersion')}: {len(queue)} pairs to run, {skipped} already done"
+          + (f" (share {shard[0]} of {shard[1]})" if shard else ""))
     if args.dry_run:
         for skill, asc in queue[:50]:
             print(f"  {skill} / {asc}")
@@ -244,7 +271,7 @@ def main():
     if os.path.exists(STOP):
         os.remove(STOP)
     common = {"session": session, "pid": os.getpid(), "started": datetime.datetime.now().isoformat(timespec="seconds"),
-              "deadline": datetime.datetime.fromtimestamp(deadline).isoformat(timespec="minutes"), "jobs": args.jobs}
+              "deadline": datetime.datetime.fromtimestamp(deadline).isoformat(timespec="minutes"), "jobs": args.jobs, "shard": args.shard}
     keep_awake(True)
     try:
         with open(summary_path, "a", encoding="utf-8") as summary:

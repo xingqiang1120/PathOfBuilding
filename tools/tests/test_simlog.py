@@ -92,5 +92,39 @@ class SimLogTest(unittest.TestCase):
             del os.environ["POB_SIMLOG"]
 
 
+    def test_merge_copies_finished_runs_once(self):
+        dps = lambda m: m.get("playerDPS") or 0  # noqa: E731
+        before = {"playerDPS": 1000, "TotalEHP": 5000}
+
+        def run(skill, finish=True):
+            rec = simlog.Recorder("generate", skill=skill, ascendancy="Slayer", generator=2)
+            rec.record("support", [], before, [[{"type": "gem_add", "group": 1, "gem": "Ruthless"}]],
+                       [{"metrics": {"playerDPS": 1500, "TotalEHP": 5000}}], dps)
+            if finish:
+                rec.finish({"playerDPS": 1500}, "ok")
+            return rec.id
+
+        run("Cleave")  # on this computer
+        here_lib = simlog.LIBRARY
+        here = simlog.summary()
+        simlog.LIBRARY = tempfile.mkdtemp(prefix="pob-simlog-")  # the other computer
+        remote = run("Dual Strike")
+        run("Lacerate", finish=False)  # still running there: left out
+        remote_file = simlog.db_path()
+        # the other computer started from this computer's seed: those runs are skipped, only its own are copied
+        seed_file = os.path.join(tempfile.mkdtemp(prefix="pob-simlog-"), "seed.db")
+        simlog.LIBRARY = here_lib
+        self.assertEqual(simlog.seed(seed_file), here["finishedRuns"])
+        simlog.LIBRARY = here_lib
+        self.assertEqual(simlog.merge(remote_file), 1)
+        self.assertEqual(simlog.merge(remote_file), 0)  # merging twice is harmless
+        s = simlog.summary()
+        self.assertEqual((s["runs"], s["samples"]), (here["runs"] + 1, here["samples"] + 1))
+        db = simlog.connect()
+        st, d = db.execute("SELECT st.metrics, s.delta FROM samples s JOIN states st ON st.run_id = s.run_id "
+                           "AND st.state_hash = s.state_hash WHERE s.run_id = ?", (remote,)).fetchone()
+        import json
+        self.assertEqual(simlog.after_metrics(json.loads(st), json.loads(d))["playerDPS"], 1500)
+
 if __name__ == "__main__":
     unittest.main()

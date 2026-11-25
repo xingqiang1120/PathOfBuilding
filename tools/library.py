@@ -13,6 +13,7 @@ Layout (all local; library/ is git-ignored because builds contain account and ch
 Usage:
   python tools/library.py add <file.xml | folder | code.txt> [--source TEXT] [--note TEXT] [--tag TAG ...]
   python tools/library.py add --code <share code> [--name NAME] [--source ...] [--note ...]
+  python tools/library.py batch <codes.txt> [--source TEXT]     many share codes in one text file (see cmd_batch)
   python tools/library.py list
   python tools/library.py show <id prefix | name>
   python tools/library.py search [--ascendancy X] [--skill X] [--item X] [--passive X] [--tag X] [--text X]
@@ -231,6 +232,61 @@ def add_builds(entries):
               + (f"  ERROR: {row['error']}" if row["error"] else ""))
     db.commit()
     return ids
+
+
+BATCH_HELP = """A batch file: one PoB share code per line, collected by hand (e.g. from poe.ninja's Path of Building
+button). A line in brackets starts a group; its codes get that text as a tag, e.g. the unique the builds are about.
+Text before a code on the same line is the build's name. Empty lines and lines starting with # are skipped.
+
+    # Doryani's Prototype builds from poe.ninja, 2026-11-25
+    [Doryani's Prototype]
+    Arc Inquisitor eNrtfWtz2zi...
+    eNrtvXtz2zia...
+    [Mjolner]
+    eNrt...
+"""
+
+
+def parse_batch(text):
+    """[(code, name or None, group or None, line number)] and [(line number, problem)]."""
+    entries, problems, group = [], [], None
+    for number, line in enumerate(text.splitlines(), 1):
+        line = line.strip().lstrip("\ufeff")
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            group = line[1:-1].strip() or None
+            continue
+        if line.lower().startswith("http"):
+            problems.append((number, "a link, not a share code: open it and copy the build's code instead"))
+            continue
+        parts = line.rsplit(None, 1)
+        code, name = (parts[1], parts[0]) if len(parts) == 2 else (parts[0], None)
+        if len(code) < 100:
+            problems.append((number, "too short to be a share code"))
+            continue
+        entries.append((code, name, group, number))
+    return entries, problems
+
+
+def cmd_batch(args):
+    with open(args.file, encoding="utf-8") as f:
+        entries, problems = parse_batch(f.read())
+    builds = []
+    for code, name, group, number in entries:
+        try:
+            xml_text = decode_share_code(code)
+        except Exception:  # noqa: BLE001 - a damaged code should not stop the others
+            problems.append((number, "not a valid share code (damaged, or cut off when copying)"))
+            continue
+        tags = list(args.tag or []) + ([group] if group else [])
+        builds.append((xml_text, {"name": name or (f"{group} #{len(builds) + 1}" if group else f"batch line {number}"),
+                                  "source": args.source, "note": args.note, "tags": tags}))
+    print(f"{len(builds)} share codes read from {args.file}" + (f", {len(problems)} lines skipped" if problems else ""))
+    for number, problem in sorted(problems):
+        print(f"  line {number}: {problem}")
+    if builds:
+        add_builds(builds)
 
 
 def cmd_rebuild(args):
@@ -616,6 +672,12 @@ def cmd_note(args):
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Path of Building build library", formatter_class=argparse.RawDescriptionHelpFormatter, epilog=__doc__)
     sub = parser.add_subparsers(dest="cmd", required=True)
+    q = sub.add_parser("batch", help="add many share codes from a text file", description=BATCH_HELP,
+                         formatter_class=argparse.RawDescriptionHelpFormatter)
+    q.add_argument("file")
+    q.add_argument("--source", default="poe.ninja (collected by hand)")
+    q.add_argument("--note")
+    q.add_argument("--tag", action="append")
     p = sub.add_parser("add")
     p.add_argument("paths", nargs="*")
     p.add_argument("--code")
@@ -663,7 +725,7 @@ def main(argv=None):
     {"add": cmd_add, "list": cmd_list, "rebuild": cmd_rebuild, "show": cmd_show, "search": cmd_search,
      "common": cmd_common, "note": cmd_note, "usage": cmd_usage,
      "settings": cmd_settings, "analyze": cmd_analyze, "core": cmd_core,
-     "inbox": cmd_inbox, "report": cmd_report}[args.cmd](args)
+     "inbox": cmd_inbox, "report": cmd_report, "batch": cmd_batch}[args.cmd](args)
 
 
 if __name__ == "__main__":

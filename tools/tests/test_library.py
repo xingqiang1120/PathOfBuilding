@@ -85,5 +85,26 @@ class LibraryTest(unittest.TestCase):
         self.assertIn("ascendancy:", out)
 
 
+    def test_batch_file(self):
+        with open(os.path.join(SAMPLES, "OccVortex.xml"), encoding="utf-8") as f:
+            code = self.library.encode_share_code(f.read().replace("</PathOfBuilding>", "<!-- batch --></PathOfBuilding>"))
+        text = "\n".join(["# comment", "[Doryani's Prototype]", "My build " + code, "https://pobb.in/x", "short"])
+        entries, problems = self.library.parse_batch(text)
+        self.assertEqual([(n, g) for _, n, g, _ in entries], [("My build", "Doryani's Prototype")])
+        self.assertEqual([n for n, _ in problems], [4, 5])
+        # a library of its own: the other tests count the builds of the shared one
+        old = self.library.LIBRARY
+        self.library.LIBRARY = os.path.join(self.tmp, "batch-lib")
+        self.addCleanup(setattr, self.library, "LIBRARY", old)
+        path = os.path.join(self.tmp, "codes.txt")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("\n".join(["[Doryani's Prototype]", "My build " + code, code[:-20] + "AAAA"]))
+        out = self.run_cmd(["batch", path])
+        self.assertIn("1 share codes read", out)
+        self.assertIn("line 3: not a valid share code", out)
+        tags = [t for (t,) in self.db().execute("SELECT tag FROM build_tags WHERE origin = 'user'")]
+        self.assertIn("doryani's prototype", tags)
+
+
 if __name__ == "__main__":
     unittest.main()

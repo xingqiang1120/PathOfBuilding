@@ -14,7 +14,7 @@ Steps (each step tries candidates in PoB and keeps the best by the score below):
      the build) compete with the notables
   5a. a guard skill (Steelskin, Molten Shell), a golem and up to three warcries, while they help
   5b. utility flasks (slots 2-5, always on), and charges when the build has a source (inferred)
-  7. auras and curses again, flasks swapped, the pantheon (major and minor god), then supports again, now that the tree is known
+  7. auras and curses again, flasks swapped, an amulet anoint and the skill's helmet enchant, the pantheon (major and minor god), then supports again, now that the tree is known
 --archetype crit: weapons and amulet with crit rolls instead of the hybrid template, so the search builds for crit.
 Score = ln(DPS) + w x defence - penalties, defence = (ln(EHP) + ln(smallest max hit)) / 2, w by --focus
 (damage 0.5, balanced 1, defence 2). Penalties: fire/cold/lightning resistance under 75%, missing attribute
@@ -44,7 +44,7 @@ OUT_DIR = os.environ.get("POB_GENERATE_DIR") or os.path.join(library.ROOT, "src"
 FOCUS = {"damage": 0.5, "balanced": 1.0, "defence": 2.0}
 # Version of the generator's rules, kept with every run: results of different versions are not comparable.
 # 2: realistic skill stages (Blade Blast, Explosive Arrow), dual-wield weapons, runs stop when the skill deals no damage.
-GENERATOR_VERSION = 7
+GENERATOR_VERSION = 8
 
 
 def item(name, base, *lines, implicits=()):
@@ -195,6 +195,15 @@ def flask_item(base):
 
 # Template rare jewels for the tree's jewel sockets (not cluster jewels): good ordinary rolls, one kind per build
 # type; the generator finds the best kind once, then a socket plus that jewel competes with the passives.
+def with_enchant(raw, line):
+    """The same item with one enchantment (an anoint on an amulet, a labyrinth enchant on a helmet) instead of any
+    it had: PoB reads it as an implicit line marked {enchant}."""
+    lines = [x for x in raw.splitlines() if not x.startswith("{enchant}")]
+    i = next(k for k, x in enumerate(lines) if x.startswith("Implicits:"))
+    count = int(lines[i].split(":")[1]) - sum(1 for x in raw.splitlines() if x.startswith("{enchant}"))
+    return "\n".join(lines[:i] + [f"Implicits: {count + 1}", "{enchant}" + line] + lines[i + 1:])
+
+
 def jewel_item(name, *lines):
     return "\n".join(["Rarity: RARE", f"Template {name} Jewel", "Crimson Jewel", "Item Level: 86", "Implicits: 0", *lines])
 
@@ -557,6 +566,29 @@ class Generator:
                 note = f"flask: {base}" + (f" (instead of {have[slot]})" if slot in have else "")
                 self.accept("flask", move, metrics, note)
 
+    def worn(self, slot):
+        """The raw text of the item in a slot, as the current state has it."""
+        raw = None
+        for c in self.state:
+            if c["type"] == "item_equip" and c["slot"] == slot:
+                raw = c.get("raw")
+        return raw
+
+    def pick_enchants(self):
+        """An anoint on the amulet (any notable with an oil recipe) and the main skill's helmet enchant."""
+        cands = WORKER.call("candidates", dict(self.params(), changes=self.state))
+        for step, slot, lines, label in (("anoint", "Amulet", [f"Allocates {n}" for n in cands.get("anoints", [])], "anoint"),
+                                         ("enchant", "Helmet", cands.get("helmetEnchants", []), "helmet enchant")):
+            raw = self.worn(slot)
+            if not raw or not lines:
+                continue
+            self.step = step
+            found = self.best([[{"type": "item_equip", "slot": slot, "raw": with_enchant(raw, line)}] for line in lines], self.current)
+            if found and found[0]:
+                move, metrics, _ = found[0]
+                line = next(x for x in move[0]["raw"].splitlines() if x.startswith("{enchant}"))[len("{enchant}"):]
+                self.accept(step, move, metrics, f"{label}: {line}")
+
     def pick_pantheon(self):
         self.step = "pantheon"
         for key, gods in PANTHEON.items():
@@ -611,6 +643,7 @@ class Generator:
         self.add_debuffs()
         self.pick_flasks()  # swaps, now that the tree is known
         self.retune_jewels()
+        self.pick_enchants()
         self.pick_pantheon()
         self.retune_supports()
         self.elapsed = time.time() - started
@@ -642,6 +675,7 @@ class Generator:
             "Utility flasks (quality 20, no mods) count as always on; flask slot 1 is left for a life flask.",
             "A guard skill counts as up when hit; a golem's buff counts; warcries count averaged over their cooldown. "
             "Immortal Call and movement skills are not used.",
+            "The amulet's anoint and the helmet's labyrinth enchant are chosen for the build.",
             "Tree jewel sockets hold template rare jewels (life plus three good rolls of one kind); no cluster, abyss or unique jewels.",
             "Power, frenzy and endurance charges count at their maximum when the build has a source (none against a lone boss "
             "if every source needs kills).",

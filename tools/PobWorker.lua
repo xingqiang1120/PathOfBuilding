@@ -1522,6 +1522,21 @@ function methods.candidates(p)
 			end
 		end
 	end
+	-- Notables an amulet can be anointed with (they have an oil recipe), not allocated already
+	result.anoints = { }
+	for _, node in pairs(build.spec.nodes) do
+		if node.recipe and #node.recipe >= 1 and not node.alloc and not node.ascendancyName and node.dn then
+			table.insert(result.anoints, node.dn)
+		end
+	end
+	table.sort(result.anoints)
+	-- Helmet enchantments for the main skill (the best labyrinth tier); a transfigured gem uses its base skill's
+	result.helmetEnchants = { }
+	local skillName = mainSkill and mainSkill.activeEffect and mainSkill.activeEffect.grantedEffect.name or ""
+	local enchants = data.enchantments.Helmet[skillName] or data.enchantments.Helmet[skillName:gsub(" of .*$", "")]
+	for _, line in ipairs(enchants and (enchants.ENDGAME or enchants.MERCILESS) or { }) do
+		table.insert(result.helmetEnchants, line)
+	end
 	-- Masteries next to allocated notables (one point each), one candidate per effect not taken elsewhere
 	result.masteries = { }
 	local taken = { }

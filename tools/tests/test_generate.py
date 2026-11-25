@@ -118,5 +118,14 @@ class GenerateTest(unittest.TestCase):
         self.assertEqual(loose["FireResist"], base["FireResist"])  # not allocated: the jewel does nothing
         self.assertEqual(socketed["FireResist"], base["FireResist"] + 12)
 
+    def test_enchant_lines_replace_each_other(self):
+        armour, _ = generate.armour_set("Str")
+        once = generate.with_enchant(armour["Amulet"], "Allocates Eagle Eye")
+        twice = generate.with_enchant(once, "Allocates Acuity")
+        self.assertIn("Implicits: 2", twice)
+        self.assertEqual([x for x in twice.splitlines() if x.startswith("{enchant}")], ["{enchant}Allocates Acuity"])
+        c = WORKER.call("candidates", {"xml": self.new["xml"], "name": "t"})
+        self.assertIn("Eagle Eye", c["anoints"])
+
 if __name__ == "__main__":
     unittest.main()

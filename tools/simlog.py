@@ -217,6 +217,12 @@ def change_key(change):
             lines = c["raw"].splitlines()
             keys.append(f"{c.get('slot')}:{lines[1] if len(lines) > 1 else ''}")
         else:
+            if c.get("type") == "config_set":
+                keys.append(f"{c.get('key')}={c.get('value')}")
+                continue
+            if c.get("type") == "mastery_add":
+                keys.append(f"{c.get('node')}:{c.get('effect')}")  # one mastery node, many effects
+                continue
             keys.append(str(c.get("with") or c.get("gem") or c.get("node") or c.get("unique") or c.get("slot") or
                             ",".join(c.get("gems") or []) or c.get("key") or ""))
     labels = [str(c.get("name") or "") for c in change if c.get("name")]

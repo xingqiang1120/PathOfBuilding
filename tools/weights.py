@@ -43,7 +43,8 @@ CROSS_TAGS = {"attack", "spell", "minion", "melee", "projectile", "fire", "cold"
               "trap", "mine", "bow"}  # tags also combined with the ascendancy
 CATEGORIES = {  # generator step -> category
     "weapon": "weapon", "support": "support", "support swap": "support", "ascendancy": "ascendancy", "tree": "passive",
-    "buff": "aura", "curse": "curse"}
+    "buff": "aura", "curse": "curse", "pantheon": "pantheon"}
+ALL_CATEGORIES = sorted(set(CATEGORIES.values()) | {"mastery"})  # masteries are tried in the tree step
 
 
 def db_path():
@@ -74,6 +75,8 @@ def candidate(kind, key, label, step):
     cat = CATEGORIES.get(step)
     if not cat:
         return None
+    if kind == "mastery_add":
+        return "mastery", key, label or key  # label: "Two Hand Mastery: 3% chance to deal Triple Damage"
     if cat == "weapon":
         key = "|".join(re.sub(r"^Weapon \d:", "", p) for p in key.split("|"))
         return cat, key, key.replace("Template ", "")
@@ -296,7 +299,7 @@ def suggest(skill, ascendancy, category=None, top=15, db=None, tags=None):
     if tags is None:
         raise SystemExit(f"unknown skill gem: {skill}")
     ctxs = contexts(skill, ascendancy, tags)
-    cats = [category] if category else sorted(set(CATEGORIES.values()))
+    cats = [category] if category else ALL_CATEGORIES
     data = Loaded(db, ctxs, cats)
     out = {}
     for cat in cats:
@@ -320,7 +323,7 @@ def suggest(skill, ascendancy, category=None, top=15, db=None, tags=None):
     return {"skill": skill, "ascendancy": ascendancy, "tags": sorted(tags), "contexts": ctxs, "suggestions": out}
 
 
-TOP_EXPORT = {"support": 10, "ascendancy": 8, "aura": 6, "curse": 6, "passive": 12, "weapon": 4}
+TOP_EXPORT = {"support": 10, "ascendancy": 8, "aura": 6, "curse": 6, "passive": 12, "mastery": 8, "pantheon": 4, "weapon": 4}
 
 
 def export(out_dir):
@@ -364,7 +367,7 @@ def main():
     p = sub.add_parser("suggest")
     p.add_argument("skill")
     p.add_argument("ascendancy")
-    p.add_argument("--category", choices=sorted(set(CATEGORIES.values())))
+    p.add_argument("--category", choices=ALL_CATEGORIES)
     p.add_argument("--top", type=int, default=15)
     p = sub.add_parser("export", help="data for the weights page")
     p.add_argument("dir")

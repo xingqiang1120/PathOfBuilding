@@ -9,8 +9,9 @@ Steps (each step tries candidates in PoB and keeps the best by the score below):
   4. ascendancy: up to 8 points of ascendancy notables
   5. auras and buffs (while reservation allows), then curses, marks and exposure - before the tree, so the tree
      sees what they reserve and add
-  6. passive tree: grow from the class start, best score gain per point, until the points run out
-  7. auras and curses again, then supports again, now that the tree is known
+  6. passive tree: grow from the class start, best score gain per point, until the points run out; masteries
+     (one point, next to an allocated notable) compete with the notables
+  7. auras and curses again, the pantheon (major and minor god), then supports again, now that the tree is known
 --archetype crit: weapons and amulet with crit rolls instead of the hybrid template, so the search builds for crit.
 Score = ln(DPS) + w x defence - penalties, defence = (ln(EHP) + ln(smallest max hit)) / 2, w by --focus
 (damage 0.5, balanced 1, defence 2). Penalties: fire/cold/lightning resistance under 75%, missing attribute
@@ -40,7 +41,7 @@ OUT_DIR = os.environ.get("POB_GENERATE_DIR") or os.path.join(library.ROOT, "src"
 FOCUS = {"damage": 0.5, "balanced": 1.0, "defence": 2.0}
 # Version of the generator's rules, kept with every run: results of different versions are not comparable.
 # 2: realistic skill stages (Blade Blast, Explosive Arrow), dual-wield weapons, runs stop when the skill deals no damage.
-GENERATOR_VERSION = 3
+GENERATOR_VERSION = 4
 
 
 def item(name, base, *lines, implicits=()):
@@ -162,6 +163,11 @@ BUFF_SKILLS = ["Hatred", "Anger", "Wrath", "Zealotry", "Malevolence", "Pride", "
 DEBUFF_SKILLS = ["Elemental Weakness", "Frostbite", "Flammability", "Conductivity", "Vulnerability", "Punishment", "Despair",
                  "Temporal Chains", "Enfeeble", "Assassin's Mark", "Warlord's Mark", "Sniper's Mark", "Poacher's Mark",
                  "Frost Bomb", "Wave of Conviction"]
+
+
+# Pantheon powers (Config): the best major and minor god for the score. The bandit quest stays "Kill all" (2 points).
+PANTHEON = {"pantheonMajorGod": ["TheBrineKing", "Lunaris", "Solaris", "Arakaali"],
+            "pantheonMinorGod": ["Gruthkul", "Yugul", "Abberath", "Tukohama", "Garukhan", "Ralakesh", "Ryslatha", "Shakari"]}
 
 
 # Supports that change how the skill is used (trap, mine, totem, trigger, another minion): not the build asked for
@@ -369,6 +375,10 @@ class Generator:
             used, available = self.current.get("passivePointsUsed", 0), cands["points"][1]
             free = available - used
             passives = [p for p in cands["passives"] if p["cost"] <= free]
+            if free >= 1:
+                # masteries next to allocated notables: one point, one effect each (an effect is taken only once)
+                passives += [{"id": f"m{m['id']}:{m['effect']}", "node": m["id"], "effect": m["effect"], "cost": 1,
+                              "name": f"{m['name']}: {m['text']}", "mastery": True} for m in cands.get("masteries", [])]
             if not passives:
                 break
             # Re-try the best-known candidates and every candidate never tried
@@ -380,7 +390,8 @@ class Generator:
                 head, rest = by_weight[:70], by_weight[70:]
                 untried = head + self.rng.sample(rest, min(10, len(rest)))
             batch = untried[:80] + [p for p in ranked if p["id"] in known][:shortlist]
-            moves = [[{"type": "passive_add", "node": p["id"]}] for p in batch]
+            moves = [[{"type": "mastery_add", "node": p["node"], "effect": p["effect"]} if p.get("mastery") else
+                      {"type": "passive_add", "node": p["id"]}] for p in batch]
             found, res = self.best(moves, self.current, per_point=[p["cost"] for p in batch])
             base = self.score(self.current)
             for p, r in zip(batch, res):
@@ -389,9 +400,10 @@ class Generator:
             if not found:
                 break
             move, metrics, _ = found
-            node = next(p for p in batch if p["id"] == move[0]["node"])
+            node = batch[moves.index(move)]
             known.pop(node["id"], None)
-            self.accept("tree", move, metrics, f"passive: {node['name']} ({node['cost']} points, {metrics.get('passivePointsUsed')}/{available})")
+            what = "mastery" if node.get("mastery") else "passive"
+            self.accept("tree", move, metrics, f"{what}: {node['name']} ({node['cost']} points, {metrics.get('passivePointsUsed')}/{available})")
 
     def add_buffs(self):
         self.step = "buff"
@@ -416,6 +428,14 @@ class Generator:
             move, metrics, _ = found[0]
             pool.remove(move[0]["gems"][0])
             self.accept("curse", move, metrics, f"curse/exposure: {move[0]['gems'][0]}")
+
+    def pick_pantheon(self):
+        self.step = "pantheon"
+        for key, gods in PANTHEON.items():
+            found = self.best([[{"type": "config_set", "key": key, "value": g}] for g in gods], self.current)
+            if found and found[0]:
+                move, metrics, _ = found[0]
+                self.accept("pantheon", move, metrics, f"pantheon: {move[0]['value']}")
 
     def retune_supports(self):
         self.step = "support swap"
@@ -458,6 +478,7 @@ class Generator:
         self.grow_tree()
         self.add_buffs()
         self.add_debuffs()
+        self.pick_pantheon()
         self.retune_supports()
         self.elapsed = time.time() - started
         self.recorder.finish(self.current)

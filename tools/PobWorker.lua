@@ -443,6 +443,22 @@ local changeHandlers = {
 		build.spec:AddUndoState()
 		return string.format("allocated %s (%d point%s)", node.dn, cost, cost == 1 and "" or "s")
 	end,
+	mastery_add = function(c)
+		local node = findNode(c.node)
+		assert(node.type == "Mastery", node.dn .. " is not a mastery")
+		local effect = assert(build.spec.tree.masteryEffects[tonumber(c.effect)], "no mastery effect " .. tostring(c.effect))
+		for other, used in pairs(build.spec.masterySelections) do
+			assert(used ~= effect.id or other == node.id, "that mastery effect is already taken")
+		end
+		assert(node.alloc or node.path, node.dn .. " cannot be reached: allocate a notable of its cluster first")
+		node.sd = effect.sd
+		node.allMasteryOptions = false
+		build.spec.tree:ProcessStats(node)
+		build.spec.masterySelections[node.id] = effect.id
+		if not node.alloc then build.spec:AllocNode(node) end
+		build.spec:AddUndoState()
+		return string.format("%s: %s", node.dn, table.concat(effect.sd, " / "))
+	end,
 	passive_remove = function(c)
 		local node = findNode(c.node)
 		if not node.alloc then return node.dn .. " was not allocated" end
@@ -1271,7 +1287,7 @@ end
 -- Supports passive_add, gem_add, gem_replace, gem_level, group_add, item_equip, item_remove, config_set; others error.
 local function applyReversible(change)
 	local t = change.type
-	if t == "passive_add" then
+	if t == "passive_add" or t == "mastery_add" then
 		local before = { }
 		for id in pairs(build.spec.allocNodes) do before[id] = true end
 		local result = changeHandlers[t](change)
@@ -1378,6 +1394,20 @@ function methods.candidates(p)
 	for id, node in pairs(build.spec.nodes) do
 		if (node.type == "Notable" or node.type == "Keystone") and not node.alloc and not node.ascendancyName and node.path and #node.path <= (p.maxPath or 6) then
 			table.insert(result.passives, { id = id, name = node.dn, type = node.type, cost = #node.path })
+		end
+	end
+	-- Masteries next to allocated notables (one point each), one candidate per effect not taken elsewhere
+	result.masteries = { }
+	local taken = { }
+	for _, effectId in pairs(build.spec.masterySelections) do taken[effectId] = true end
+	for id, node in pairs(build.spec.nodes) do
+		if node.type == "Mastery" and not node.alloc and node.path and #node.path <= 1 and node.masteryEffects then
+			for _, e in ipairs(node.masteryEffects) do
+				local effect = build.spec.tree.masteryEffects[e.effect]
+				if effect and not taken[e.effect] then
+					table.insert(result.masteries, { id = id, name = node.dn, effect = e.effect, text = table.concat(effect.sd, " / ") })
+				end
+			end
 		end
 	end
 	-- Allocated notables / keystones that can be removed without disconnecting more than a few points

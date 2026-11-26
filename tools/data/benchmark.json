@@ -1,0 +1,31 @@
+{
+  "_about": "Acceptance test suite for the build generator (tools/benchmark.py). 'authors': real builds in the library (id prefix); the generator gets the author's items (--gear-from) and must rebuild tree, gems, auras and config - compared with the author's own build by the generator's score. 'template': fixed skill / ascendancy / archetype runs on template gear - checked against the playable floors and against the previous version (no regression). Builds whose main skill PoB models poorly (phantasms, Animate Guardian) are left out of 'authors'.",
+  "authors": [
+    {"build": "2c62c0fa", "label": "Kinetic Blast of Clustering / Necromancer"},
+    {"build": "e899f48a", "label": "Smite / Slayer (Doryani's)"},
+    {"build": "dce250c2", "label": "Storm Call / Assassin (Doryani's)"},
+    {"build": "284ec22f", "label": "Storm Call / Hierophant"},
+    {"build": "660cfe42", "label": "Smite / Gladiator"},
+    {"build": "2615b7e6", "label": "Reave of Refraction / Gladiator"},
+    {"build": "7ebce37f", "label": "Summon Skeletons of Mages / Necromancer"}
+  ],
+  "template": [
+    {"skill": "Glacial Hammer", "ascendancy": "Champion"},
+    {"skill": "Glacial Hammer", "ascendancy": "Champion", "archetype": "crit"},
+    {"skill": "Fireball", "ascendancy": "Elementalist"},
+    {"skill": "Fireball", "ascendancy": "Elementalist", "archetype": "block"},
+    {"skill": "Tornado Shot", "ascendancy": "Deadeye"},
+    {"skill": "Cyclone", "ascendancy": "Slayer"},
+    {"skill": "Essence Drain", "ascendancy": "Trickster"},
+    {"skill": "Raise Zombie", "ascendancy": "Necromancer"},
+    {"skill": "Raise Spectre", "ascendancy": "Necromancer"},
+    {"skill": "Storm Call", "ascendancy": "Assassin", "buildAround": "Doryani's Prototype"}
+  ],
+  "floors": {
+    "_about": "Playable floors for a level 95 mapping build (from the 15 real builds, 2026-11-26: most have 3-6k life+ES, 10k+ smallest max hit, capped elemental resistances).",
+    "ElementalResist": 75,
+    "ChaosResist": 0,
+    "LifePlusES": 4000,
+    "SmallestMaxHit": 8000
+  }
+}

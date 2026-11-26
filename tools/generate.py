@@ -308,6 +308,18 @@ def moved_lines(raw):
 PROFILES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "unique_profiles.json")
 
 
+def worn_profile(build_id):
+    """(unique, profile) of a library build's worn unique that has a build-around profile, or (None, None)."""
+    if not build_id:
+        return None, None
+    db = library.connect()
+    for (title,) in db.execute("SELECT title FROM items WHERE build_id = ? AND rarity = 'UNIQUE'", (build_id,)):
+        prof = unique_profile(title)
+        if prof:
+            return title, prof
+    return None, None
+
+
 def unique_profile(name):
     """The build-around profile of a unique (tools/data/unique_profiles.json), or None."""
     with open(PROFILES, encoding="utf-8") as f:
@@ -481,12 +493,16 @@ class Generator:
             p += 10
         return p
 
-    def score(self, m):
+    def defence(self, m):
+        """The defence part of the score: (ln EHP + ln smallest max hit) / 2 + recovery."""
         hits = [m.get(k) for k in ("PhysicalMaximumHitTaken", "FireMaximumHitTaken", "ColdMaximumHitTaken", "LightningMaximumHitTaken",
                                    "ChaosMaximumHitTaken")]
         hits = [h for h in hits if h]  # None = immune (e.g. chaos with Chaos Inoculation)
         defence = (math.log(max(m.get("TotalEHP") or 1, 1)) + math.log(max(min(hits) if hits else 1, 1))) / 2
-        return math.log(max(self.dps(m), 1)) + self.weight * (defence + RECOVERY_WEIGHT * recovery(m)) - self.penalty(m)
+        return defence + RECOVERY_WEIGHT * recovery(m)
+
+    def score(self, m):
+        return math.log(max(self.dps(m), 1)) + self.weight * self.defence(m) - self.penalty(m)
 
     def best(self, moves, current, per_point=None):
         """Try every move; return (move, metrics, gain) of the best one that improves the score, or None."""
@@ -516,7 +532,12 @@ class Generator:
     def create(self):
         if self.gear_from:
             # the reference build's own items, empty tree, only the main skill
-            xml, name, _ = library.resolve(self.gear_from)
+            xml, name, build_id = library.resolve(self.gear_from)
+            # the author wears a unique with a profile (e.g. Doryani's Prototype): score as that profile says
+            worn, prof = worn_profile(build_id)
+            if prof:
+                self.profile = prof
+                log(f"  the author wears {worn}: scored with its profile (tools/data/unique_profiles.json)")
             r = WORKER.call("strip_build", {"xml": xml, "name": name, "skill": self.skill})
             self.info, self.class_name, self.ascendancy = r["skillInfo"], r["class"], r["ascendancy"]
             self.attribute = CLASS_ATTRIBUTE.get(self.class_name, "Str")
@@ -1052,6 +1073,10 @@ def main():
             f"({g.elapsed / 60:.1f} min)")
         return
     path, report, m = g.export()
+    if os.environ.get("POB_RESULT_JSON"):  # tools/benchmark.py reads the result from here
+        with open(os.environ["POB_RESULT_JSON"], "w", encoding="utf-8") as f:
+            json.dump({"metrics": m, "dps": g.dps(m), "score": g.score(m), "defence": g.defence(m), "penalty": g.penalty(m),
+                       "build": path, "report": report, "minutes": g.elapsed / 60, "generator": GENERATOR_VERSION}, f)
     log(f"\nDPS {g.dps(m):,.0f} · life {m.get('Life')} · EHP {m.get('TotalEHP'):,.0f} · {g.elapsed / 60:.1f} min")
     log(f"build:  {path}\nreport: {report}")
 

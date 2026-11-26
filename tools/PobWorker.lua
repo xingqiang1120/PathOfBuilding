@@ -424,7 +424,8 @@ local function metrics()
 	for _, key in ipairs({ "Life", "EnergyShield", "Mana", "ManaUnreserved", "LifeUnreserved", "Ward", "Armour", "Evasion", "TotalEHP",
 		"PhysicalMaximumHitTaken", "FireMaximumHitTaken", "ColdMaximumHitTaken", "LightningMaximumHitTaken", "ChaosMaximumHitTaken",
 		"FireResist", "ColdResist", "LightningResist", "ChaosResist", "EffectiveBlockChance", "EffectiveSpellBlockChance",
-		"EffectiveSpellSuppressionChance", "MovementSpeedMod", "Str", "Dex", "Int", "LifeRegenRecovery", "Speed", "HitChance", "CritChance" }) do
+		"EffectiveSpellSuppressionChance", "MovementSpeedMod", "Str", "Dex", "Int", "LifeRegenRecovery", "Speed", "HitChance", "CritChance",
+		"EnergyShieldRegenRecovery", "LifeLeechGainRate", "EnergyShieldLeechGainRate", "LifeOnHitRate", "PhysicalDamageReduction" }) do
 		if type(o[key]) == "number" then
 			m[key] = round(o[key], 2)
 		end

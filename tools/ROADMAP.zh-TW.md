@@ -55,6 +55,24 @@
 8. **裝備預算分級**：目前是中等預算；可再加「高預算」模板（+1 技能等級、T1 數值、勢力詞綴），
    讓同一個技能顯示「入門／中等／高預算」三種上限。市場價格需要使用者在交易網站確認（自動讀取被擋）。
 
+## 第 11 版：防禦平衡（2026-11-26 與使用者討論）
+真人 build 與生成 build 的差距不在單次最大承受（兩者都約 1～3 萬），而在**格擋**（真人攻擊／法術格擋 73～98%，
+生成 37～45% / 0～9%）、**混沌抗性**（55～85% vs 18～35%）、**回復**。原因和暴擊一樣：防禦要成套才有用，貪婪搜尋一步一步走不到。
+- **評分**：混沌抗性低於 60% 每點扣 0.005（0.01 太重：生命 build 會為了消懲罰點 Chaos Inoculation），只有 es 路線可點 Chaos Inoculation（Chaos Inoculation 免疫時不扣）；加上回復項
+  0.2 × ln(1 + 每秒回復佔生命＋護盾的 %)，回復 = 生命／護盾再生 + 一半的偷取與擊中回復（要一直打才有）。
+- **防禦路線**（`--archetype`）：armour（護甲底材＋固定護甲＋Determination）、block（攻擊＋法術格擋盾，法術 build 放棄靈魂盾）、
+  evasion（閃避底材，防具的屬性換成法術壓制＋Grace）、es（能量護盾取代生命＋Chaos Inoculation＋Discipline）、
+  takenas（身體 16% 物理視為火焰＋Taste of Hate 20% 視為冰冷）。
+- **自我對弈**：防禦路線只跑每個技能一般版最強的 2 個昇華（全部跑要幾百小時），一般版跑完後自動排入。
+- 使用者提到的其他物理減傷：永恆珠寶、特定傳奇、Perfect Guardian Turtle 幽魂（PoB 資料：每隻 5% 物理減傷，
+  PoB 是否疊加多隻待確認）——之後再加。
+- 第一次比較（Glacial Hammer／Champion、Fireball／Elementalist，DPS / EHP / 最小最大承受）：
+  - takenas：DPS 不變，最小承受 +11%～17%（幾乎免費）。
+  - block：Glacial Hammer EHP 5.4 萬 → 10 萬（DPS −50%）；Fireball EHP 5.7 萬 → 7.6 萬、法術格擋 72%（DPS −13%）。
+  - evasion：法術壓制 62%～100%，DPS −50%～−60%。armour：Fireball DPS −72%（Determination 保留＋放棄 Int 裝備）。
+  - es：能量護盾只有 2～3.5 千（真人 CI 約 8 千以上），天賦樹沒往能量護盾走，DPS 最高但 EHP 最低——待改進。
+  - 下一步：路線可組合（例：block＋takenas），es 路線要讓天賦樹投資能量護盾。
+
 ## 驗證（每個階段都做）
 
 1. 資料內部：保留 20% 模擬不學，檢查權重預測（`python tools/weights.py check`）。

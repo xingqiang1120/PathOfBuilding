@@ -137,7 +137,24 @@ def parse_shard(text):
     return k, n
 
 
-def plan(seed=None, skill_filter=None, focus="balanced", shard=None):
+DEFAULT_ARCHETYPES = "none,crit,armour,block,evasion,es,takenas"
+DEFENCE_ASCENDANCIES = 2  # defence archetypes run only for each skill's best ascendancies with the plain gear
+
+
+def best_ascendancies(focus, keep=DEFENCE_ASCENDANCIES):
+    """skill -> the ascendancies whose plain-gear run (current generator) dealt the most damage."""
+    db = simlog.connect()
+    rows = db.execute("SELECT skill, ascendancy, final FROM runs WHERE tool = 'generate' AND finished IS NOT NULL AND gear = 'template' "
+                      "AND guide IS NULL AND focus = ? AND generator >= ? AND final IS NOT NULL",
+                      (focus, generate.GENERATOR_VERSION)).fetchall()
+    by_skill = {}
+    for skill, asc, final in rows:
+        m = json.loads(final)
+        by_skill.setdefault(skill, []).append((m.get("minionDPS") or m.get("playerDPS") or 0, asc))
+    return {skill: {a for d, a in sorted(v, reverse=True)[:keep] if d > 0} for skill, v in by_skill.items()}
+
+
+def plan(seed=None, skill_filter=None, focus="balanced", shard=None, archetypes=DEFAULT_ARCHETYPES):
     WORKER.call("create_build", {"ascendancy": "Witch", "skill": "Fireball"})  # any build: skill_list reads PoB data
     data = WORKER.call("skill_list", {})
     versions = WORKER.call("ping", {})
@@ -149,15 +166,20 @@ def plan(seed=None, skill_filter=None, focus="balanced", shard=None):
     done, tried = finished_pairs(versions.get("pobVersion"), focus)
     rng = random.Random(seed)
     queue = []
+    best = best_ascendancies(focus)
     # every pair with the template gear first; then the crit archetype for skills that hit (not minions), which
     # builds for crit with crit gear and a Diamond Flask - the greedy search does not get there from hybrid gear
-    for archetype in (None, "crit"):
+    # then the defence archetypes (armour, block, evasion, energy shield, physical taken as elemental): one row per
+    # defence for every pair, to find the balance of damage and defence per skill
+    for archetype in [None if a == "none" else a for a in archetypes.split(",")]:
         per_skill = []
         for s in skills:
             if archetype == "crit" and (s["minion"] or not (s["attack"] or s["spell"])):
                 continue
             attr = main_attribute(s)
             ascs = [a for a in data["ascendancies"] if attr is None or attr in CLASS_ATTRIBUTES.get(a["class"], set())]
+            if archetype not in (None, "crit"):  # a defence: only where the plain gear did best (known once that ran)
+                ascs = [a for a in ascs if a["name"] in best.get(s["name"], set())]
             rng.shuffle(ascs)
             pairs = [(s["name"], a["name"], archetype) for a in ascs if (s["name"], a["name"], archetype) not in done]
             if pairs:
@@ -178,11 +200,11 @@ def finished_pairs(pob_version, focus):
     older generator stay in the log as data, but the pair is run again (after the pairs never run at all)."""
     db = simlog.connect()
     rows = db.execute("SELECT skill, ascendancy, generator, gear, skill_info, outcome FROM runs WHERE tool = 'generate' "
-                      "AND finished IS NOT NULL AND gear IN ('template', 'template crit') AND guide IS NULL AND focus = ? "
+                      "AND finished IS NOT NULL AND gear LIKE 'template%' AND gear NOT LIKE 'template around%' AND guide IS NULL AND focus = ? "
                       "AND (pob_version = ? OR ? IS NULL)", (focus, pob_version, pob_version)).fetchall()
     done, tried = set(), set()
     for skill, asc, version, gear, info, outcome in rows:
-        key = (skill, asc, "crit" if gear == "template crit" else None)
+        key = (skill, asc, gear.split(" ", 1)[1] if " " in gear else None)
         tried.add(key)
         version = version or 1
         if version >= generate.GENERATOR_VERSION or (
@@ -231,6 +253,8 @@ def main():
     ap.add_argument("--skills", help="comma-separated parts of skill names to limit the run to")
     ap.add_argument("--shard", help="K/N: run only share K of N, to split the work over N computers (e.g. 1/2 here, 2/2 on the "
                                      "other one); merge their results with  python tools/simlog.py merge <file>")
+    ap.add_argument("--archetypes", default=DEFAULT_ARCHETYPES,
+                    help=f"comma-separated, in queue order (default {DEFAULT_ARCHETYPES}); none = the plain template gear")
     ap.add_argument("--seed", type=int)
     ap.add_argument("--timeout", type=float, default=40, help="minutes before one run is stopped")
     ap.add_argument("--dry-run", action="store_true")
@@ -271,7 +295,7 @@ def main():
         write_status(state="starting", session="-", pid=os.getpid(), jobs=args.jobs, started=datetime.datetime.now().isoformat(timespec="seconds"))
 
     shard = parse_shard(args.shard) if args.shard else None
-    queue, skipped, versions = plan(args.seed, args.skills, args.focus, shard)
+    queue, skipped, versions = plan(args.seed, args.skills, args.focus, shard, args.archetypes)
     if args.runs:
         queue = queue[:args.runs]
     print(f"PoB {versions.get('pobVersion')}, tree {versions.get('treeVersion')}: {len(queue)} pairs to run, {skipped} already done"

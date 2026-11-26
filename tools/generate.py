@@ -45,11 +45,11 @@ OUT_DIR = os.environ.get("POB_GENERATE_DIR") or os.path.join(library.ROOT, "src"
 FOCUS = {"damage": 0.5, "balanced": 1.0, "defence": 2.0}
 # Version of the generator's rules, kept with every run: results of different versions are not comparable.
 # 2: realistic skill stages (Blade Blast, Explosive Arrow), dual-wield weapons, runs stop when the skill deals no damage.
-GENERATOR_VERSION = 10
+GENERATOR_VERSION = 11
 # Results of older versions from STILL_VALID_FROM on still count as done in self-play, except for the skills a later
 # version changed (changed_since_valid). Version 9 only changed minion skills (the minion's skill is now chosen),
 # unarmed attacks (empty main hand) and spells that need a staff.
-STILL_VALID_FROM = 10
+STILL_VALID_FROM = 11
 
 
 def changed_since_valid(skill, info):
@@ -83,6 +83,9 @@ BASE_STAT = {"Str": "Strength", "Dex": "Dexterity", "Int": "Intelligence"}
 
 
 def armour_set(attribute, archetype=None):
+    if archetype in DEFENCES:
+        armour, shield = armour_set(DEFENCES[archetype].get("bases") or attribute)
+        return {slot: defend(slot, raw, archetype) for slot, raw in armour.items()}, defend("Shield", shield, archetype)
     b = ARMOUR_BASES[attribute]
     local, flat = DEFENCE[attribute]
     stat = BASE_STAT[attribute]
@@ -132,7 +135,55 @@ CRIT_TWO_HAND = ["Adds 30 to 65 Physical Damage", "150% increased Physical Damag
 CRIT_AMULET = ["+35% to Global Critical Strike Multiplier", "30% increased Global Critical Strike Chance"]
 CRIT_SPELL_WEAPON = item("Template Sceptre", "Void Sceptre", "80% increased Spell Damage", "20% increased Cast Speed",
                          "100% increased Spell Critical Strike Chance", "+35% to Global Critical Strike Multiplier")
-ARCHETYPES = {None: "template gear (hybrid weapon rolls)", "crit": "crit: weapon and amulet with crit rolls"}
+ARCHETYPES = {None: "template gear (hybrid weapon rolls)", "crit": "crit: weapon and amulet with crit rolls",
+              "armour": "armour: armour bases with flat armour added, Determination",
+              "block": "block: shield with attack and spell block (a spell build gives up its spirit shield)",
+              "evasion": "evasion: evasion bases, spell suppression instead of the armour pieces' attributes, Grace",
+              "es": "energy shield: energy shield instead of life, Chaos Inoculation, Discipline",
+              "takenas": "physical taken as elemental: body armour (16% as fire) and Taste of Hate (20% as cold)"}
+
+# Defence archetypes (like crit: a defence only pays off as a set, which the greedy search never builds one step at a
+# time; 2026-11-26 the 15 real builds had 73-98% attack and spell block, ours 37-45% and 0-9%). Each starts from its gear,
+# buffs and keystones; the search does the rest, so every skill gets a DPS / defence row per archetype.
+# gear: slot -> {template line -> new line}, "+N to maximum Life" may be written as a regex key starting with "re:".
+DEFENCES = {
+    "armour": {"bases": "Str", "buffs": ["Determination"],
+               "add": {"Body Armour": ["+400 to Armour"], "Helmet": ["+150 to Armour"], "Shield": ["+300 to Armour"]}},
+    "block": {"shield": True,
+              "add": {"Shield": ["14% Chance to Block Spell Damage"]},
+              # a spirit shield cannot roll block: an Int build gets an evasion / energy shield base instead
+              "gear": {"Shield": {"re:\\+30 to \\w+$": "+14% Chance to Block", "Titanium Spirit Shield": "Mirrored Spiked Shield"}}},
+    "evasion": {"bases": "Dex", "buffs": ["Grace"],
+                "gear": {"Helmet": {"+35 to Intelligence": "+13% chance to Suppress Spell Damage"},
+                         "Gloves": {"+35 to Dexterity": "+13% chance to Suppress Spell Damage"},
+                         "Boots": {"+35 to Dexterity": "+16% chance to Suppress Spell Damage"},
+                         "Body Armour": {"+30 to Dexterity": "+20% chance to Suppress Spell Damage"}}},
+    "es": {"bases": "Int", "buffs": ["Discipline"], "keystones": ["Chaos Inoculation"],
+           "never": ["The Agnostic"],  # energy shield to 0: with Chaos Inoculation nothing is left
+           "gear": {"Helmet": {"re:^\\+\\d+ to maximum Life$": "+55 to maximum Energy Shield"},
+                    "Body Armour": {"re:^\\+\\d+ to maximum Life$": "+95 to maximum Energy Shield"},
+                    "Gloves": {"re:^\\+\\d+ to maximum Life$": "+45 to maximum Energy Shield"},
+                    "Boots": {"re:^\\+\\d+ to maximum Life$": "+45 to maximum Energy Shield"},
+                    "Amulet": {"re:^\\+\\d+ to maximum Life$": "+50 to maximum Energy Shield"},
+                    "Ring 1": {"re:^\\+\\d+ to maximum Life$": "+40 to maximum Energy Shield"},
+                    "Ring 2": {"re:^\\+\\d+ to maximum Life$": "+40 to maximum Energy Shield"},
+                    "Belt": {"re:^\\+\\d+ to maximum Life$": "+45 to maximum Energy Shield"},
+                    "Shield": {"re:^\\+\\d+ to maximum Life$": "+80 to maximum Energy Shield"}}},
+    "takenas": {"add": {"Body Armour": ["16% of Physical Damage from Hits taken as Fire Damage"]},
+                "flasks": {"Flask 2": "Taste of Hate"}},
+}
+
+
+def defend(slot, raw, defence):
+    """A template item changed for a defence archetype (DEFENCES)."""
+    d = DEFENCES.get(defence) or {}
+    lines = raw.split("\n")
+    for old, new in d.get("gear", {}).get(slot, {}).items():
+        if old.startswith("re:"):
+            lines = [new if re.search(old[3:], x) and not x.startswith(("Rarity", "Item Level", "Implicits")) else x for x in lines]
+        else:
+            lines = [new if x == old else x for x in lines]
+    return "\n".join(lines + d.get("add", {}).get(slot, []))
 NEVER_CRIT = {"Precise Technique", "Resolute Technique", "Elemental Overload"}  # keystones the crit archetype leaves out
 
 SPELL_WEAPON = item("Template Sceptre", "Void Sceptre", "80% increased Spell Damage", "22% increased Cast Speed",
@@ -148,7 +199,7 @@ MINION_WEAPON = item("Template Wand", "Convoking Wand", "+1 to Level of all Mini
 
 def weapon_options(info, attribute, archetype=None):
     """[(label, [changes])] - weapon (and shield) setups the skill can use."""
-    armour, shield = armour_set(attribute)
+    armour, shield = armour_set(attribute, archetype if archetype in DEFENCES else None)
     crit = archetype == "crit"
     spell_weapon = CRIT_SPELL_WEAPON if crit else SPELL_WEAPON
     shield_change = {"type": "item_equip", "slot": "Weapon 2", "raw": shield}
@@ -187,6 +238,11 @@ def weapon_options(info, attribute, archetype=None):
     if not options:
         options.append(("spell sceptre + shield", [{"type": "item_equip", "slot": "Weapon 1", "raw": spell_weapon},
                                                     {"type": "item_equip", "slot": "Weapon 2", "raw": SPELL_SHIELD}]))
+    if archetype in DEFENCES and DEFENCES[archetype].get("shield"):
+        # block: only setups with a shield, and that shield is the block one (a spirit shield cannot roll block)
+        options = [(label, [shield_change if c.get("slot") == "Weapon 2" else c for c in changes])
+                   for label, changes in options if any(c.get("slot") == "Weapon 2" and "Shield" in c.get("raw", "")
+                                                        for c in changes)]
     return options
 
 
@@ -303,6 +359,23 @@ GUIDE_TOP = 15
 GUIDE_EXPLORE = 5
 
 
+# Score terms added in version 11 (2026-11-26, with the user): chaos resistance under CHAOS_TARGET costs CHAOS_PENALTY
+# per point; recovery (life and energy shield regeneration, half of leech and life on hit, which need hitting) as % of
+# the pool per second counts as ln(1 + %) x RECOVERY_WEIGHT - it is what carries a build through damage over time.
+CHAOS_TARGET = 60
+CHAOS_PENALTY = 0.005  # 0.01 made a life build take Chaos Inoculation just to drop the penalty (2026-11-26)
+RECOVERY_WEIGHT = 0.2
+RECOVERY_POOL_MIN = 1000
+
+
+def recovery(m):
+    # at least RECOVERY_POOL_MIN: a tiny pool (life 1 and no energy shield) would make any regeneration look huge
+    pool = max((m.get("Life") or 0) + (m.get("EnergyShield") or 0), RECOVERY_POOL_MIN)
+    per_second = ((m.get("LifeRegenRecovery") or 0) + (m.get("EnergyShieldRegenRecovery") or 0)
+                  + 0.5 * ((m.get("LifeLeechGainRate") or 0) + (m.get("EnergyShieldLeechGainRate") or 0) + (m.get("LifeOnHitRate") or 0)))
+    return math.log(1 + max(per_second, 0) / pool * 100)
+
+
 def log(*args):
     print(*args, flush=True)
 
@@ -396,6 +469,9 @@ class Generator:
             if res not in ignored:
                 p += max(0, 75 - (m.get(res) or 0)) * 0.05
         # before the tree, missing attributes are left to the tree (a curse needing Int would never be tried otherwise)
+        # chaos: softer than the elements (real builds 55-85%, gear rarely has room); none when immune (Chaos Inoculation)
+        if m.get("ChaosMaximumHitTaken"):
+            p += max(0, CHAOS_TARGET - (m.get("ChaosResist") or 0)) * CHAOS_PENALTY
         p += (m.get("attributeShortfall") or 0) * (0 if self.attributes_later else 0.02)
         if (m.get("ManaUnreserved") if m.get("ManaUnreserved") is not None else 0) < 0:
             p += 5
@@ -410,7 +486,7 @@ class Generator:
                                    "ChaosMaximumHitTaken")]
         hits = [h for h in hits if h]  # None = immune (e.g. chaos with Chaos Inoculation)
         defence = (math.log(max(m.get("TotalEHP") or 1, 1)) + math.log(max(min(hits) if hits else 1, 1))) / 2
-        return math.log(max(self.dps(m), 1)) + self.weight * defence - self.penalty(m)
+        return math.log(max(self.dps(m), 1)) + self.weight * (defence + RECOVERY_WEIGHT * recovery(m)) - self.penalty(m)
 
     def best(self, moves, current, per_point=None):
         """Try every move; return (move, metrics, gain) of the best one that improves the score, or None."""
@@ -454,6 +530,8 @@ class Generator:
         self.info, self.class_name = r["skillInfo"], r["class"]
         self.attribute = CLASS_ATTRIBUTE.get(self.class_name, "Str")
         bases = (self.profile or {}).get("armourBases") or self.attribute  # a build-around unique may ask for armour
+        if self.archetype in DEFENCES:
+            bases = DEFENCES[self.archetype].get("bases") or bases
         armour, _ = armour_set(bases, self.archetype)
         self.xml = r["xml"]
         self.state = [{"type": "item_equip", "slot": slot, "raw": raw} for slot, raw in armour.items()]
@@ -490,11 +568,30 @@ class Generator:
         res = self.try_all([changes for _, changes in options])
         ranked = sorted(((self.score(r["metrics"]), label, changes, r["metrics"]) for (label, changes), r in zip(options, res)
                          if "metrics" in r), key=lambda x: -x[0])
+        if not options:  # a block archetype for a skill with no shield setup (two-handed, dual wield)
+            self.weapon = None
+            return
         if not ranked:
             raise SystemExit("no weapon setup could be evaluated: " + "; ".join(r.get("error", "") for r in res))
         _, label, changes, metrics = ranked[0]
         self.weapon = label
         self.accept("weapon", changes, metrics, f"weapon: {label}")
+
+    def seed_defence(self):
+        """A defence archetype's buffs, keystones and flasks, taken before the search (it may still swap a flask)."""
+        d = DEFENCES.get(self.archetype)
+        if not d:
+            return
+        self.step = "defence"
+        move = [{"type": "group_add", "gems": [b]} for b in d.get("buffs", [])]
+        move += [{"type": "passive_add", "node": k} for k in d.get("keystones", [])]
+        move += [{"type": "item_equip", "slot": slot, "unique": name} for slot, name in d.get("flasks", {}).items()]
+        if move:
+            r = self.try_all([move])[0]
+            if "metrics" not in r:
+                raise SystemExit(f"archetype {self.archetype}: {r.get('error')}")
+            self.accept("defence", move, r["metrics"], f"defence {self.archetype}: " + ", ".join(
+                c.get("gems", [None])[0] or c.get("node") or c.get("unique") for c in move))
 
     def pick_spectre(self):
         """Raise Spectre raises nothing until a monster is chosen: try them all, then each skill of the best ones."""
@@ -583,7 +680,9 @@ class Generator:
             used, available = self.current.get("passivePointsUsed", 0), cands["points"][1]
             free = available - used
             passives = [p for p in cands["passives"] if p["cost"] <= free
-                        and not (self.archetype == "crit" and p["name"] in NEVER_CRIT)]
+                        and not (self.archetype == "crit" and p["name"] in NEVER_CRIT)
+                        and p["name"] not in DEFENCES.get(self.archetype, {}).get("never", [])
+                        and not (p["name"] == "Chaos Inoculation" and self.archetype != "es")]  # life gear: CI only with es
             if free >= 1:
                 # masteries next to allocated notables: one point, one effect each (an effect is taken only once)
                 passives += [{"id": f"m{m['id']}:{m['effect']}", "node": m["id"], "effect": m["effect"], "cost": 1,
@@ -697,7 +796,7 @@ class Generator:
         out = {}
         for c in self.state:
             if c["type"] == "item_equip" and c["slot"] in FLASK_SLOTS:
-                out[c["slot"]] = c["raw"].splitlines()[1]
+                out[c["slot"]] = c["raw"].splitlines()[1] if c.get("raw") else c["unique"]
         return out
 
     def pick_flasks(self):
@@ -802,6 +901,12 @@ class Generator:
                                         guide=self.guide)
         if not self.gear_from:
             self.pick_weapon()
+            if self.weapon is None:
+                self.elapsed = time.time() - started
+                self.outcome = "not suited"
+                log(f"archetype {self.archetype} does not suit {self.skill}: no weapon setup with a shield")
+                self.recorder.finish(self.current, outcome=self.outcome)
+                return None
         self.pick_spectre()
         self.pick_minion_skill()
         self.pick_supports()
@@ -813,6 +918,7 @@ class Generator:
             self.recorder.finish(self.current, outcome=self.outcome)
             return None
         self.pick_ascendancy()
+        self.seed_defence()
         # auras and curses before the tree, so the tree sees what they reserve and add (a keystone such as Blood
         # Magic looked free while no aura reserved life yet), then again once the tree is known
         self.attributes_later = True
@@ -924,7 +1030,9 @@ def main():
     ap.add_argument("--focus", choices=list(FOCUS), default="balanced")
     ap.add_argument("--level", type=int, default=95)
     ap.add_argument("--name")
-    ap.add_argument("--archetype", choices=["crit"], help="crit: weapon and amulet with crit rolls, so the search builds for crit")
+    ap.add_argument("--archetype", choices=[a for a in ARCHETYPES if a],
+                    help="crit: weapon and amulet with crit rolls, so the search builds for crit; armour / block / evasion / es / "
+                         "takenas: a defence archetype (gear, buffs, keystones) the search builds from")
     ap.add_argument("--build-around", metavar="UNIQUE",
                     help="wear this unique from the start and build around it (profile in tools/data/unique_profiles.json)")
     ap.add_argument("--uniques", type=int, default=0, metavar="N",
@@ -938,6 +1046,8 @@ def main():
                   guided=args.guided, max_uniques=args.uniques,
                   build_around=args.build_around, spectre=args.spectre)
     if g.run() is None:
+        if g.outcome == "not suited":
+            return
         log(f"\nDPS 0 · no damage: PoB calculates no damage for {args.skill} with weapon '{g.weapon}' - run stopped "
             f"({g.elapsed / 60:.1f} min)")
         return

@@ -136,6 +136,20 @@ class GenerateTest(unittest.TestCase):
         self.assertNotIn("Natural Hierarchy", c["uniques"]["Amulet"])  # Talisman league only
         self.assertTrue(all(n for n in c["uniques"]["Weapon 1"]))
 
+    def test_defence_archetype_gear(self):
+        es, _ = generate.armour_set("Str", "es")
+        self.assertIn("Vaal Regalia", es["Body Armour"])  # energy shield bases whatever the class
+        self.assertNotIn("to maximum Life", es["Body Armour"])
+        self.assertIn("+95 to maximum Energy Shield", es["Body Armour"])
+        _, shield = generate.armour_set("Int", "block")
+        self.assertIn("Mirrored Spiked Shield", shield)  # a spirit shield cannot roll block
+        self.assertIn("+14% Chance to Block", shield)
+        self.assertNotIn("+30 to Intelligence", shield)
+        r = WORKER.call("create_build", {"ascendancy": "Deadeye", "skill": "Tornado Shot", "level": 90})
+        self.assertEqual(generate.weapon_options(r["skillInfo"], "Dex", "block"), [])  # bow only: no shield
+        self.assertLess(generate.recovery({"Life": 1000, "LifeRegenRecovery": 10}),
+                        generate.recovery({"Life": 1000, "LifeRegenRecovery": 50}))
+
     def test_build_around_profile(self):
         prof = generate.unique_profile("Doryani's Prototype")
         self.assertEqual(prof["slot"], "Body Armour")

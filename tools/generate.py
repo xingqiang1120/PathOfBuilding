@@ -45,11 +45,11 @@ OUT_DIR = os.environ.get("POB_GENERATE_DIR") or os.path.join(library.ROOT, "src"
 FOCUS = {"damage": 0.5, "balanced": 1.0, "defence": 2.0}
 # Version of the generator's rules, kept with every run: results of different versions are not comparable.
 # 2: realistic skill stages (Blade Blast, Explosive Arrow), dual-wield weapons, runs stop when the skill deals no damage.
-GENERATOR_VERSION = 11
+GENERATOR_VERSION = 12
 # Results of older versions from STILL_VALID_FROM on still count as done in self-play, except for the skills a later
 # version changed (changed_since_valid). Version 9 only changed minion skills (the minion's skill is now chosen),
 # unarmed attacks (empty main hand) and spells that need a staff.
-STILL_VALID_FROM = 11
+STILL_VALID_FROM = 12
 
 
 def changed_since_valid(skill, info):
@@ -920,6 +920,9 @@ class Generator:
                                         (f"template around {self.around}" if self.around else gear_label(self.archetype)), skill_info=self.info,
                                         versions=WORKER.call("ping", {}), generator=GENERATOR_VERSION,
                                         guide=self.guide)
+        # until the tree is grown, missing attributes are left to the tree: with the author's items (--gear-from) and an
+        # empty tree every support raised the shortfall penalty more than its damage, and none was taken (2026-11-26)
+        self.attributes_later = True
         if not self.gear_from:
             self.pick_weapon()
             if self.weapon is None:

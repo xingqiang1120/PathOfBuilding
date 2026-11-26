@@ -45,11 +45,11 @@ OUT_DIR = os.environ.get("POB_GENERATE_DIR") or os.path.join(library.ROOT, "src"
 FOCUS = {"damage": 0.5, "balanced": 1.0, "defence": 2.0}
 # Version of the generator's rules, kept with every run: results of different versions are not comparable.
 # 2: realistic skill stages (Blade Blast, Explosive Arrow), dual-wield weapons, runs stop when the skill deals no damage.
-GENERATOR_VERSION = 12
+GENERATOR_VERSION = 13
 # Results of older versions from STILL_VALID_FROM on still count as done in self-play, except for the skills a later
 # version changed (changed_since_valid). Version 9 only changed minion skills (the minion's skill is now chosen),
 # unarmed attacks (empty main hand) and spells that need a staff.
-STILL_VALID_FROM = 12
+STILL_VALID_FROM = 13
 
 
 def changed_since_valid(skill, info):
@@ -426,6 +426,7 @@ class Generator:
         self.step = "start"
         self.recorder = None
         self.attributes_later = False
+        self.resists_later = False
 
     # --- PoB calls ---------------------------------------------------------------------------------------------------
     def params(self):
@@ -478,7 +479,7 @@ class Generator:
         p = 0.0
         ignored = set(self.profile.get("ignoreResistPenalty", [])) if self.profile else set()
         for res in ("FireResist", "ColdResist", "LightningResist"):
-            if res not in ignored:
+            if res not in ignored and not self.resists_later:
                 p += max(0, 75 - (m.get(res) or 0)) * 0.05
         # before the tree, missing attributes are left to the tree (a curse needing Int would never be tried otherwise)
         # chaos: softer than the elements (real builds 55-85%, gear rarely has room); none when immune (Chaos Inoculation)
@@ -667,7 +668,17 @@ class Generator:
         self.support_pool = [s for s in cands["supports"] if not DELIVERY.search(s)]
         self.points = cands["points"]
         self.links = []
-        for _ in range(count):
+        # supports are chosen without the resistance penalty: a support only moves resistances through item mechanics
+        # (e.g. The Untouched Soul, +12% per empty white socket: every support filled it, cost 1.2 score before the tree
+        # and none was taken - Smite / Gladiator at 11% of the author's DPS, benchmark v12). The tree fixes resistances.
+        self.resists_later = True
+        try:
+            self._pick_supports(pool_count=count)
+        finally:
+            self.resists_later = False
+
+    def _pick_supports(self, pool_count):
+        for _ in range(pool_count):
             pool = self.narrow("support", [s for s in self.support_pool if s not in self.links])
             found = self.best([[{"type": "gem_add", "group": 1, "gem": s}] for s in pool], self.current)
             if not found or not found[0]:
@@ -920,9 +931,10 @@ class Generator:
                                         (f"template around {self.around}" if self.around else gear_label(self.archetype)), skill_info=self.info,
                                         versions=WORKER.call("ping", {}), generator=GENERATOR_VERSION,
                                         guide=self.guide)
-        # until the tree is grown, missing attributes are left to the tree: with the author's items (--gear-from) and an
-        # empty tree every support raised the shortfall penalty more than its damage, and none was taken (2026-11-26)
-        self.attributes_later = True
+        # with the author's items (--gear-from) and an empty tree, missing attributes are left to the tree: every support
+        # raised the shortfall penalty more than its damage, and none was taken (2026-11-26). Template gear keeps the
+        # penalty from the start (deferring it there lost Glacial Hammer 0.68 score in benchmark v12)
+        self.attributes_later = bool(self.gear_from)
         if not self.gear_from:
             self.pick_weapon()
             if self.weapon is None:

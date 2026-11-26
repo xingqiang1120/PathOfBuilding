@@ -33,7 +33,7 @@
 |---|---|---|---|
 | 11 | 2/7 | 8/10 | |
 | 12 | 2/7 | 9/10 | Smite／Gladiator 11%（沒選輔助寶石）；Glacial Hammer 退步 0.68 |
-| 13 | 待跑（pc2 2026-11-26 晚上） | | 單獨驗證：Smite／Gladiator 84%（及格），Glacial Hammer 回到 26.01，但混沌抗 -8 |
+| 13 | 待跑（home 2026-11-26 晚上） | | 單獨驗證：Smite／Gladiator 84%（及格），Glacial Hammer 回到 26.01，但混沌抗 -8 |
 
 ## 已知的下一批問題（依優先）
 1. Storm Call 兩組（作者的 60～74%）、Reave（66%）：看 v13 差距報告。

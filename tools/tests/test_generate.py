@@ -89,7 +89,7 @@ class GenerateTest(unittest.TestCase):
     def test_crit_archetype_gear(self):
         hybrid = generate.weapon_options(self.new["skillInfo"], "Int")[0][1][0]["raw"]
         crit = generate.weapon_options(self.new["skillInfo"], "Int", "crit")[0][1][0]["raw"]
-        self.assertIn("38% increased Critical Strike Chance", crit)
+        self.assertIn("37% increased Critical Strike Chance", crit)
         self.assertNotIn("38% increased Critical Strike Chance", hybrid)
         self.assertIn("Global Critical Strike Chance", generate.armour_set("Int", "crit")[0]["Amulet"])
         self.assertEqual(generate.gear_label("crit"), "template crit")
@@ -130,7 +130,8 @@ class GenerateTest(unittest.TestCase):
     def test_unique_keeps_the_rares_resistances(self):
         armour, _ = generate.armour_set("Str")
         self.assertEqual(generate.moved_lines(generate.with_enchant(armour["Helmet"], "40% increased Cleave Damage")),
-                         ["40% increased Cleave Damage", "+40% to Fire Resistance", "+40% to Cold Resistance"])
+                         ["40% increased Cleave Damage", "+40% to Fire Resistance", "+40% to Cold Resistance",
+                          "+35 to Intelligence"])
         c = WORKER.call("candidates", {"xml": self.new["xml"], "name": "t", "changes": self.gear(self.new, "Int")})
         self.assertNotIn("Natural Hierarchy", c["uniques"]["Amulet"])  # Talisman league only
         self.assertTrue(all(n for n in c["uniques"]["Weapon 1"]))

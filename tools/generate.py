@@ -45,11 +45,11 @@ OUT_DIR = os.environ.get("POB_GENERATE_DIR") or os.path.join(library.ROOT, "src"
 FOCUS = {"damage": 0.5, "balanced": 1.0, "defence": 2.0}
 # Version of the generator's rules, kept with every run: results of different versions are not comparable.
 # 2: realistic skill stages (Blade Blast, Explosive Arrow), dual-wield weapons, runs stop when the skill deals no damage.
-GENERATOR_VERSION = 9
+GENERATOR_VERSION = 10
 # Results of older versions from STILL_VALID_FROM on still count as done in self-play, except for the skills a later
 # version changed (changed_since_valid). Version 9 only changed minion skills (the minion's skill is now chosen),
 # unarmed attacks (empty main hand) and spells that need a staff.
-STILL_VALID_FROM = 8
+STILL_VALID_FROM = 10
 
 
 def changed_since_valid(skill, info):
@@ -74,30 +74,48 @@ CLASS_ATTRIBUTE = {"Marauder": "Str", "Ranger": "Dex", "Witch": "Int", "Duelist"
                    "Scion": "Str"}
 
 
+# Template rares at a mid budget (about 1-5 divine a week into a league; research 2026-11-26 from PoB's mod tiers and
+# 15 real builds): at most 3 prefixes and 3 suffixes, T2-T3 rolls. Each armour piece has life, a local defence of its
+# base's kind, two resistances and an attribute, so the tree does not have to buy attributes or all of the defence.
+DEFENCE = {"Str": ("Armour", "+100 to Armour"), "Dex": ("Evasion Rating", "+100 to Evasion Rating"),
+           "Int": ("Energy Shield", "+40 to maximum Energy Shield")}
+BASE_STAT = {"Str": "Strength", "Dex": "Dexterity", "Int": "Intelligence"}
+
+
 def armour_set(attribute, archetype=None):
     b = ARMOUR_BASES[attribute]
-    amulet_extra = CRIT_AMULET if archetype == "crit" else []
+    local, flat = DEFENCE[attribute]
+    stat = BASE_STAT[attribute]
+    if archetype == "crit":  # crit on the amulet instead of its attributes (the +16 all implicit stays)
+        amulet_suffixes = ["+40% to Lightning Resistance", *CRIT_AMULET]
+    else:
+        amulet_suffixes = ["+40% to Lightning Resistance", "+40 to Strength", "+30 to Dexterity"]
     return {
-        "Helmet": item("Template Helmet", b["Helmet"], "+90 to maximum Life", "+40% to Fire Resistance", "+40% to Cold Resistance"),
-        "Body Armour": item("Template Body Armour", b["Body Armour"], "+110 to maximum Life", "+40% to Fire Resistance", "+40% to Cold Resistance"),
-        "Gloves": item("Template Gloves", b["Gloves"], "+80 to maximum Life", "+40% to Cold Resistance", "+40% to Lightning Resistance"),
-        "Boots": item("Template Boots", b["Boots"], "+80 to maximum Life", "+40% to Fire Resistance", "+40% to Lightning Resistance",
-                      "30% increased Movement Speed"),
-        "Amulet": item("Template Amulet", "Onyx Amulet", "+70 to maximum Life", "+40% to Lightning Resistance", "+40 to Strength",
-                       *amulet_extra, implicits=("+16 to all Attributes",)),
-        "Ring 1": item("Template Ring", "Two-Stone Ring", "+60 to maximum Life", "+40% to Lightning Resistance", "+40 to Dexterity",
-                       implicits=("+16% to Fire and Cold Resistances",)),
-        "Ring 2": item("Template Ring", "Two-Stone Ring", "+60 to maximum Life", "+40% to Lightning Resistance", "+40 to Intelligence",
-                       implicits=("+16% to Fire and Cold Resistances",)),
-        "Belt": item("Template Belt", "Leather Belt", "+80 to maximum Life", "+40% to Cold Resistance", "+40% to Lightning Resistance",
-                     implicits=("+40 to maximum Life",)),
-    }, item("Template Shield", b["Shield"], "+90 to maximum Life", "+40% to Fire Resistance", "+40% to Cold Resistance")
+        "Helmet": item("Template Helmet", b["Helmet"], "+110 to maximum Life", f"60% increased {local}",
+                       "+40% to Fire Resistance", "+40% to Cold Resistance", "+35 to Intelligence"),
+        "Body Armour": item("Template Body Armour", b["Body Armour"], "+150 to maximum Life", f"70% increased {local}",
+                            "+40% to Fire Resistance", "+40% to Cold Resistance", f"+30 to {stat}"),
+        "Gloves": item("Template Gloves", b["Gloves"], "+100 to maximum Life", flat,
+                       "+40% to Cold Resistance", "+40% to Lightning Resistance", "+35 to Dexterity"),
+        "Boots": item("Template Boots", b["Boots"], "+100 to maximum Life", "30% increased Movement Speed",
+                      "+40% to Fire Resistance", "+40% to Lightning Resistance", f"+35 to {stat}"),
+        "Amulet": item("Template Amulet", "Onyx Amulet", "+90 to maximum Life", *amulet_suffixes,
+                       implicits=("+16 to all Attributes",)),
+        "Ring 1": item("Template Ring", "Two-Stone Ring", "+75 to maximum Life", "+40% to Lightning Resistance", "+35 to Dexterity",
+                       "+30 to Intelligence", implicits=("+16% to Fire and Cold Resistances",)),
+        "Ring 2": item("Template Ring", "Two-Stone Ring", "+75 to maximum Life", "+40% to Lightning Resistance", "+35 to Intelligence",
+                       "+30 to Strength", implicits=("+16% to Fire and Cold Resistances",)),
+        "Belt": item("Template Belt", "Leather Belt", "+100 to maximum Life", "+40% to Cold Resistance", "+40% to Lightning Resistance",
+                     "+35 to Strength", implicits=("+40 to maximum Life",)),
+    }, item("Template Shield", b["Shield"], "+120 to maximum Life", f"70% increased {local}", "+40% to Fire Resistance",
+            "+40% to Cold Resistance", f"+30 to {stat}")
 
 
-ONE_HAND = ["Adds 25 to 50 Physical Damage", "170% increased Physical Damage", "20% increased Attack Speed",
-            "30% increased Critical Strike Chance", "+30% to Global Critical Strike Multiplier", "+400 to Accuracy Rating"]
-TWO_HAND = ["Adds 45 to 95 Physical Damage", "170% increased Physical Damage", "15% increased Attack Speed",
-            "30% increased Critical Strike Chance", "+35% to Global Critical Strike Multiplier", "+400 to Accuracy Rating"]
+# 3 suffixes: attack speed, crit chance, accuracy (the crit archetype takes crit multiplier instead of accuracy)
+ONE_HAND = ["Adds 19 to 40 Physical Damage", "150% increased Physical Damage", "22% increased Attack Speed",
+            "30% increased Critical Strike Chance", "+400 to Accuracy Rating"]
+TWO_HAND = ["Adds 30 to 65 Physical Damage", "150% increased Physical Damage", "22% increased Attack Speed",
+            "30% increased Critical Strike Chance", "+400 to Accuracy Rating"]
 WEAPONS = {  # PoB weapon type -> (base, two-handed)
     "Wand": ("Prophecy Wand", False), "Claw": ("Imperial Claw", False), "Dagger": ("Ambusher", False),
     "One Handed Sword": ("Corsair Sword", False), "Thrusting One Handed Sword": ("Jewelled Foil", False),
@@ -107,26 +125,25 @@ WEAPONS = {  # PoB weapon type -> (base, two-handed)
 }
 # The crit archetype: the same weapons with crit rolls instead of the hybrid ones, and crit on the amulet. Without it the
 # greedy search never commits to crit (each crit node alone is weak until the others are there).
-CRIT_ONE_HAND = ["Adds 25 to 50 Physical Damage", "150% increased Physical Damage", "15% increased Attack Speed",
-                 "38% increased Critical Strike Chance", "+38% to Global Critical Strike Multiplier", "+400 to Accuracy Rating"]
-CRIT_TWO_HAND = ["Adds 45 to 95 Physical Damage", "150% increased Physical Damage", "12% increased Attack Speed",
-                 "38% increased Critical Strike Chance", "+38% to Global Critical Strike Multiplier", "+400 to Accuracy Rating"]
+CRIT_ONE_HAND = ["Adds 19 to 40 Physical Damage", "150% increased Physical Damage", "16% increased Attack Speed",
+                 "37% increased Critical Strike Chance", "+37% to Global Critical Strike Multiplier"]
+CRIT_TWO_HAND = ["Adds 30 to 65 Physical Damage", "150% increased Physical Damage", "16% increased Attack Speed",
+                 "37% increased Critical Strike Chance", "+37% to Global Critical Strike Multiplier"]
 CRIT_AMULET = ["+35% to Global Critical Strike Multiplier", "30% increased Global Critical Strike Chance"]
-CRIT_SPELL_WEAPON = item("Template Sceptre", "Void Sceptre", "70% increased Spell Damage", "20% increased Cast Speed",
-                         "120% increased Critical Strike Chance for Spells", "+38% to Global Critical Strike Multiplier",
-                         "+40 to Intelligence")
+CRIT_SPELL_WEAPON = item("Template Sceptre", "Void Sceptre", "80% increased Spell Damage", "20% increased Cast Speed",
+                         "100% increased Spell Critical Strike Chance", "+35% to Global Critical Strike Multiplier")
 ARCHETYPES = {None: "template gear (hybrid weapon rolls)", "crit": "crit: weapon and amulet with crit rolls"}
 NEVER_CRIT = {"Precise Technique", "Resolute Technique", "Elemental Overload"}  # keystones the crit archetype leaves out
 
-SPELL_WEAPON = item("Template Sceptre", "Void Sceptre", "90% increased Spell Damage", "20% increased Cast Speed",
-                    "80% increased Critical Strike Chance for Spells", "+30% to Global Critical Strike Multiplier", "+40 to Intelligence")
-SPELL_SHIELD = item("Template Shield", "Titanium Spirit Shield", "+80 to maximum Life", "60% increased Spell Damage",
-                    "+40% to Fire Resistance", "+40% to Cold Resistance")
+SPELL_WEAPON = item("Template Sceptre", "Void Sceptre", "80% increased Spell Damage", "22% increased Cast Speed",
+                    "80% increased Spell Critical Strike Chance", "+30% to Global Critical Strike Multiplier")
+SPELL_SHIELD = item("Template Shield", "Titanium Spirit Shield", "+100 to maximum Life", "60% increased Spell Damage",
+                    "+40% to Fire Resistance", "+40% to Cold Resistance", "+30 to Intelligence")
 # A staff for spells that need one (e.g. Mana-Infused Staff)
-SPELL_STAFF = item("Template Spell Staff", "Eclipse Staff", "90% increased Spell Damage", "20% increased Cast Speed",
+SPELL_STAFF = item("Template Spell Staff", "Eclipse Staff", "120% increased Spell Damage", "30% increased Cast Speed",
                    "+80 to maximum Mana", "+40 to Intelligence")
-MINION_WEAPON = item("Template Wand", "Convoking Wand", "+1 to Level of all Minion Skill Gems", "Minions deal 60% increased Damage",
-                     "Minions have 25% increased Attack Speed", "Minions have 25% increased Cast Speed")
+MINION_WEAPON = item("Template Wand", "Convoking Wand", "+1 to Level of all Minion Skill Gems", "Minions deal 80% increased Damage",
+                     "Minions have 20% increased Attack and Cast Speed")
 
 
 def weapon_options(info, attribute, archetype=None):
@@ -278,6 +295,10 @@ DELIVERY = re.compile(r"Trap|Mine|Totem|Ballista|Cast On|Cast on|Cast when|Cast 
 # average weights and were cut. When on: supports are tried in weight order, the best GUIDE_TOP
 # plus GUIDE_EXPLORE others at random (so the data keeps learning about the rest); passives never tried before are
 # tried in weight order. Auras, curses, ascendancy nodes and weapons are few: all of them are always tried.
+# Raise Spectre: every monster PoB has (src/Data/Spectres.lua, 268) is tried with its default skill; the best
+# SPECTRE_SHORTLIST are then tried with each of their skills. PoB counts the chosen skill as the only one the monster
+# uses, without cooldowns or AI (how often it really uses it) - a ceiling, to be checked in play.
+SPECTRE_SHORTLIST = 15
 GUIDE_TOP = 15
 GUIDE_EXPLORE = 5
 
@@ -288,7 +309,7 @@ def log(*args):
 
 class Generator:
     def __init__(self, skill, ascendancy, focus="balanced", level=95, name=None, infer=True, gear_from=None, archetype=None,
-                 guided=False, seed=None, max_uniques=0, build_around=None):
+                 guided=False, seed=None, max_uniques=0, build_around=None, spectre=None):
         self.skill, self.ascendancy, self.level = skill, ascendancy, level
         self.guided = guided
         self.rng = random.Random(seed)
@@ -303,6 +324,8 @@ class Generator:
         # --build-around: a unique worn from the start, with its profile's gear changes, so the whole search builds
         # around it (a unique added at the end is only ever a stat stick)
         self.around = build_around
+        self.spectre_name = spectre  # --spectre: raise this monster instead of searching
+        self.spectre_table = []  # (score, DPS, monster, skill) of the best spectres tried
         self.profile = unique_profile(build_around) if build_around else None
         if build_around and not self.profile:
             raise SystemExit(f"no build-around profile for {build_around!r} in {PROFILES}")
@@ -472,6 +495,39 @@ class Generator:
         _, label, changes, metrics = ranked[0]
         self.weapon = label
         self.accept("weapon", changes, metrics, f"weapon: {label}")
+
+    def pick_spectre(self):
+        """Raise Spectre raises nothing until a monster is chosen: try them all, then each skill of the best ones."""
+        if not self.skill.startswith("Raise Spectre"):
+            return
+        self.step = "spectre"
+        cands = WORKER.call("candidates", dict(self.params(), changes=self.state))["spectres"]
+        if self.spectre_name:
+            cands = [c for c in cands if c["name"].lower() == self.spectre_name.lower()]
+            if not cands:
+                raise SystemExit(f"no spectre named {self.spectre_name!r}")
+        moves = [[{"type": "spectre", "id": c["id"]}] for c in cands]
+        res = self.try_all(moves)
+        first = sorted(((self.score(r["metrics"]), i) for i, r in enumerate(res) if "metrics" in r), reverse=True)
+        found = []
+        for _, i in first[:SPECTRE_SHORTLIST]:
+            skills = res[i]["metrics"].get("minionSkills") or []
+            usable = [k for k, n in enumerate(skills) if "ultimate" not in n.lower()]
+            subs = [moves[i] + [{"type": "minion_skill", "skill": k + 1}] for k in usable] or [moves[i]]
+            for move, r in zip(subs, self.try_all(subs)):
+                if "metrics" in r:
+                    skill = skills[move[1]["skill"] - 1] if len(move) > 1 else "default"
+                    found.append((self.score(r["metrics"]), self.dps(r["metrics"]), cands[i]["name"], skill, move, r["metrics"]))
+        if not found:
+            return
+        found.sort(key=lambda x: -x[0])
+        seen = set()
+        for sc, dps, name, skill, _, _ in found:  # best skill per monster, for the report
+            if name not in seen:
+                seen.add(name)
+                self.spectre_table.append((sc, dps, name, skill))
+        _, _, name, skill, move, metrics = found[0]
+        self.accept("spectre", move, metrics, f"spectre: {name} using {skill}")
 
     def pick_minion_skill(self):
         """A minion with several skills: PoB starts with the first one the minion may use, which can deal no damage
@@ -746,6 +802,7 @@ class Generator:
                                         guide=self.guide)
         if not self.gear_from:
             self.pick_weapon()
+        self.pick_spectre()
         self.pick_minion_skill()
         self.pick_supports()
         if self.dps(self.current) <= 0:
@@ -798,7 +855,8 @@ class Generator:
     def notes(self):
         return "\n".join([
             f"Generated {datetime.date.today()} by tools/generate.py: {self.skill}, {self.ascendancy}, focus {self.focus}.",
-            "Template rare gear (life, two resistances, an attribute; typical weapon rolls) - an assumption, not real items."
+            "Template rare gear at a mid budget (life, a local defence, two resistances, an attribute; T2-T3 weapon rolls, "
+            "at most 3 prefixes and 3 suffixes) - an assumption, not real items."
             + (f" Archetype {ARCHETYPES[self.archetype]}." if self.archetype else ""),
             "Curses, marks and exposure count as always applied (how they are applied is not modelled).",
             (f"Built around {self.around}: " + " ".join(self.profile.get("why", [])) +
@@ -835,6 +893,10 @@ class Generator:
                  "## Steps", "", "| Step | Change | DPS | Score |", "|---|---|---|---|"]
         for h in self.history:
             lines.append(f"| {h['step']} | {h['note']} | {h['dps']:,.0f} | {h['score']:.3f} |")
+        if self.spectre_table:
+            lines += ["", "## Spectres tried (best skill each; PoB counts that skill as always used - test in play)", "",
+                      "| Spectre | Skill | DPS |", "|---|---|---|"]
+            lines += [f"| {n} | {k} | {d:,.0f} |" for _, d, n, k in self.spectre_table]
         lines += ["", "## Assumptions", "", *[f"- {n}" for n in self.notes().splitlines()[1:]],
                   "- Enemy: pinnacle boss (Config). Condition values PoB leaves at 0 are inferred (pob_scenarios explains them).",
                   "- The search is greedy: it finds a good build, not a proven best one."]
@@ -869,11 +931,12 @@ def main():
                     help="experimental: up to N unique items (each checked against the template rare it replaces)")
     ap.add_argument("--guided", action="store_true", help="experimental: try supports in library/weights.db order, only the best "
                                                           f"{GUIDE_TOP} + {GUIDE_EXPLORE} at random")
+    ap.add_argument("--spectre", metavar="MONSTER", help="Raise Spectre: raise this monster (PoB name) instead of searching")
     ap.add_argument("--gear-from", help="library build whose items to use (tests the tree and gem search against its author)")
     args = ap.parse_args()
     g = Generator(args.skill, args.ascendancy, args.focus, args.level, args.name, gear_from=args.gear_from, archetype=args.archetype,
                   guided=args.guided, max_uniques=args.uniques,
-                  build_around=args.build_around)
+                  build_around=args.build_around, spectre=args.spectre)
     if g.run() is None:
         log(f"\nDPS 0 · no damage: PoB calculates no damage for {args.skill} with weapon '{g.weapon}' - run stopped "
             f"({g.elapsed / 60:.1f} min)")

@@ -468,6 +468,21 @@ local function setGem(gem, name, level, quality)
 	return gemData.name
 end
 
+-- The Raise Spectre gem (first one, or the one in group c.group) whose chosen monster a "spectre" change sets
+local function findSpectreGem(groupRef)
+	local groups = build.skillsTab.socketGroupList
+	if groupRef then groups = { (findGroup(groupRef)) } end
+	for _, group in ipairs(groups) do
+		for _, gem in ipairs(group.gemList or { }) do
+			local effect = gem.grantedEffect or (gem.gemData and gem.gemData.grantedEffect)
+			if effect and effect.id and effect.id:match("^RaiseSpectre") then
+				return gem
+			end
+		end
+	end
+	error("no Raise Spectre gem in the build")
+end
+
 -- Each change returns a short description of what was done
 local changeHandlers = {
 	main_group = function(c)
@@ -477,6 +492,20 @@ local changeHandlers = {
 	end,
 	minion_skill = function(c)
 		return "minion skill: " .. selectMinionSkill(c.skill)
+	end,
+	-- {"type":"spectre","id":"Metadata/Monsters/..."}: the monster raised by Raise Spectre (added to the
+	-- build's spectre library if missing); its minion skill goes back to PoB's default
+	spectre = function(c)
+		local id = assert(c.id, "spectre needs an id")
+		local monster = assert(data.spectres[id], "no spectre '" .. tostring(id) .. "'")
+		local gem = findSpectreGem(c.group)
+		local listed = false
+		for _, have in ipairs(build.spectreList) do if have == id then listed = true break end end
+		if not listed then table.insert(build.spectreList, id) end
+		gem.skillMinion, gem.skillMinionCalcs = id, id
+		gem.skillMinionSkill, gem.skillMinionSkillCalcs = nil, nil
+		recalc()
+		return "spectre: " .. monster.name
 	end,
 	gem_replace = function(c)
 		local group, index = findGroup(c.group or c.gem)
@@ -1455,6 +1484,17 @@ local function applyReversible(change)
 		return result, function()
 			if inst then inst.skillMinionSkill, inst.skillMinionSkillCalcs = old, oldCalcs end
 		end
+	elseif t == "spectre" then
+		local gem = findSpectreGem(change.group)
+		local keys = { "skillMinion", "skillMinionCalcs", "skillMinionSkill", "skillMinionSkillCalcs" }
+		local saved, savedList = { }, copyTable(build.spectreList)
+		for _, key in ipairs(keys) do saved[key] = gem[key] end
+		local result = changeHandlers[t](change)
+		return result, function()
+			for _, key in ipairs(keys) do gem[key] = saved[key] end
+			wipeTable(build.spectreList)
+			for _, id in ipairs(savedList) do table.insert(build.spectreList, id) end
+		end
 	elseif t == "custom_block" then
 		local set = build.configTab.configSets[build.configTab.activeConfigSetId]
 		local saved = copyTable(set.customModsList or { })
@@ -1531,6 +1571,12 @@ function methods.candidates(p)
 	end
 	for _, name in ipairs(defensiveSkills) do if not present[name:lower()] then table.insert(result.skills, { name = name, purpose = "defence" }) end end
 	for _, name in ipairs(minionBuffSkills) do if not present[name:lower()] then table.insert(result.skills, { name = name, purpose = "damage" }) end end
+	-- Every monster Raise Spectre can raise (ids for a "spectre" change)
+	result.spectres = { }
+	for id, monster in pairs(data.spectres) do
+		table.insert(result.spectres, { id = id, name = monster.name, skills = #(monster.skillList or { }) })
+	end
+	table.sort(result.spectres, function(a, b) if a.name == b.name then return a.id < b.id end return a.name < b.name end)
 	-- Reachable notables and keystones, with the points their path costs
 	for id, node in pairs(build.spec.nodes) do
 		if (node.type == "Notable" or node.type == "Keystone") and not node.alloc and not node.ascendancyName and node.path and #node.path <= (p.maxPath or 6) then

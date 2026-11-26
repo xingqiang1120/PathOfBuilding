@@ -11,7 +11,7 @@
 
 ## T1 家裡電腦第一次準備＋跑第 13 版考試（2026-11-26 晚上）
 - 給：home
-- 狀態：待做
+- 狀態：已交回（home，2026-11-27）
 - 內容：
   1. 照 HOME_PC A 段準備（已經有 Claude；缺 Python、Git、GitHub CLI 的話先裝，`gh auth login` 登入擁有私人庫的帳號）。
   2. 照 B 段把這個對話命名為「PoB 執行 home」、打開 Remote Control。
@@ -19,7 +19,26 @@
   4. 回報使用者：考試結果摘要（作者組幾組及格、底線幾組過）、跑了多久、記憶體用量。
 - 改檔案：無（只跑計算）
 - 完成標準：私人庫有 results/v13/home/ 的三個檔案（v13.md、v13.json、v13-gap.md）。
-- 交回：
+- 交回（home，2026-11-27 00:40）：
+  - **結果：作者組 3/7（v12 是 2/7）、底線 8/10（v12 是 9/10）、對 v12 沒有退步 10/10。** 私人庫 `results/v13/home/` 三個檔案已推上。
+  - 作者組：及格 Smite／Slayer 111%、Smite／Gladiator 96%（v12 只有 11%，v13 的修正生效）、Summon Skeletons 189%。
+    沒及格：Storm Call／Assassin 74%、Storm Call／Hierophant 60%、Reave 66%（DPS 不到 80%）；KB Necro DPS 178% 但防禦 11.18 低於作者 11.76 超過 0.1。
+    v13 和 v12 的 7 組裡有 6 組數字完全一樣（考試是決定性的），只有 Smite／Gladiator 改變。
+  - 底線：Glacial Hammer／Champion 分數 25.33→26.01（+0.68，回來了）但混沌抗 -8 不過底線（v12 過）；Cyclone／Slayer 生命+ES 3,760 不到 4,000（v12 也沒過）。其他 8 組都過、分數都 +0.00。
+    → 底線 9/10 變 8/10 是 Glacial Hammer 的抗性被換成分數造成的，請阿福判斷算不算退步。
+  - 差距報告（v13-gap.md）最大的單項：Storm Call／Hierophant 少了 Overloaded Intensity 輔助（+88%）、Righteous Fire（+42%）；
+    Storm Call／Assassin 少了 Power Charge On Critical（+28%）、Righteous Fire of Arcane Devotion（+26%）、Increased Critical Damage（+24%）、Less Duration（+21%）；
+    Reave 少了 Vaal Smite（+30%）、Blood and Sand（+15%）。共通點：作者有的「輔助性技能」（RF 類、Pact of Beidat、Vaal 技能）生成器都沒選。
+    許多作者的珠寶／星團節點（Divine Flesh、Dance with Death、Summon Spectral Tiger…）報告標「not applicable」，就是珠寶被丟掉的部分。
+  - 時間：樣板組 10 組 7 分 18 秒、作者組 7 組 7 分 35 秒、差距報告 43 秒（--jobs 14，home 16 邏輯核心）。整套不分段大約 10 分鐘。
+  - 記憶體：每組 generate 約 1.1～1.4 GB。10 組同時跑時 Python 合計尖峰 12.7 GB、系統用量 24.0 GB／31 GB（開跑前系統已用 11.9 GB）。
+    推算 14 組同時跑約 29～30 GB，很接近上限；建議 home 用 `--jobs 12`，或跑前關掉其他程式。
+  - **考試程式 bug（已修，分支 `home/t1-v13`，請阿福合併回 feature/ai-tools）：** v13 在 Generator.__init__ 新增 `resists_later`，
+    但 benchmark.py 的 `scorer()` 用 `__new__` 建物件沒設它，替作者 build 評分時 AttributeError，7 組作者全被 skip。
+    修正是補一行 `g.resists_later = False`（與 __init__ 預設相同），只動 benchmark.py，不影響生成器與成績可比性。gap.py 也用同一個 scorer，一起受惠。
+    因此這次是先跑樣板組、修完再 `--only authors` 補跑合併；單元測試 60 個全過。
+  - 另外：home 本機沒有 v12 結果，退步比較會顯示 version None；我把私人庫的 v11/v12.json 複製到 `library/benchmark/` 才算得出來。
+    建議 `labdata.py pull` 順便把其他台的最新 benchmark json 放進 library/benchmark/（或在 HOME_PC C 段加一步）。
 
 ## T2 第 2 台設定（2026-11-27）
 - 給：pc2

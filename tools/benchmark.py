@@ -42,6 +42,7 @@ def scorer(minion=False, profile=None):
     """A Generator used only for its score (balanced focus)."""
     g = generate.Generator.__new__(generate.Generator)
     g.weight, g.profile, g.attributes_later, g.info = generate.FOCUS["balanced"], profile, False, {"minion": minion}
+    g.resists_later = False  # v13 flag read by penalty(); __init__ is bypassed here, so set it (v13 first run skipped every author)
     return g
 
 

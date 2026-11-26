@@ -13,7 +13,7 @@
 - 給：家裡
 - 狀態：待做
 - 內容：使用者說「跑今天的考試」時：`git pull` → `python tools/benchmark.py run --jobs <核心數減 2>` →
-  `python tools/gap.py --benchmark`。跑完告訴使用者把 `libraryenchmark\` 的 `v<版本>.md`、`v<版本>.json`、
+  `python tools/gap.py --benchmark`。跑完告訴使用者把 `library\benchmark\` 的 `v<版本>.md`、`v<版本>.json`、
   `v<版本>-gap.md` 放到雲端。同一版已經跑過（檔案已存在）就不用重跑。
 - 改檔案：無（只跑計算）
 - 完成標準：三個檔案產生，交給使用者。

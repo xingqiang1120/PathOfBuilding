@@ -1,0 +1,50 @@
+# 交接文件：目前進度（給三台電腦的 AI）
+
+> 負責人 AI「阿福」在公司電腦，每次有進展就更新這份。其他電腦的 AI 開工前先 `git pull` 再讀這份，
+> 然後讀 `tools/TASKS.zh-TW.md`（派給你的任務）。細節：路線圖 `tools/ROADMAP.zh-TW.md`、驗收標準 `tools/ACCEPTANCE.zh-TW.md`。
+
+最後更新：2026-11-26（阿福）
+
+## 專案是什麼
+使用者（PoE 老玩家，雷射板金公司負責人，不是程式設計師，稱 AI 為「阿福」）的 Path of Building 分支。
+目標：輸入技能＋昇華，自動產生正確又有創意的 build（`tools/generate.py`），用 PoB 本身計算；
+之後從大量自我對弈（`tools/selfplay.py`）學權重。驗證三種：保留資料、真人 build、實際遊玩。
+
+## 三台電腦
+| 代號 | 電腦 | 角色 |
+|---|---|---|
+| office | 公司主電腦（阿福在這） | 決定方向、改生成器、驗收。**晚上記憶體被其他工作占用，不跑計算。** |
+| pc2 | 公司第 2 台（14 核心） | 晚上跑計算，有執行 AI |
+| home | 家裡（最強，00:00～20:00 有空） | 主要計算，有執行 AI |
+
+溝通管道：
+1. 程式與文件：公開庫 `xingqiang1120/PathOfBuilding`，分支 `feature/ai-tools`。
+2. 私人資料（真人 build 庫、考試結果）：私人庫 `xingqiang1120/pob-lab-data`，用 `python tools/labdata.py pull|push|status`。
+3. 即時指揮：各台對話開 Remote Control，阿福用訊息派工作。訊息只限本專案範圍。
+
+## 目前階段：一（先把計算改準）
+- 生成器第 13 版。自我對弈**暫停**：規則還在改，跑了下一版就作廢。
+- 算力用來跑驗收考試（`tools/benchmark.py`）和差距報告（`tools/gap.py`），阿福看報告決定下一版改什麼。
+- 進入階段二（凍結版本、連跑幾晚自我對弈）的門檻：作者組 ≥ 5/7、底線 10/10、連續兩版沒有退步。
+- 版本規則：生成器的修改累積起來一天發一版（升 GENERATOR_VERSION），不在別台跑到一半時改版。
+
+## 考試成績
+| 版本 | 作者組 | 底線 | 備註 |
+|---|---|---|---|
+| 11 | 2/7 | 8/10 | |
+| 12 | 2/7 | 9/10 | Smite／Gladiator 11%（沒選輔助寶石）；Glacial Hammer 退步 0.68 |
+| 13 | 待跑（pc2 2026-11-26 晚上） | | 單獨驗證：Smite／Gladiator 84%（及格），Glacial Hammer 回到 26.01，但混沌抗 -8 |
+
+## 已知的下一批問題（依優先）
+1. Storm Call 兩組（作者的 60～74%）、Reave（66%）：看 v13 差距報告。
+2. KB Necro 防禦不到作者。
+3. 珠寶：星團、永恆珠寶都被丟掉（作者有，我們沒有）。
+4. 樣板：Glacial Hammer 混沌抗、Cyclone 生命不到底線；Tornado Shot、Essence Drain DPS 偏低。
+
+## 使用者定下的規則（每台都要遵守）
+- 繁體中文；取捨講清楚，不要只丟術語。
+- `library/`、`src/Builds/` 不提交到公開庫（有帳號資料）；真人 build 只放私人庫。
+- 不抓 poe.ninja 的 build 頁面；不讀遊戲記憶體或封包。
+- 不刪資料庫檔案，要刪先問使用者。不關使用者的程式，先問。
+- commit 用 GitHub no-reply 信箱，最後一行 `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`。
+- 遊玩驗證過的設定，使用者確認後才存。

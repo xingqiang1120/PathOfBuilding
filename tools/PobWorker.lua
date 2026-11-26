@@ -1276,6 +1276,7 @@ local function skillInfo(effect)
 		minion = types[SkillType.Minion] or false, totem = types[SkillType.SummonsTotem] or false,
 		melee = types[SkillType.Melee] or false, projectile = types[SkillType.Projectile] or false,
 		dualWield = types[SkillType.DualWieldOnly] or false, dualWieldDifferent = types[SkillType.DualWieldRequiresDifferentTypes] or false,
+		requiresStaff = types[SkillType.RequiresStaff] or false,
 		weaponTypes = weapons,
 	}
 end
@@ -1445,6 +1446,14 @@ local function applyReversible(change)
 			slot.active = oldActive
 			if build.itemsTab.activeItemSet[change.slot] then build.itemsTab.activeItemSet[change.slot].active = oldActive end
 			build.itemsTab:PopulateSlots()
+		end
+	elseif t == "minion_skill" then
+		local _, skill = minionSkillList()
+		local inst = skill and skill.activeEffect.srcInstance
+		local old, oldCalcs = inst and inst.skillMinionSkill, inst and inst.skillMinionSkillCalcs
+		local result = changeHandlers[t](change)
+		return result, function()
+			if inst then inst.skillMinionSkill, inst.skillMinionSkillCalcs = old, oldCalcs end
 		end
 	elseif t == "custom_block" then
 		local set = build.configTab.configSets[build.configTab.activeConfigSetId]

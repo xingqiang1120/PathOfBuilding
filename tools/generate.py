@@ -45,7 +45,15 @@ OUT_DIR = os.environ.get("POB_GENERATE_DIR") or os.path.join(library.ROOT, "src"
 FOCUS = {"damage": 0.5, "balanced": 1.0, "defence": 2.0}
 # Version of the generator's rules, kept with every run: results of different versions are not comparable.
 # 2: realistic skill stages (Blade Blast, Explosive Arrow), dual-wield weapons, runs stop when the skill deals no damage.
-GENERATOR_VERSION = 8
+GENERATOR_VERSION = 9
+# Results of older versions from STILL_VALID_FROM on still count as done in self-play, except for the skills a later
+# version changed (changed_since_valid). Version 9 only changed minion skills (the minion's skill is now chosen),
+# unarmed attacks (empty main hand) and spells that need a staff.
+STILL_VALID_FROM = 8
+
+
+def changed_since_valid(skill, info):
+    return bool(info.get("minion") or skill.startswith("Explosive Concoction") or skill.startswith("Mana-Infused Staff"))
 
 
 def item(name, base, *lines, implicits=()):
@@ -114,6 +122,9 @@ SPELL_WEAPON = item("Template Sceptre", "Void Sceptre", "90% increased Spell Dam
                     "80% increased Critical Strike Chance for Spells", "+30% to Global Critical Strike Multiplier", "+40 to Intelligence")
 SPELL_SHIELD = item("Template Shield", "Titanium Spirit Shield", "+80 to maximum Life", "60% increased Spell Damage",
                     "+40% to Fire Resistance", "+40% to Cold Resistance")
+# A staff for spells that need one (e.g. Mana-Infused Staff)
+SPELL_STAFF = item("Template Spell Staff", "Eclipse Staff", "90% increased Spell Damage", "20% increased Cast Speed",
+                   "+80 to maximum Mana", "+40 to Intelligence")
 MINION_WEAPON = item("Template Wand", "Convoking Wand", "+1 to Level of all Minion Skill Gems", "Minions deal 60% increased Damage",
                      "Minions have 25% increased Attack Speed", "Minions have 25% increased Cast Speed")
 
@@ -127,7 +138,12 @@ def weapon_options(info, attribute, archetype=None):
     options = []
     if info["minion"]:
         options.append(("minion wand + shield", [{"type": "item_equip", "slot": "Weapon 1", "raw": MINION_WEAPON}, shield_change]))
-    if info["spell"] and not info["attack"]:
+    if info.get("requiresStaff"):
+        options.append(("spell staff", [{"type": "item_equip", "slot": "Weapon 1", "raw": SPELL_STAFF}]))
+    if info["attack"] and info.get("weaponTypes") == ["None"]:
+        # an unarmed attack that needs an empty main hand (e.g. Explosive Concoction): only a shield
+        options.append(("empty main hand + shield", [shield_change]))
+    if info["spell"] and not info["attack"] and not info.get("requiresStaff"):
         options.append(("spell sceptre + shield", [{"type": "item_equip", "slot": "Weapon 1", "raw": spell_weapon},
                                                     {"type": "item_equip", "slot": "Weapon 2", "raw": SPELL_SHIELD}]))
     if info["attack"]:
@@ -457,6 +473,20 @@ class Generator:
         self.weapon = label
         self.accept("weapon", changes, metrics, f"weapon: {label}")
 
+    def pick_minion_skill(self):
+        """A minion with several skills: PoB starts with the first one the minion may use, which can deal no damage
+        (Summon Reaper's is Consume, a heal). Try each and keep the best."""
+        skills = self.current.get("minionSkills") or []
+        if len(skills) < 2:
+            return
+        self.step = "minion skill"
+        # an "Ultimate" is a cooldown special (Summon Reaper): PoB would count it as the minion's only attack
+        usable = [i for i, name in enumerate(skills) if "ultimate" not in name.lower()]
+        found = self.best([[{"type": "minion_skill", "skill": i + 1}] for i in usable], self.current)
+        if found and found[0]:
+            move, metrics, _ = found[0]
+            self.accept("minion skill", move, metrics, f"minion skill: {skills[move[0]['skill'] - 1]}")
+
     def pick_supports(self, count=5):
         self.step = "support"
         cands = WORKER.call("candidates", dict(self.params(), changes=self.state))
@@ -716,6 +746,7 @@ class Generator:
                                         guide=self.guide)
         if not self.gear_from:
             self.pick_weapon()
+        self.pick_minion_skill()
         self.pick_supports()
         if self.dps(self.current) <= 0:
             # nothing the search does can be measured (PoB calculates no damage for this skill with this setup):

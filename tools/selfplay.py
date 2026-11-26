@@ -177,14 +177,17 @@ def finished_pairs(pob_version, focus):
     """(done, tried): pairs finished by the current generator version, and pairs finished by any version. Results of an
     older generator stay in the log as data, but the pair is run again (after the pairs never run at all)."""
     db = simlog.connect()
-    rows = db.execute("SELECT skill, ascendancy, generator, gear FROM runs WHERE tool = 'generate' AND finished IS NOT NULL "
-                      "AND gear IN ('template', 'template crit') AND guide IS NULL AND focus = ? AND (pob_version = ? OR ? IS NULL)",
-                      (focus, pob_version, pob_version)).fetchall()
+    rows = db.execute("SELECT skill, ascendancy, generator, gear, skill_info, outcome FROM runs WHERE tool = 'generate' "
+                      "AND finished IS NOT NULL AND gear IN ('template', 'template crit') AND guide IS NULL AND focus = ? "
+                      "AND (pob_version = ? OR ? IS NULL)", (focus, pob_version, pob_version)).fetchall()
     done, tried = set(), set()
-    for skill, asc, version, gear in rows:
+    for skill, asc, version, gear, info, outcome in rows:
         key = (skill, asc, "crit" if gear == "template crit" else None)
         tried.add(key)
-        if (version or 1) >= generate.GENERATOR_VERSION:
+        version = version or 1
+        if version >= generate.GENERATOR_VERSION or (
+                version >= generate.STILL_VALID_FROM and outcome != "no damage"
+                and not generate.changed_since_valid(skill, json.loads(info or "{}"))):
             done.add(key)
     return done, tried
 

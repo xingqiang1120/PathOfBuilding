@@ -143,5 +143,23 @@ class GenerateTest(unittest.TestCase):
         with self.assertRaises(SystemExit):
             generate.Generator("Storm Call", "Assassin", build_around="No Such Unique")
 
+    def test_skills_that_need_a_special_weapon_setup(self):
+        for skill, asc, attribute, label in (("Explosive Concoction", "Trickster", "Dex", "empty main hand + shield"),
+                                             ("Mana-Infused Staff", "Elementalist", "Int", "spell staff")):
+            r = WORKER.call("create_build", {"ascendancy": asc, "skill": skill, "level": 90})
+            options = generate.weapon_options(r["skillInfo"], attribute)
+            self.assertEqual([lab for lab, _ in options], [label])
+            m = WORKER.call("try", {"xml": r["xml"], "name": "t", "candidates": [self.gear(r, attribute)]})[0]["metrics"]
+            self.assertGreater(m["playerDPS"], 0, skill)
+
+    def test_minion_skill_choice_is_undone(self):
+        r = WORKER.call("create_build", {"ascendancy": "Necromancer", "skill": "Summon Reaper", "level": 90})
+        gear = self.gear(r, "Int")
+        first, combo, after = (x["metrics"] for x in WORKER.call("try", {"xml": r["xml"], "name": "t", "changes": gear, "candidates": [
+            [], [{"type": "minion_skill", "skill": "Combo Slash"}], []]}))
+        self.assertEqual(first["minionDPS"], 0)  # Consume: a heal
+        self.assertGreater(combo["minionDPS"], 0)
+        self.assertEqual(after["minionSkill"], first["minionSkill"])
+
 if __name__ == "__main__":
     unittest.main()

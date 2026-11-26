@@ -5,10 +5,10 @@
 
 ---
 
-## T1 家裡電腦跑第 3 份自我對弈
+## T1 家裡電腦跑自我對弈（第 2～5 份）
 - 給：家裡
 - 狀態：待做
-- 內容：照 HOME_PC B 段，晚上跑 `--shard 3/3`。跑完把 `library\simdata.db` 帶到公司合併。
+- 內容：照 HOME_PC B 段，每天 00:00 啟動 `--hours 19.5 --shard 2-5/5`。跑完把 `library\simdata.db` 帶到公司合併。
 - 改檔案：無（只跑計算）
 - 完成標準：`python tools/selfplay.py --status` 顯示 FINISHED，資料庫交給使用者帶到公司。
 - 交回：

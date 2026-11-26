@@ -1,7 +1,7 @@
 # 家裡電腦加入（第 3 台＋家裡的 AI）
 
 家裡電腦有兩個用途：
-1. **跑計算**（第 3 台）：晚上跟公司兩台一起跑自我對弈，也可以跑驗收考試（benchmark）。
+1. **跑計算**：家裡時間最多（半夜到隔天晚上 8 點），拿最大份的自我對弈，也跑驗收考試（benchmark）。
 2. **家裡的 AI**（第二階段）：在家裡開 Claude，接「單項優化任務」，做完交回來給公司這邊的負責人（阿福）驗收。
 
 兩個 AI **不會自動共享記憶**，所以靠 repo 裡的文件溝通：
@@ -21,15 +21,18 @@
    - 家裡：放到同樣的 `library\` 位置。
 3. 模擬資料不用複製：第 11 版全部重跑，家裡從空的開始就好。
 
-## B. 晚上跑計算（三台分三份）
+## B. 跑計算（依每台的時間分份）
 
-三台各跑一份技能，不會重複：
+2026-11-26 起的排程（使用者定）：公司這台晚上常常在做別的事，**預設不跑**；第 2 台只有晚上；
+家裡電腦從半夜 12 點跑到隔天晚上 8 點，時間最多，所以拿大份。技能分成 5 份：
 
-| 電腦 | 指令（啟動前先 `git pull`） |
-|---|---|
-| 公司這台 | `python tools/selfplay.py --hours 14 --jobs 4 --shard 1/3` |
-| 第 2 台（14 核心） | `python tools/selfplay.py --hours 12 --jobs 8 --shard 2/3` |
-| 家裡 | `python tools/selfplay.py --hours 12 --jobs <核心數減 2> --shard 3/3` |
+| 電腦 | 時段 | 指令（啟動前先 `git pull`） |
+|---|---|---|
+| 第 2 台（14 核心） | 晚上 | `python tools/selfplay.py --hours 5 --jobs 8 --shard 1/5` |
+| 家裡 | 00:00～20:00 | `python tools/selfplay.py --hours 19.5 --jobs <核心數減 2> --shard 2-5/5` |
+| 公司這台 | 只有使用者說可以時 | 不分份：先合併兩台的資料，再 `python tools/selfplay.py --hours N --jobs 4`（會自動跳過已跑完的） |
+
+`--hours` 是「多久後不再開新的」，正在跑的會跑完（最多 40 分鐘），所以家裡設 19.5 小時，8 點前就會停。
 
 隔天合併：把家裡的 `library\simdata.db` 帶到公司（隨身碟或雲端硬碟），放成 `library\from-home.db`，再執行
 `python tools/simlog.py merge library\from-home.db`。

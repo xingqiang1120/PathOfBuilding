@@ -119,22 +119,25 @@ def main_attribute(skill):
 
 
 def in_shard(skill, shard):
-    """shard = (k, n): this computer runs share k of n. Split by skill name with a fixed hash, so every computer gets
-    the same split without talking to the others, and all ascendancies of a skill stay on one computer."""
+    """shard = (shares, n): this computer runs those shares of n. Split by skill name with a fixed hash, so every
+    computer gets the same split without talking to the others, and all ascendancies of a skill stay on one computer."""
     if not shard:
         return True
-    k, n = shard
-    return zlib.crc32(skill.encode("utf-8")) % n == k - 1
+    shares, n = shard
+    return zlib.crc32(skill.encode("utf-8")) % n + 1 in shares
 
 
 def parse_shard(text):
+    """'K/N' (one share) or 'K-L/N' (shares K to L, for a computer with more time, e.g. 2-5/5)."""
     try:
-        k, n = (int(x) for x in text.split("/"))
+        part, n = text.split("/")
+        lo, _, hi = part.partition("-")
+        lo, hi, n = int(lo), int(hi or lo), int(n)
     except ValueError:
-        raise SystemExit(f"--shard needs the form K/N, e.g. 2/2 (got {text!r})")
-    if not 1 <= k <= n:
-        raise SystemExit(f"--shard {text}: K must be between 1 and N")
-    return k, n
+        raise SystemExit(f"--shard needs the form K/N or K-L/N, e.g. 2/2 or 2-5/5 (got {text!r})")
+    if not 1 <= lo <= hi <= n:
+        raise SystemExit(f"--shard {text}: shares must be between 1 and N")
+    return set(range(lo, hi + 1)), n
 
 
 DEFAULT_ARCHETYPES = "none,crit,armour,block,evasion,es,takenas"
@@ -251,7 +254,7 @@ def main():
     ap.add_argument("--jobs", type=int, default=1, help="generators running at the same time (each uses one CPU core)")
     ap.add_argument("--focus", default="balanced", choices=["damage", "balanced", "defence"])
     ap.add_argument("--skills", help="comma-separated parts of skill names to limit the run to")
-    ap.add_argument("--shard", help="K/N: run only share K of N, to split the work over N computers (e.g. 1/2 here, 2/2 on the "
+    ap.add_argument("--shard", help="K/N or K-L/N: run only share K (or K to L) of N, to split the work over N computers (e.g. 1/2 here, 2/2 on the "
                                      "other one); merge their results with  python tools/simlog.py merge <file>")
     ap.add_argument("--archetypes", default=DEFAULT_ARCHETYPES,
                     help=f"comma-separated, in queue order (default {DEFAULT_ARCHETYPES}); none = the plain template gear")
@@ -299,7 +302,7 @@ def main():
     if args.runs:
         queue = queue[:args.runs]
     print(f"PoB {versions.get('pobVersion')}, tree {versions.get('treeVersion')}: {len(queue)} pairs to run, {skipped} already done"
-          + (f" (share {shard[0]} of {shard[1]})" if shard else ""))
+          + (f" (shares {args.shard})" if shard else ""))
     if args.dry_run:
         for skill, asc, archetype in queue[:50]:
             print(f"  {label(skill, asc, archetype)}")

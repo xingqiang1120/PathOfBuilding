@@ -50,7 +50,7 @@
 
 ## T3 home：生成器計算優化負責人（2026-11-27 起，持續）
 - 給：home
-- 狀態：進行中（v14 已驗收合併；v15 已交回，等阿福驗收）
+- 狀態：進行中（v14、v15 已驗收合併；v16 已交回，等阿福驗收）
 - 內容：home 自己負責「改生成器→跑考試→交回」的循環，不用等阿福逐項派工。
   1. 從最新的差距報告（`library\benchmark\v<版本>-gap.md`）和 HANDOFF「已知的下一批問題」挑一個問題。
   2. 開分支 `home/v<下一版>-<主題>`，改 `tools/generate.py`（和它需要的 PobWorker.lua、tools/data/ 的樣板資料），
@@ -121,6 +121,29 @@
   - **請阿福判斷**：嚴格照「沒有任何一組退步」，作者組及格數 3 → 2 不過；但那一組差 0.01、主因是路徑噪音，而 DPS 四組進步、樣板組零退步六進步。
     我的建議是收 v15，Smite／Gladiator 的穩定性另開題。
   - 結果：私人庫 `results/v15/home/`（v15.md、v15.json、v15-gap.md）。
+
+  ### v16 `home/v16-deterministic`：同一版跑兩次結果完全相同（2026-11-27 13:52，home）
+  - **題目**：搜尋穩定性第一步——決定性（阿福 2026-11-27 調換順序，混沌抗延到 v17）。
+  - **問題**：v15 同一份程式連跑兩次作者組，Storm Call／Assassin 84% 與 100%、Smite／Gladiator 96%（及格）與 89%（不及格），其他 5 組相同。
+    來源是 Lua 的 pairs() 迭代順序在不同程序間不固定（LuaJIT 字串雜湊種子），而生成器 (a) 分數打平時取清單裡第一個，(b) 樹的步驚每輪
+    只試「前 80 個沒試過的」候選——哪 80 個完全由 pairs 順序決定，所以每次跑出不同的樹。
+  - **改了什麼**（`tools/PobWorker.lua`、`tools/generate.py`，不動計分、不動考卷）：
+    1. Lua：candidates 回傳的 passives、jewelSockets、masteries、removable，以及 ascendancy_candidates 的清單，全部排序（id／effect）後才回傳。
+       supports、anoints、spectres、uniques 原本就有排序。
+    2. Python：樹的候選排成「最便宜優先、再依 id」（原本哪 80 個被試是隨機的，現在固定且合理：先試便宜的）；昇華候選依 id；
+       uniques 依槽位（JSON 物件順序來自 pairs）。`best()` 加平手規則：分數差 < 1e-9 視為平手，取排序在前的（TIE）。
+    3. 順手：`recalc()` 與 `checkBuild()` 在 PoB 沒產出 mainOutput 時重算一次、再失敗才報清楚的錯（v15 重跑時偶發的 `attempt to index local 'o'`）。
+    版號 16。單元測試 60 全過。
+  - **驗收**（阿福定的方法：同一版連跑兩次完整考試，17 組分數要完全相同）：**17/17 完全相同**（score、DPS、defence 到最後一位小數都一樣）。
+    前置檢查：Smite／Gladiator 同時跑兩次，每一步都一樣。兩份都在私人庫 `results/v16/home/`：v16.json（第二次）、v16-rerun.json／.md（第一次）。
+  - **成績 v15 → v16**（路徑換了，分數不同是預期的；以下與 v15 最後一次的值比）：作者組 3/7 → 3/7（Smite／Slayer 103%、Reave 82%、Skeletons 194% 及格）；
+    底線 8/10 → 8/10。作者組：Smite／Slayer 100% → 103%、Storm Call／Assassin 100% → 91%（v15 兩次是 84%／100%，v16 固定在 91%）、Skeletons 189% → 194%，
+    其餘四組與 v15 完全相同。樣板組：Fireball +0.01、Fireball block −0.08、Tornado Shot −0.09、Essence Drain −0.03、Raise Zombie −0.09、Raise Spectre −0.02，
+    其餘五組 +0.00。考試報告把三組標成 REGRESSION（> 0.05），但 v15 的那些數字本身是隨機路徑的其中一次；從 v16 起「沒有退步」才有意義。
+    變化的來源是樹的候選改成「便宜優先」——原本隨機挑 80 個，有時剛好挑到好的。
+  - 時間／記憶體（--jobs 12）：兩次各 14 分 33 秒、14 分 44 秒；Python 尖峰 14.3 GB、系統 25.3 GB／31 GB。
+  - 結果：私人庫 `results/v16/home/`（v16.md、v16.json、v16-gap.md、v16-rerun.json、v16-rerun.md）。
+  - 下一題：v17 混沌抗（半成品在 `home/v17-chaos-floor`，從 v16 接著做；單組驗證 Glacial Hammer 混沌抗 −8 → 38、底線全過，但 DPS 676 萬 → 390 萬）。
 
 ## T4 office：保留考卷
 - 給：使用者＋阿福（office）、pc2 跑

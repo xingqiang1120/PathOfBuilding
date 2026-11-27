@@ -103,6 +103,11 @@ local function checkBuild(params)
 	build.buildFlag = true
 	runCallback("OnFrame")
 	local o = build.calcsTab.mainOutput
+	if not o then  -- seen once in 60 runs (v15): the frame produced no output; one more frame, then a clear error
+		build.buildFlag = true
+		runCallback("OnFrame")
+		o = build.calcsTab.mainOutput or error("PoB produced no output for this build (calculation failed twice)")
+	end
 	for _, pool in ipairs({ "Mana", "Life" }) do
 		local free = o[pool .. "Unreserved"]
 		if type(free) == "number" and free < 0 then
@@ -148,7 +153,11 @@ end
 local function recalc()
 	build.buildFlag = true
 	runCallback("OnFrame")
-	return build.calcsTab.mainOutput
+	if not build.calcsTab.mainOutput then  -- no output from the frame (seen once in 60 runs): once more, then fail loudly
+		build.buildFlag = true
+		runCallback("OnFrame")
+	end
+	return build.calcsTab.mainOutput or error("PoB produced no output for this build (calculation failed twice)")
 end
 
 -- Estimate and apply Config values the build leaves at 0 (e.g. withered stacks). Values the user
@@ -1412,6 +1421,7 @@ function methods.ascendancy_candidates(p)
 			used = used + 1
 		end
 	end
+	table.sort(list, function(a, b) return a.id < b.id end)  -- pairs() order differs between processes (v16)
 	return { ascendancy = asc, used = used, available = 8, candidates = list }
 end
 
@@ -1616,6 +1626,9 @@ function methods.candidates(p)
 			table.insert(result.passives, { id = id, name = node.dn, type = node.type, cost = #node.path })
 		end
 	end
+	-- Every list below is sorted: pairs() order differs between processes, and the generator takes the first of equal
+	-- candidates and tries only the first 80 untried passives, so an arbitrary order made each run a different build (v16)
+	table.sort(result.passives, function(a, b) return a.id < b.id end)
 	-- Jewel sockets of the passive tree (not cluster-jewel sub-trees): reachable ones with their path cost, and
 	-- allocated ones still empty (cost 0). A jewel counts only in an allocated socket.
 	result.jewelSockets = { }
@@ -1630,6 +1643,7 @@ function methods.candidates(p)
 			end
 		end
 	end
+	table.sort(result.jewelSockets, function(a, b) return a.id < b.id end)
 	-- Notables an amulet can be anointed with (they have an oil recipe), not allocated already
 	result.anoints = { }
 	for _, node in pairs(build.spec.nodes) do
@@ -1659,6 +1673,7 @@ function methods.candidates(p)
 			end
 		end
 	end
+	table.sort(result.masteries, function(a, b) if a.id == b.id then return a.effect < b.effect end return a.id < b.id end)
 	-- Allocated notables / keystones that can be removed without disconnecting more than a few points
 	result.removable = { }
 	for id, node in pairs(build.spec.allocNodes) do
@@ -1666,6 +1681,7 @@ function methods.candidates(p)
 			table.insert(result.removable, { id = id, name = node.dn, frees = #(node.depends or { node }) })
 		end
 	end
+	table.sort(result.removable, function(a, b) return a.id < b.id end)
 	-- Uniques per equipped slot, within the character's level
 	local level = build.characterLevel
 	for _, slot in ipairs(build.itemsTab.orderedSlots or { }) do

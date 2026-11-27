@@ -50,7 +50,7 @@
 
 ## T3 home：生成器計算優化負責人（2026-11-27 起，持續）
 - 給：home
-- 狀態：進行中（v14～v21 已驗收合併；v22 樹的階段雙起點已交回，等阿福驗收；對 v21 無退步 10/10，但考卷雜訊的門檻等阿福和使用者決定）
+- 狀態：進行中（v14～v22 已驗收合併；v23 階段二前必修已交回，等阿福驗收；考試對 v22 一字不差 17/17、selfplay 同 seed 可重現，但搜尋本身沒改——進階段二由使用者決定）
 - 內容：home 自己負責「改生成器→跑考試→交回」的循環，不用等阿福逐項派工。
   1. 從最新的差距報告（`library\benchmark\v<版本>-gap.md`）和 HANDOFF「已知的下一批問題」挑一個問題。
   2. 開分支 `home/v<下一版>-<主題>`，改 `tools/generate.py`（和它需要的 PobWorker.lua、tools/data/ 的樣板資料），
@@ -374,6 +374,41 @@
   - 結果：私人庫 `results/v22/home/`：v22.*／v22-gap.md（預設，第二次）、v22-rerun.*（預設，第一次，相同）、v22-tie-alt.*、v21-tie-reverse.*。
   - **給阿福決定**：(a) 雜訊有縮（極端消失、樣板全在門檻內、平均 1/3），但沒歸零——要不要就這樣接受，門檻怎麼訂（例如樣板 0.05 保留、作者看及格翻轉而不看分差）；
     (b) 第二階段「連續兩版無退步」從哪一版起算（v22 對 v21 10/10）；(c) 時間縮短（光環互換只換有保留的）要不要排 v23。(c) 之前說好 v22 之後才做，分數和考卷意見不同的兩組仍沒動。
+
+  ### v23 `home/v23-selfplay-prep`：階段二前必修——紀錄補平手規則、換規則前重設亂數、光環互換限保留技能（開關）（2026-11-28 07:00，home）
+  - **先量**（simdata 裡 v22 的 51 次考試 run，390,867 筆 try）：
+    1. 換血階段（buff swap）**9,870 筆，佔 2.5%**；其中換出或換入「不保留魔力／生命」技能的 5,580 筆（換血的 57%，**全部 try 的 1.4%**）。
+       長樹 60%、輔助互換 17%、輔助 8%——時間在樹，不在光環。
+    2. v22 考試有 **3 組保留了無保留技能的互換**：Smite／Slayer「Blood Rage → Tempest Shield」「Enduring Cry → Blood Rage」、Hierophant「Righteous Fire of Arcane Devotion → Righteous Fire」。
+       所以「只試有保留的」若直接當預設，考試不可能和 v22 一字不差——和完成標準衝突。做成開關，另跑一場量影響。
+    3. 哪些技能「有保留」照 PoB 自己的判法（CalcPerform 算保留用的 SkillType.HasReservation、排除 ReservationBecomesCost）：光環、先驅、Precision、Vitality、
+       Flesh and Stone、Blood and Sand、Tempest Shield、Arctic Armour 有（40 個）；**旗幟三種、Pact of Beidat 在 PoB 資料裡沒有保留**（遊戲改版過），Enduring Cry、Blood Rage、正義之火兩種也沒有。
+  - **改了什麼**（`tools/simlog.py`、`tools/generate.py`、`tools/PobWorker.lua`、測試；不動考卷）：
+    1. **simdata 多 `tie` 欄**：`samples.tie`（每筆 try 跑在哪條平手規則下）、`runs.tie`（最後留下的規則）。舊資料 NULL ＝ asc（v23 之前只有這一條）。
+       同一個狀態在另一條規則下是另一個狀態（走的小點不同、數字不同），所以 `state_hash` 把非 asc 的規則算進去；asc 和舊資料的 hash 不變。
+       舊資料庫第一次 connect 自動 ALTER 加欄（兩張表）——`library/simdata.db` 已加好，v22 的 51 個 run tie 為 NULL，v23 的 51 個 run 45 asc／6 desc。
+    2. **tree_phase 的亂數**：進每條規則前把 `self.rng` 還原到同一個狀態，選完樹後從「贏的那條規則」的亂數狀態接著走——結果不再和規則先後順序有關。
+       亂數只在有 guide 時用到（narrow、換血未試過的候選抽樣），考試沒 guide，所以不影響考試。
+    3. **`POB_BUFF_SWAP=reserving`**（開關，預設 all＝和 v22 一樣）：結尾光環互換只在「有保留」的技能之間換（換出、換入都限）。worker 新方法 `reserving` 從 PoB 資料列出。
+    4. `TIE = 1e-9` 的註解放回原行。
+    5. 版號 23；`STILL_VALID_FROM` 維持 22（搜尋本身沒變，v22 的 selfplay 結果仍有效）。
+    6. 單元測試 **68 全過**。新增：simlog 記 tie（asc 與無規則同 hash、desc 另一個狀態、runs.tie）、舊資料庫自動加欄、
+       worker 的 reserving 名單（Grace／Hatred／Tempest Shield 有，Enduring Cry／Blood Rage／正義之火／旗幟／Pact of Beidat 沒有）、
+       tree_phase 兩條規則抽到同一批亂數且與順序無關（換序跑一次，最後亂數狀態相同）。
+  - **完整考試**（`--jobs 12`，預設兩次＋`POB_BUFF_SWAP=reserving` 一次）：
+    1. **對 v22 一字不差 17/17**（分數、DPS 全同），預設兩次也 17/17 相同（決定性）。判定：作者 4/7、底線 10/10、對 v22 無退步 10/10（全部 +0.00）。保留的規則和 v22 相同：15 組 asc、2 組 desc。
+    2. **開關開著**（限保留技能）：15 組一字不差，**2 組變、都變差**：Smite／Slayer 30.21 → 30.11（防禦 11.60 → 11.50，少了 Blood Rage → Tempest Shield 那一換）、
+       Hierophant 31.35 → 31.23（DPS 181.5M → 156.1M，作者比 125% → 108%，少了正義之火兩版互換）。兩組仍及格，判定不變。
+       時間 351.3 → **331.5 組·分（−5.6%）**，但整場 38:24 → 38:26 **沒縮**：整場看最長的 KB／Necro（30～31 分），它不在光環那一段。
+  - **selfplay**（`POB_LIBRARY` 指到兩個暫存目錄，`--hours 0.1 --jobs 3 --runs 3 --seed 1`，同三組跑兩次：Detonate Dead of Scavenging／Saboteur、Blade Trap of Greatswords／Deadeye、Double Strike of Momentum／Assassin，每組 10～14 分）：
+    1. 紀錄裡有 tie：`samples.tie` asc 13,738／desc 8,025（共 21,763 筆）、`runs.tie` asc 2／desc 1。
+    2. 同 seed 兩次：三組 final 一字不差，**21,763 筆 try 逐筆相同**（含 tie、state_hash）。
+  - **時間**（home，`--jobs 12`）：預設 352.4／351.3 組·分對 v22 350.5（同一份搜尋，差在雜訊內）；整場 40:03／38:24 對 v22 40／38／39 分。
+    **預設沒縮**——這版沒改搜尋本身，照完成標準「時間要縮短」只有開關開著才成立，且只縮組·分不縮整場。
+  - 結果：私人庫 `results/v23/home/`：v23.*（預設，第二次）、v23-rerun.*（預設，第一次，相同）、v23-buffswap.*（開關開著）。
+  - **給阿福決定**：(a) 光環互換限保留技能要不要改成預設——省 5.6% 組·分、整場不省，Smite／Slayer −0.10、Hierophant −0.12（都還及格）；
+    (b) 要真正縮時間得從長樹（60%）和輔助互換（17%）下手，例如第二條規則的長樹沿用第一條量過的候選排序、或兩條規則共用「沒變的候選」的量測；
+    (c) 這版只是階段二的地基（紀錄齊、亂數可重現），考試一字不差＝「沒退步」第二版，但搜尋沒進步——進不進階段二由使用者決定。
 
 ## T4 office：保留考卷
 - 給：使用者＋阿福（office）、pc2 跑

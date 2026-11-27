@@ -50,7 +50,7 @@
 
 ## T3 home：生成器計算優化負責人（2026-11-27 起，持續）
 - 給：home
-- 狀態：進行中（v14、v15 已驗收合併；v16 已交回，等阿福驗收）
+- 狀態：進行中（v14～v16 已驗收合併；v17 已交回，等阿福與使用者選強度）
 - 內容：home 自己負責「改生成器→跑考試→交回」的循環，不用等阿福逐項派工。
   1. 從最新的差距報告（`library\benchmark\v<版本>-gap.md`）和 HANDOFF「已知的下一批問題」挑一個問題。
   2. 開分支 `home/v<下一版>-<主題>`，改 `tools/generate.py`（和它需要的 PobWorker.lua、tools/data/ 的樣板資料），
@@ -144,6 +144,47 @@
   - 時間／記憶體（--jobs 12）：兩次各 14 分 33 秒、14 分 44 秒；Python 尖峰 14.3 GB、系統 25.3 GB／31 GB。
   - 結果：私人庫 `results/v16/home/`（v16.md、v16.json、v16-gap.md、v16-rerun.json、v16-rerun.md）。
   - 下一題：v17 混沌抗（半成品在 `home/v17-chaos-floor`，從 v16 接著做；單組驗證 Glacial Hammer 混沌抗 −8 → 38、底線全過，但 DPS 676 萬 → 390 萬）。
+
+  ### v17 `home/v17-chaos-floor`：混沌抗低於目標硬扣分——三種強度對照，由使用者選（2026-11-27 14:43，home）
+  - **題目**：Glacial Hammer／Champion 混沌抗 −8 連三版不過底線（底線：混沌抗 ≥ 0 或免疫）。
+  - **改了什麼**（`tools/generate.py`、測試；不動考卷）：混沌抗低於 CHAOS_FLOOR 時每點扣 CHAOS_FLOOR_PENALTY=0.05（和火冷電沒滿 75 一樣重），
+    疊在原本 60 以下每點 0.005 的軟扣上；選輔助階段一樣延後（resists_later）；Chaos Inoculation 免疫不扣；設定檔的 ignoreResistPenalty 列 ChaosResist 可豁免
+    （Doryani 沒加——它只豁免閃電）。CHAOS_FLOOR 預設 0，實驐時可用環境變數 POB_CHAOS_FLOOR 切換（這次用它跑 30、60 兩種對照）。版號 17。單元測試 60 全過。
+  - **公式本身對 v16 build 的影響**（v16 的 17 個 build 用目標 0% 的 v17 公式重算、不重跑）：只有 Glacial Hammer／Champion 26.03 → 25.63（−8 × 0.05 = 0.40），其餘 17 組一模一樣。
+    之後搜尋把它拉回 25.96（換回混沌抗 38），所以 −0.08 不是退步，是公式要它換的。
+  - **為什麼別組也變**：模板裝備和作者裝備一開始混沌抗是 −60（PoB 預設懲罰），硬扣在搜尋一開始就是 3.0 分，讓搜尋更早去補混沌抗（例如先拿 Amethyst 藥水、
+    Purity of Elements），之後的路徵就不同——KB Necro（作者裝備混沌 −60）DPS 171% → 220%、Tornado Shot 混沌 61 → 75、Cyclone 70 → 75。
+  - **三種強度對照**（完整考試各跑一次；決定性，數字可重現）：
+
+    | 目標 | 作者組 | 底線 | 對 v16 退步 >0.05 | Glacial Hammer 混沌／DPS／分數 | 其他受影響 |
+    |---|---|---|---|---|---|
+    | v16（無硬扣） | 3/7 | 8/10 | — | −8／676 萬／26.03（不過底線） | — |
+    | **0%**（建議） | 3/7 | **9/10** | 2 組（GH −0.08、GH crit −0.05，都是換混沌抗） | 38／390 萬／25.96 | KB Necro 220%、Tornado 75、Cyclone 75（+）、Zombie +0.11 |
+    | 30% | 3/7 | 8/10 | 5 組（GH crit −0.37、Cyclone −0.20、Tornado −0.15、ED −0.13、GH −0.12） | 50／361 萬／25.91，但生命+ES 3,989 不到 4,000 | 多組 DPS 下滑 |
+    | 60% | 3/7 | 8/10 | 5 組（GH crit −0.54、GH −0.33、Cyclone −0.33、Tornado −0.25、Spectre −0.19） | 63／325 萬／25.70，生命 3,549 不過 | 作者組 KB 220% → 142%、Reave 82% → 73%；Smite／Gladiator 混沌 38 → 65、分數 +0.32 |
+
+    建議採用 **0%**：剛好對應底線「混沌抗 ≥ 0」，只有 Glacial Hammer 兩組付出 DPS，底線多過一組；30%／60% 讓多組為了混沌抗犧牲生命和 DPS，
+    反而把 Glacial Hammer 的生命壓到底線下。60 以下的軟扣（0.005／點）維持，讓它仍有動力往 60 走。正式採用哪一種由阿福與使用者定。
+  - **給使用者在 PoB 打開的 build**（私人庫 `results/v17/home/builds/`，每種強度一份）：
+
+    | 檔案 | 混沌抗 | DPS | 生命 | 最小最大承傷 | 分數 |
+    |---|---|---|---|---|---|
+    | Glacial Hammer Champion chaos0.xml | 38 | 3,901,681 | 4,252 | 15,572 | 25.96 |
+    | Glacial Hammer Champion chaos30.xml | 50 | 3,613,874 | 3,989 | 15,028 | 25.91 |
+    | Glacial Hammer Champion chaos60.xml | 63 | 3,252,426 | 3,549 | 13,371 | 25.70 |
+    | Glacial Hammer Champion crit chaos0.xml | 38 | 3,850,824 | 4,374 | 13,022 | 25.84 |
+    | Glacial Hammer Champion crit chaos30.xml | 52 | 2,909,053 | 4,199 | 12,012 | 25.53 |
+    | Glacial Hammer Champion crit chaos60.xml | 65 | 2,402,162 | 4,085 | 11,828 | 25.35 |
+    | Cyclone Slayer chaos0.xml | 75 | 2,786,950 | 3,608 | 10,956 | 25.59 |
+    | Cyclone Slayer chaos30.xml | 75 | 2,149,760 | 3,628 | 10,365 | 25.35 |
+    | Cyclone Slayer chaos60.xml | 61 | 1,940,753 | 3,650 | 10,397 | 25.22 |
+    | Smite Gladiator author chaos0.xml | 38 | 107,498,133 | 2,262 | 6,588 | 28.49 |
+    | Smite Gladiator author chaos30.xml | 38 | 107,498,133 | 2,262 | 6,588 | 28.49 |
+    | Smite Gladiator author chaos60.xml | 65 | 106,309,267 | 2,381 | 6,733 | 28.81 |
+
+    （作者裝備的 Smite／Gladiator 生命只有 2,262，是作者的裝備走 ES／格擋路線，不是底線對象。）
+  - 時間／記憶體：每輪約 15 分鐘（--jobs 12），Python 尖峰 14.3 GB、系統 25.3 GB／31 GB。
+  - 結果：私人庫 `results/v17/home/`：v17.json／.md／-gap.md（目標 0%，正式）、v17-floor30.*、v17-floor60.*（對照）、builds/（12 個 XML）。
 
 ## T4 office：保留考卷
 - 給：使用者＋阿福（office）、pc2 跑

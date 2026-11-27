@@ -54,11 +54,13 @@ FOCUS = {"damage": 0.5, "balanced": 1.0, "defence": 2.0}
 #     the tree step tries only the first 80 untried passives - now the cheapest first, then by id - and of equal gains
 #     the first is kept), so the same version gives the same build twice (v15 gave Storm Call / Assassin 84% and 100%
 #     of the author's DPS in two runs). PoB producing no output once is retried.
-GENERATOR_VERSION = 16
+# 17: chaos resistance below 0 is penalised like an uncapped elemental resistance (CHAOS_FLOOR_PENALTY a point), on top
+#     of the soft term; the playable floor says chaos >= 0 and Glacial Hammer / Champion sat at -8 for three versions.
+GENERATOR_VERSION = 17
 # Results of older versions from STILL_VALID_FROM on still count as done in self-play, except for the skills a later
 # version changed (changed_since_valid). Version 9 only changed minion skills (the minion's skill is now chosen),
 # unarmed attacks (empty main hand) and spells that need a staff.
-STILL_VALID_FROM = 16
+STILL_VALID_FROM = 17
 
 
 def changed_since_valid(skill, info):
@@ -393,6 +395,11 @@ GUIDE_EXPLORE = 5
 # the pool per second counts as ln(1 + %) x RECOVERY_WEIGHT - it is what carries a build through damage over time.
 CHAOS_TARGET = 60
 CHAOS_PENALTY = 0.005  # 0.01 made a life build take Chaos Inoculation just to drop the penalty (2026-11-26)
+# Below 0 the build is not playable for mapping (the benchmark's floor): every point under 0 costs as much as a point of
+# uncapped fire / cold / lightning (v16). The soft term above still applies between 0 and CHAOS_TARGET.
+# POB_CHAOS_FLOOR: experiment only (benchmark v17 compared floors of 0, 30 and 60 for the user to choose from)
+CHAOS_FLOOR = int(os.environ.get("POB_CHAOS_FLOOR", "0"))
+CHAOS_FLOOR_PENALTY = 0.05
 RECOVERY_WEIGHT = 0.2
 RECOVERY_POOL_MIN = 1000
 
@@ -519,10 +526,15 @@ class Generator:
         for res in ("FireResist", "ColdResist", "LightningResist"):
             if res not in ignored and not self.resists_later:
                 p += max(0, 75 - (m.get(res) or 0)) * 0.05
+        # chaos: softer than the elements (real builds 55-85%, gear rarely has room); none when immune (Chaos Inoculation,
+        # ChaosMaximumHitTaken is nil). Below CHAOS_FLOOR it is hard, like the elements, and like them it waits for the
+        # tree while supports are chosen (resists_later); a profile may list ChaosResist in ignoreResistPenalty
+        if m.get("ChaosMaximumHitTaken") and "ChaosResist" not in ignored:
+            chaos = m.get("ChaosResist") or 0
+            p += max(0, CHAOS_TARGET - chaos) * CHAOS_PENALTY
+            if not self.resists_later:
+                p += max(0, CHAOS_FLOOR - chaos) * CHAOS_FLOOR_PENALTY
         # before the tree, missing attributes are left to the tree (a curse needing Int would never be tried otherwise)
-        # chaos: softer than the elements (real builds 55-85%, gear rarely has room); none when immune (Chaos Inoculation)
-        if m.get("ChaosMaximumHitTaken"):
-            p += max(0, CHAOS_TARGET - (m.get("ChaosResist") or 0)) * CHAOS_PENALTY
         p += (m.get("attributeShortfall") or 0) * (0 if self.attributes_later else 0.02)
         p += unsustainable(m)
         if (m.get("ManaUnreserved") if m.get("ManaUnreserved") is not None else 0) < 0:

@@ -165,6 +165,14 @@ class GenerateTest(unittest.TestCase):
         self.assertEqual(prof["slot"], "Body Armour")
         g = generate.Generator("Storm Call", "Assassin", build_around="Doryani's Prototype")
         self.assertEqual(g.penalty({"FireResist": 75, "ColdResist": 75, "LightningResist": -160}), 0)  # lightning ignored
+        # v17: chaos below 0 costs like an uncapped element (0.05 a point) on top of the soft term; immune (no max hit) costs nothing
+        capped = {"FireResist": 75, "ColdResist": 75, "LightningResist": -160, "ChaosMaximumHitTaken": 5000}
+        self.assertAlmostEqual(g.penalty(dict(capped, ChaosResist=0)), 60 * generate.CHAOS_PENALTY)
+        self.assertAlmostEqual(g.penalty(dict(capped, ChaosResist=-8)), 68 * generate.CHAOS_PENALTY + 8 * generate.CHAOS_FLOOR_PENALTY)
+        self.assertEqual(g.penalty({"FireResist": 75, "ColdResist": 75, "LightningResist": -160, "ChaosResist": -60}), 0)  # immune
+        g.resists_later = True  # while supports are chosen only the soft term counts
+        self.assertAlmostEqual(g.penalty(dict(capped, ChaosResist=-8)), 68 * generate.CHAOS_PENALTY)
+        g.resists_later = False
         with self.assertRaises(SystemExit):
             generate.Generator("Storm Call", "Assassin", build_around="No Such Unique")
 

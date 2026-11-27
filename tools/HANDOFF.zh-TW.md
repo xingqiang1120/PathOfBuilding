@@ -44,6 +44,7 @@
 | 15 | 3/7 | 8/10 | home。淨回復、開放 RF／Pact／Blood and Sand。新考卷（作者關 Vaal）重算：Smite／Slayer 100%、Reave 82%（轉及格）、Skeletons 189%；Hierophant 112%、Assassin 84～100% DPS 過但防禦不足 |
 | 16 | 3/7 | 8/10 | home。**決定性**：連跑兩次 17/17 完全相同。樣板小幅變動（最大 −0.09），因為樹候選從隨機 80 個變成便宜優先 80 個 |
 | 17 | 3/7 | **9/10** | home。混沌抗底線 0%：Glacial Hammer −8→38（DPS 676 萬→390 萬）；KB Necro 220%、Tornado、Cyclone DPS 上升；只剩 Cyclone 生命不到底線 |
+| 18 | **4/7** | 8/10 | home，分支 `home/v18-tree-breadth`，**未合併**（跟 v19 生命底線一起驗收）。先量：樹候選從沒被 80 個上限切掉，缺的是回頭路，所以做「樹換血」（拆最便宜的大點、整條路退回重花）。Smite／Gladiator 107% 及格；Glacial Hammer 生命 4,252→3,955 掉到底線下；GH crit −0.06 |
 
 ## 線索（home 2026-11-27）
 - Storm Call／Hierophant 防禦差距：兩邊都穿 Doryani's Prototype（閃電承傷看護甲）。作者護甲 32,671 vs 生成 14,165，閃電最大承傷 129,810 vs 32,846，生命 5,296 vs 3,800。差距在護甲和生命。

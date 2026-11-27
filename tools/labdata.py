@@ -8,6 +8,7 @@ The build library holds account and character names, so it is not in this (publi
     python tools/labdata.py pull                    get the data repo (clone the first time); copy inputs/ into library/
     python tools/labdata.py push --pc home          put this PC's latest benchmark results in results/ and push
     python tools/labdata.py push --pc pc2 --version 13
+    python tools/labdata.py --model "Claude Fable 5.1" push --pc home   sign with this PC's model (or set POB_MODEL)
     python tools/labdata.py publish-inputs          office PC only: put library/ inputs into the data repo and push
     python tools/labdata.py status                  which versions each PC has results for
 
@@ -27,7 +28,12 @@ DATA = os.environ.get("POB_LABDATA", os.path.join(os.path.dirname(ROOT), "pob-la
 URL = "https://github.com/xingqiang1120/pob-lab-data.git"
 INPUTS = ["builds.db", "raw", "summary"]
 PCS = ["office", "pc2", "home"]
-TRAILER = "\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+# the AI that runs this signs the commit with its own model name: --model, else POB_MODEL, else the office's model
+MODEL = os.environ.get("POB_MODEL", "Claude Opus 5.5")
+
+
+def trailer():
+    return f"\n\nCo-Authored-By: {MODEL} <noreply@anthropic.com>"
 
 
 def git(*args, cwd=DATA, check=True):
@@ -63,7 +69,7 @@ def commit_push(paths, message):
     if not git("status", "--porcelain", *paths):
         print("nothing new to push")
         return
-    git("commit", "-m", message + TRAILER)
+    git("commit", "-m", message + trailer())
     git("push", "-q", "origin", "HEAD")
     print("pushed")
 
@@ -140,6 +146,8 @@ def status(_):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--model", help='model name for the commit\'s Co-Authored-By line, e.g. "Claude Fable 5.1" '
+                                    "(default: POB_MODEL, else Claude Opus 5.5)")
     sub = ap.add_subparsers(dest="command", required=True)
     sub.add_parser("pull").set_defaults(fn=pull)
     p = sub.add_parser("push")
@@ -149,6 +157,8 @@ def main():
     sub.add_parser("publish-inputs").set_defaults(fn=publish_inputs)
     sub.add_parser("status").set_defaults(fn=status)
     args = ap.parse_args()
+    global MODEL
+    MODEL = args.model or MODEL
     args.fn(args)
 
 

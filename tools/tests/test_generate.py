@@ -105,6 +105,49 @@ class GenerateTest(unittest.TestCase):
             self.assertEqual(b["metrics"]["passivePointsUsed"] - base["passivePointsUsed"], p["cost"], p["name"])  # the cost listed
         self.assertEqual(differ, [])
 
+    def test_reserving_gems_come_from_pob_data(self):
+        # v23: the aura swap can be limited to the skills that reserve mana or life (POB_BUFF_SWAP=reserving)
+        gems = set(WORKER.call("reserving", {})["gems"])
+        for name in ("Grace", "Hatred", "Herald of Ash", "Tempest Shield", "Arctic Armour", "Precision", "Vitality", "Flesh and Stone",
+                     "Blood and Sand", "Purity of Elements"):
+            self.assertIn(name, gems)
+        # banners and Pact of Beidat reserve nothing in PoB's data (the game reworked them), as PoB's own reservation calculation says
+        for name in ("Enduring Cry", "Blood Rage", "Righteous Fire", "Righteous Fire of Arcane Devotion", "Steelskin", "Kinetic Blast",
+                     "War Banner", "Pact of Beidat"):
+            self.assertNotIn(name, gems)
+
+    def test_tree_phase_draws_the_same_random_candidates_under_each_tie_rule(self):
+        # v23: a guided run samples candidates at random; each tie rule of the tree phase starts from the same draws
+        # and the search goes on from the kept rule's, whichever order the rules are tried in
+        import random
+
+        def run(rules):
+            g = generate.Generator.__new__(generate.Generator)
+            g.rng, g.state, g.current, g.history, g.tree_known, g.jewel = random.Random(7), [], {"Life": 1}, [], {}, None
+            g.life_floor_later, g.life_floor, g.tie, g.step = True, 0, rules[0], "tree"
+            draws = []
+            g.try_all = lambda c: [{"metrics": g.current}]
+            g.grow_tree = lambda: draws.append((g.tie, g.rng.random()))
+            g.retune_tree = lambda: None
+            g.score = lambda m: 1.0 if g.tie == "desc" else 0.5
+            g.dps = lambda m: 0
+            old, generate.TIE_RULES = generate.TIE_RULES, rules
+            try:
+                g.tree_phase()
+            finally:
+                generate.TIE_RULES = old
+            return g, draws
+
+        g1, draws1 = run(("asc", "desc"))
+        g2, draws2 = run(("desc", "asc"))
+        self.assertEqual(draws1[0][1], draws1[1][1])  # both rules drew the same first candidate
+        self.assertEqual(sorted(draws1), sorted(draws2))
+        self.assertEqual((g1.tie, g2.tie), ("desc", "desc"))
+        self.assertEqual(g1.rng.random(), g2.rng.random())  # the search goes on from the kept rule's draws
+        same = random.Random(7)
+        same.random()  # the kept rule's one draw
+        self.assertEqual(run(("asc", "desc"))[0].rng.random(), same.random())
+
     def test_tie_rules_cost_the_same_and_replay_alike(self):
         # v22: the tie rule between equal-cost paths is a request parameter. Under another rule every candidate costs
         # the same (it is a tie) and some land on other travel nodes; a candidate still measures the same in a batch,

@@ -7,6 +7,10 @@ that suggests which candidates to try first. Answers still come from PoB; the lo
 
 Stored in library/simdata.db (git-ignored, local).
 
+Every sample and run carries the tie rule between equal-cost tree paths it ran under (tie, v23): the same state and
+candidate measure differently under another rule (other travel nodes), so the rule is part of the state's hash and
+kept with the sample. Rows from before v23 have no rule stored (NULL): they ran under "asc", the only rule then.
+
     python tools/simlog.py summary                       runs and samples so far
     python tools/simlog.py compact                       convert an old (format 1) database to the compact format
     python tools/simlog.py stats [--kind passive_add] [--skill wand] [--ascendancy Necromancer] [--top 20]
@@ -40,14 +44,15 @@ FORMAT = 2
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS runs (
     id TEXT PRIMARY KEY, started TEXT, tool TEXT, skill TEXT, ascendancy TEXT, class TEXT, focus TEXT, gear TEXT,
-    pob_version TEXT, tree_version TEXT, skill_info TEXT, finished TEXT, final TEXT, generator INTEGER, outcome TEXT, guide TEXT);
+    pob_version TEXT, tree_version TEXT, skill_info TEXT, finished TEXT, final TEXT, generator INTEGER, outcome TEXT, guide TEXT,
+    tie TEXT);
 CREATE TABLE IF NOT EXISTS states (
     run_id TEXT, state_hash TEXT, metrics TEXT, PRIMARY KEY (run_id, state_hash)) WITHOUT ROWID;
 CREATE TABLE IF NOT EXISTS samples (
     id INTEGER PRIMARY KEY AUTOINCREMENT, run_id TEXT, step TEXT, state_hash TEXT, state_size INTEGER,
     kind TEXT, key TEXT, label TEXT, change TEXT, cost INTEGER,
     dps_before REAL, dps_after REAL, ehp_before REAL, ehp_after REAL, score_before REAL, score_after REAL,
-    delta TEXT, error TEXT);
+    delta TEXT, error TEXT, tie TEXT);
 CREATE INDEX IF NOT EXISTS samples_key ON samples(kind, key);
 CREATE INDEX IF NOT EXISTS samples_run ON samples(run_id);
 """
@@ -69,9 +74,11 @@ def connect(migrate=False):
             raise SystemExit(f"{db_path()} is in the old, large format: run  python tools/simlog.py compact  first")
         return db
     db.executescript(SCHEMA)
-    for col, typ in (("generator", "INTEGER"), ("outcome", "TEXT"), ("guide", "TEXT")):
+    for col, typ in (("generator", "INTEGER"), ("outcome", "TEXT"), ("guide", "TEXT"), ("tie", "TEXT")):
         if col not in columns(db, "runs"):
             db.execute(f"ALTER TABLE runs ADD COLUMN {col} {typ}")
+    if "tie" not in columns(db, "samples"):  # v23 (NULL = asc, the only rule before)
+        db.execute("ALTER TABLE samples ADD COLUMN tie TEXT")
     db.execute(f"PRAGMA user_version = {FORMAT}")
     return db
 
@@ -199,8 +206,11 @@ def merge(path):
     return len(new)
 
 
-def state_hash(state):
-    return hashlib.sha1(json.dumps(state, sort_keys=True).encode()).hexdigest()[:16]
+def state_hash(state, tie=None):
+    """Hash of a state. Under a tie rule other than asc the rule is part of it (the same changes allocate other travel
+    nodes, so the numbers differ); asc and the samples from before the rule was recorded share their hashes."""
+    key = state if tie in (None, "asc") else {"state": state, "tie": tie}
+    return hashlib.sha1(json.dumps(key, sort_keys=True).encode()).hexdigest()[:16]
 
 
 def change_key(change):
@@ -257,12 +267,13 @@ class Recorder:
                 self.db.execute(f"UPDATE runs SET {key} = ? WHERE id = ?", (json.dumps(value) if key == "skill_info" else value, self.id))
         self.db.commit()
 
-    def record(self, step, state, before, candidates, results, dps, ehp=None, score=None, costs=None):
-        """Store one sample per candidate. dps/ehp/score: functions of a metrics dict."""
+    def record(self, step, state, before, candidates, results, dps, ehp=None, score=None, costs=None, tie=None):
+        """Store one sample per candidate. dps/ehp/score: functions of a metrics dict. tie: the tie rule between
+        equal-cost tree paths the tries ran under (v23, see state_hash)."""
         if not self.enabled:
             return
         ehp = ehp or (lambda m: m.get("TotalEHP"))
-        h, size = state_hash(state), len(state)
+        h, size = state_hash(state, tie), len(state)
         if h not in self.states:
             self.db.execute("INSERT OR IGNORE INTO states VALUES (?,?,?)", (self.id, h, dumps(pick(before))))
             self.states.add(h)
@@ -276,18 +287,19 @@ class Recorder:
                          dps(before) if before else None, dps(after) if after else None,
                          ehp(before) if before else None, ehp(after) if after else None,
                          score(before) if (score and before) else None, score(after) if (score and after) else None,
-                         dumps(delta(before, after)) if after else None, res.get("error")))
+                         dumps(delta(before, after)) if after else None, res.get("error"), tie))
         self.db.executemany("INSERT INTO samples (run_id, step, state_hash, state_size, kind, key, label, change, cost, dps_before, "
-                            "dps_after, ehp_before, ehp_after, score_before, score_after, delta, error) "
-                            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", rows)
+                            "dps_after, ehp_before, ehp_after, score_before, score_after, delta, error, tie) "
+                            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", rows)
         self.db.commit()
         self.count += len(rows)
 
-    def finish(self, final=None, outcome=None):
+    def finish(self, final=None, outcome=None, tie=None):
+        """tie: the rule the search ended under (the one its tree was kept from, v23)."""
         if not self.enabled:
             return
-        self.db.execute("UPDATE runs SET finished = ?, final = ?, outcome = ? WHERE id = ?",
-                        (datetime.datetime.now().isoformat(timespec="seconds"), json.dumps(pick(final or {})), outcome, self.id))
+        self.db.execute("UPDATE runs SET finished = ?, final = ?, outcome = ?, tie = ? WHERE id = ?",
+                        (datetime.datetime.now().isoformat(timespec="seconds"), json.dumps(pick(final or {})), outcome, tie, self.id))
         self.db.commit()
 
 

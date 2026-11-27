@@ -1534,6 +1534,24 @@ function methods.skill_list(p)
 	return { skills = skills, ascendancies = ascendancies }
 end
 
+-- Gems whose skill reserves mana or life (auras, heralds, banners, Tempest Shield, Arctic Armour, Pact of Beidat...),
+-- from PoB's skill types: for the generator's aura swap, which trades reservation (v23)
+function methods.reserving()
+	local names = { }
+	for _, gem in pairs(data.gems) do
+		local effect = gem.grantedEffect
+		local t = effect and effect.skillTypes
+		-- the same test as CalcPerform's reservation: banners and the pacts have none in PoB's data (reworked in the game)
+		if effect and not effect.support and t and t[SkillType.HasReservation] and not t[SkillType.ReservationBecomesCost] then
+			names[gem.name] = true
+		end
+	end
+	local list = { }
+	for name in pairs(names) do table.insert(list, name) end
+	table.sort(list)
+	return { gems = list }
+end
+
 -- Fast evaluation for searches: load once, then apply each candidate, measure and undo it (no reload per candidate).
 -- Supports passive_add, gem_add, gem_replace, gem_level, vaal_off, group_add, item_equip, item_remove, config_set; others error.
 local function applyReversible(change)

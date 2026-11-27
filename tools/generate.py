@@ -81,7 +81,12 @@ FOCUS = {"damage": 0.5, "balanced": 1.0, "defence": 2.0}
 #     rule is one of many equally valid ones, and benchmark v21 against its reversed-tie run showed how much the greedy
 #     search depends on it: 9 of 17 builds differed, Smite / Gladiator by 0.55, Raise Spectre by 0.17, while every
 #     divergence began while the tree grew (simdata trajectories).
-GENERATOR_VERSION = 22
+# 23: groundwork for self-play (no change to the unguided search; benchmark v23 = v22): every sample and run in the
+#     simulation log carries the tie rule it ran under, and the random sampling of a guided run is the same under each
+#     tie rule of the tree phase, then goes on from the kept rule's draws (so the result does not depend on the order
+#     the rules are tried in). POB_BUFF_SWAP=reserving limits the aura swap to the skills that reserve mana or life
+#     (opt-in: in benchmark v22 three builds kept swaps of Blood Rage, Enduring Cry and Righteous Fire).
+GENERATOR_VERSION = 23
 # Results of older versions from STILL_VALID_FROM on still count as done in self-play, except for the skills a later
 # version changed (changed_since_valid). Version 9 only changed minion skills (the minion's skill is now chosen),
 # unarmed attacks (empty main hand) and spells that need a staff.
@@ -469,10 +474,14 @@ def unsustainable(m):
     return 1 + math.log(1 - per_second / pool * 100) if per_second < 0 else 0.0
 
 
-TIE = 1e-9
+TIE = 1e-9  # score gains closer than this count as equal (v16: the first of the sorted candidates is kept)
 # the tie rules the tree is grown under (v22): the worker's names; POB_TIE_RULES="alt,altdesc" is another pair, for
 # measuring how much the result still depends on the rule (the exam run twice, once per pair)
-TIE_RULES = tuple(os.environ.get("POB_TIE_RULES", "asc,desc").split(","))  # score gains closer than this count as equal (v16: the first of the sorted candidates is kept)
+TIE_RULES = tuple(os.environ.get("POB_TIE_RULES", "asc,desc").split(","))
+# POB_BUFF_SWAP=reserving: the aura swap at the end (retune_buffs) only among the skills that reserve mana or life (v23,
+# opt-in). Of the buff swap's tries in benchmark v22, a third replaced or tried Blood Rage, Enduring Cry or Righteous
+# Fire, which reserve nothing; the whole swap is 2.5% of a run's tries
+BUFF_SWAP_RESERVING = os.environ.get("POB_BUFF_SWAP", "all") == "reserving"
 # Tree swap (v18): per pass the SWAP_TRIALS allocated nodes cheapest to remove are tried; the freed points are spent
 # with the gains measured while the tree grew (SWAP_SHORTLIST best known candidates, SWAP_UNTRIED new ones a round)
 SWAP_PASSES = 3
@@ -539,7 +548,7 @@ class Generator:
             self.tries += len(chunk)
         # every try is kept as data (tools/simlog.py), with the state it was tried in
         if self.recorder and getattr(self, "current", None):
-            self.recorder.record(self.step, self.state, self.current, candidates, out, self.dps, score=self.score, costs=costs)
+            self.recorder.record(self.step, self.state, self.current, candidates, out, self.dps, score=self.score, costs=costs, tie=self.tie)
         return out
 
     # --- guide -------------------------------------------------------------------------------------------------------
@@ -938,13 +947,17 @@ class Generator:
         """The tree grown and swapped once under each tie rule (TIE_RULES), from the same gems and flasks; the better
         tree is kept and the search goes on under its rule (v22). Where two paths cost the same, PoB takes one by a
         fixed order (canonicalPaths); which one changes where the greedy growth ends up, and benchmark v21's runs
-        under two orders diverged while the tree grew, nowhere later."""
+        under two orders diverged while the tree grew, nowhere later.
+        A guided run draws random candidates (narrow, the tree swap's untried): every rule starts from the same draws
+        and the search goes on from the kept rule's, so the result does not depend on the order of TIE_RULES (v23)."""
         fields = ("state", "current", "history", "tree_known", "jewel", "life_floor_later", "tie", "step")
         start = {f: copy.deepcopy(getattr(self, f)) for f in fields}
+        draws = self.rng.getstate()
         best = None
         for rule in TIE_RULES:
             for f in fields:
                 setattr(self, f, copy.deepcopy(start[f]))
+            self.rng.setstate(draws)
             self.tie = rule
             log(f"  [tree start] tie rule {rule}")
             self.current = self.try_all([[]])[0]["metrics"]  # same build, scored again with the attribute penalty
@@ -956,9 +969,10 @@ class Generator:
             score = self.score(self.current)
             log(f"  [tree start] tie rule {rule}: score {score:.3f}, DPS {self.dps(self.current):,.0f}, life {self.current.get('Life')}")
             if best is None or score > best[0] + TIE:
-                best = (score, rule, {f: getattr(self, f) for f in fields})
+                best = (score, rule, {f: getattr(self, f) for f in fields}, self.rng.getstate())
         for f, v in best[2].items():
             setattr(self, f, v)
+        self.rng.setstate(best[3])
         self.history.append({"step": "tree start", "move": [], "note": f"tie rule kept: {self.tie} (of {', '.join(TIE_RULES)})",
                              "dps": self.dps(self.current), "score": self.score(self.current)})
         log(f"  [tree start] kept tie rule {self.tie}")
@@ -1008,13 +1022,16 @@ class Generator:
         were chosen on a bare build, where DPS auras filled the reservation; by the end a defensive one may be worth
         more (Tempest Shield: +0.17 to +0.20 defence to both Storm Call builds of benchmark v19, but no mana was left)."""
         self.step = "buff swap"
+        only = self.reserving() if BUFF_SWAP_RESERVING else None  # v23 opt-in: only the skills that reserve
+        if only is not None:
+            log("  buff swap among the skills that reserve mana or life only (POB_BUFF_SWAP=reserving)")
         for _ in range(passes):
             swapped = False
-            for gem in [g for g in self.skill_groups() if g in BUFF_SKILLS]:
+            for gem in [g for g in self.skill_groups() if g in BUFF_SKILLS and (only is None or g in only)]:
                 present = set(self.skill_groups()) | {self.skill}
                 others = present - {gem}
                 taken = lambda s: s in present or any(s in group and others & group for group in EXCLUSIVE_BUFFS)
-                choices = [s for s in BUFF_SKILLS if not taken(s)]  # (not "pool": that is the life + ES helper)
+                choices = [s for s in BUFF_SKILLS if not taken(s) and (only is None or s in only)]  # (not "pool": the life + ES helper)
                 found = self.best([[{"type": "group_replace", "gem": gem, "with": s}] for s in choices], self.current)
                 if found and found[0]:
                     move, metrics, _ = found[0]
@@ -1022,6 +1039,12 @@ class Generator:
                     swapped = True
             if not swapped:
                 break
+
+    def reserving(self):
+        """Names of the gems whose skill reserves mana or life, from PoB's data (worker method reserving, v23)."""
+        if not hasattr(self, "_reserving"):
+            self._reserving = set(WORKER.call("reserving", {})["gems"])
+        return self._reserving
 
     def add_buffs(self):
         self.step = "buff"
@@ -1195,7 +1218,7 @@ class Generator:
                 self.elapsed = time.time() - started
                 self.outcome = "not suited"
                 log(f"archetype {self.archetype} does not suit {self.skill}: no weapon setup with a shield")
-                self.recorder.finish(self.current, outcome=self.outcome)
+                self.recorder.finish(self.current, outcome=self.outcome, tie=self.tie)
                 return None
         self.pick_spectre()
         self.pick_minion_skill()
@@ -1205,7 +1228,7 @@ class Generator:
             # stop instead of building a tree for defence only
             self.elapsed = time.time() - started
             self.outcome = "no damage"
-            self.recorder.finish(self.current, outcome=self.outcome)
+            self.recorder.finish(self.current, outcome=self.outcome, tie=self.tie)
             return None
         self.pick_ascendancy()
         self.seed_defence()
@@ -1232,7 +1255,7 @@ class Generator:
         self.retune_buffs()
         self.retune_tree(fresh=True)
         self.elapsed = time.time() - started
-        self.recorder.finish(self.current)
+        self.recorder.finish(self.current, tie=self.tie)
         return self.current
 
     # --- output ------------------------------------------------------------------------------------------------------

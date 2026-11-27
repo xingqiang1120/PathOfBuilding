@@ -56,6 +56,40 @@ class SimLogTest(unittest.TestCase):
         self.assertEqual(simlog.after_metrics(state, deltas[1]), {"playerDPS": 1000, "TotalEHP": 5200})  # Life gone
         self.assertEqual(db.execute("SELECT generator, outcome FROM runs").fetchone(), (2, "test"))
 
+    def test_tie_rule_kept_with_samples_and_runs(self):
+        # v23: the tie rule between equal-cost tree paths is stored with every sample and the run; the same state under
+        # another rule is another state (its numbers differ), while asc and the rows from before (no rule) share hashes
+        before = {"playerDPS": 1000, "TotalEHP": 5000, "Life": 3000}
+        moves = [[{"type": "passive_add", "node": 1}]]
+        results = [{"metrics": {"playerDPS": 1100, "TotalEHP": 5000, "Life": 3000}}]
+        dps = lambda m: m.get("playerDPS") or 0  # noqa: E731
+        rec = simlog.Recorder("generate", skill="Arc", generator=23)
+        rec.record("tree", [], before, moves, results, dps)  # as before v23: no rule
+        rec.record("tree", [], before, moves, results, dps, tie="asc")
+        rec.record("tree", [], before, moves, results, dps, tie="desc")
+        rec.finish(results[0]["metrics"], tie="desc")
+        db = simlog.connect()
+        self.assertEqual([t for (t,) in db.execute("SELECT tie FROM samples ORDER BY id")], [None, "asc", "desc"])
+        hashes = [h for (h,) in db.execute("SELECT state_hash FROM samples ORDER BY id")]
+        self.assertEqual(hashes[0], hashes[1])
+        self.assertNotEqual(hashes[0], hashes[2])
+        self.assertEqual(db.execute("SELECT COUNT(*) FROM states").fetchone()[0], 2)
+        self.assertEqual(db.execute("SELECT tie FROM runs").fetchone(), ("desc",))
+
+    def test_old_database_gets_the_tie_columns(self):
+        import sqlite3
+        old = sqlite3.connect(os.path.join(simlog.LIBRARY, "simdata.db"))
+        old.executescript(simlog.SCHEMA.replace(", tie TEXT", "").replace(",\n    tie TEXT", ""))
+        old.execute("INSERT INTO runs (id, tool) VALUES ('r1', 'generate')")
+        old.execute("INSERT INTO samples (run_id, step) VALUES ('r1', 'tree')")
+        old.commit()
+        self.assertNotIn("tie", simlog.columns(old, "samples"))
+        old.close()
+        db = simlog.connect()
+        self.assertIn("tie", simlog.columns(db, "samples"))
+        self.assertIn("tie", simlog.columns(db, "runs"))
+        self.assertEqual(db.execute("SELECT tie FROM samples").fetchone(), (None,))  # before v23: ran under asc
+
     def test_compact_converts_old_format(self):
         import json
         import sqlite3

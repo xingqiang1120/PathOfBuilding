@@ -70,11 +70,16 @@ FOCUS = {"damage": 0.5, "balanced": 1.0, "defence": 2.0}
 #     against the ones not taken (group_replace): both were decided before flasks, jewels and the support swaps changed
 #     what defence is worth (Storm Call / Assassin went from 113M to 175M DPS after its tree was final; Tempest Shield
 #     alone was worth +0.17 to +0.20 defence to both Storm Call builds, but DPS auras chosen on a bare build had the mana).
-GENERATOR_VERSION = 20
+# 21: a node's path depends only on which nodes are allocated (tools/PobWorker.lua canonicalPaths): PoB broke the tie
+#     between equal-cost paths by the order of its allocated-nodes table, which the candidates tried earlier in the same
+#     request had changed, so a node measured in a batch could take other travel nodes than the same node replayed from
+#     the saved state (Storm Call / Assassin around Doryani's Prototype, v20: 303 evasion and +0.009 score the exported
+#     build did not have). The score a try measures is now the score the saved build has.
+GENERATOR_VERSION = 21
 # Results of older versions from STILL_VALID_FROM on still count as done in self-play, except for the skills a later
 # version changed (changed_since_valid). Version 9 only changed minion skills (the minion's skill is now chosen),
 # unarmed attacks (empty main hand) and spells that need a staff.
-STILL_VALID_FROM = 20
+STILL_VALID_FROM = 21
 
 
 def changed_since_valid(skill, info):
@@ -970,8 +975,8 @@ class Generator:
                 present = set(self.skill_groups()) | {self.skill}
                 others = present - {gem}
                 taken = lambda s: s in present or any(s in group and others & group for group in EXCLUSIVE_BUFFS)
-                pool = [s for s in BUFF_SKILLS if not taken(s)]
-                found = self.best([[{"type": "group_replace", "gem": gem, "with": s}] for s in pool], self.current)
+                choices = [s for s in BUFF_SKILLS if not taken(s)]  # (not "pool": that is the life + ES helper)
+                found = self.best([[{"type": "group_replace", "gem": gem, "with": s}] for s in choices], self.current)
                 if found and found[0]:
                     move, metrics, _ = found[0]
                     self.accept("buff swap", move, metrics, f"aura/buff: {gem} -> {move[0]['with']}")

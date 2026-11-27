@@ -495,6 +495,25 @@ local function findSpectreGem(groupRef)
 end
 
 -- Each change returns a short description of what was done
+
+-- Every node's path to the tree, depending only on WHICH nodes are allocated. PoB builds the paths with a multi-source
+-- BFS whose roots come from pairs(spec.allocNodes): between two paths of equal cost the root reached first wins, and
+-- that order follows the table's internal layout, i.e. the history of allocations and deallocations. In one try
+-- request the candidates before a node change that history, so the node tried in a batch could take other travel
+-- nodes than the same node alone or replayed from the saved state (v21: Storm Call / Assassin, Harrier through
+-- three dexterity nodes or none, 303 evasion the exported build did not have). The allocated nodes are put in a fresh
+-- table in id order before the paths are built, so the tie goes the same way everywhere.
+local function canonicalPaths()
+	local spec = build.spec
+	local ids = { }
+	for id in pairs(spec.allocNodes) do table.insert(ids, id) end
+	table.sort(ids)
+	local fresh = { }
+	for _, id in ipairs(ids) do fresh[id] = spec.allocNodes[id] end
+	spec.allocNodes = fresh
+	spec:BuildAllDependsAndPaths()
+end
+
 local changeHandlers = {
 	main_group = function(c)
 		local _, index = findGroup(c.group)
@@ -626,6 +645,7 @@ local changeHandlers = {
 	passive_add = function(c)
 		local node = findNode(c.node)
 		if node.alloc then return node.dn .. " already allocated" end
+		canonicalPaths()
 		assert(node.path, node.dn .. " cannot be reached from the current tree")
 		local cost = #node.path
 		build.spec:AllocNode(node)
@@ -639,6 +659,7 @@ local changeHandlers = {
 		for other, used in pairs(build.spec.masterySelections) do
 			assert(used ~= effect.id or other == node.id, "that mastery effect is already taken")
 		end
+		canonicalPaths()
 		assert(node.alloc or node.path, node.dn .. " cannot be reached: allocate a notable of its cluster first")
 		node.sd = effect.sd
 		node.allMasteryOptions = false
@@ -1506,13 +1527,20 @@ end
 local function applyReversible(change)
 	local t = change.type
 	if t == "passive_add" or t == "mastery_add" then
-		local before = { }
+		local before, masteries = { }, copyTable(build.spec.masterySelections)
 		for id in pairs(build.spec.allocNodes) do before[id] = true end
 		local result = changeHandlers[t](change)
 		return result, function()
 			for id, node in pairs(build.spec.allocNodes) do
 				if not before[id] and node.alloc then build.spec:DeallocNode(node) end
 			end
+			-- the mastery effect chosen for the trial is given back (or a later candidate for the same effect in this
+			-- request is refused as taken), and every node's path is computed again: AllocNode rebuilt them with the
+			-- trial's nodes allocated, so the next candidate would follow a path through nodes no longer allocated and
+			-- land on other travel nodes for the same cost (v21: Storm Call / Assassin measured 303 evasion that the
+			-- replayed state did not have)
+			build.spec.masterySelections = masteries
+			build.spec:BuildAllDependsAndPaths()
 		end
 	elseif t == "passive_remove" then
 		-- undo: the nodes allocated before come back as they were (a mastery with its effect), without pathing (v18)
@@ -1660,6 +1688,7 @@ function methods.candidates(p)
 	selectMain(p)
 	-- the candidates depend on the changes already made (e.g. a tree grown by the generator)
 	for _, change in ipairs(p.changes or { }) do changeHandlers[change.type](change) end
+	canonicalPaths()  -- the costs listed are the paths passive_add will take
 	recalc()
 	local result = { supports = { }, skills = { }, passives = { }, uniques = { } }
 	local mainSkill = build.calcsTab.mainEnv.player.mainSkill

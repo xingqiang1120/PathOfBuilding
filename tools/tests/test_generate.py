@@ -59,15 +59,51 @@ class GenerateTest(unittest.TestCase):
         self.assertEqual(kept["passivePointsUsed"] - pruned["passivePointsUsed"], node["cost"])
         self.assertEqual(pruned["passivePointsUsed"], self.new["metrics"]["passivePointsUsed"])
         # v19: prune only takes the dead end this removal made. A chain of small nodes that was a dead end already (here:
-        # the path left behind by a plain removal) stays when another notable is removed with prune
-        other = next(p for p in c["passives"] if p["cost"] >= 2 and p["id"] != node["id"])
+        # the path left behind by a plain removal) stays when another notable is removed with prune. The other notable's
+        # path must not lean on the chain: a path that joins it (or merely touches its tip) makes the chain part of the
+        # way to that notable, and removing the notable leaves the whole of it as the new dead end. Since v21 the paths
+        # are canonical, so the first notable found this way is always the same one.
         chain = add + [{"type": "passive_remove", "node": node["id"]}]  # node's cost - 1 small nodes, a dead end
-        before, both, after = (r["metrics"]["passivePointsUsed"] for r in WORKER.call("try", {"xml": self.new["xml"], "name": "t", "changes": chain, "candidates": [
-            [], [{"type": "passive_add", "node": other["id"]}],
-            [{"type": "passive_add", "node": other["id"]}, {"type": "passive_remove", "node": other["id"], "prune": True}]]}))
+        far = WORKER.call("candidates", {"xml": self.new["xml"], "name": "t", "changes": chain, "maxPath": 10})
+        before = WORKER.call("try", {"xml": self.new["xml"], "name": "t", "changes": chain, "candidates": [[]]})[0]["metrics"]["passivePointsUsed"]
         self.assertEqual(before, self.new["metrics"]["passivePointsUsed"] + node["cost"] - 1)
-        self.assertGreaterEqual(both - before, 1)
-        self.assertEqual(after, before)
+        kept = []
+        for other in [p for p in far["passives"] if p["cost"] >= 2 and p["id"] != node["id"]][:40]:
+            both, after = (r["metrics"]["passivePointsUsed"] for r in WORKER.call("try", {"xml": self.new["xml"], "name": "t", "changes": chain, "candidates": [
+                [{"type": "passive_add", "node": other["id"]}],
+                [{"type": "passive_add", "node": other["id"]}, {"type": "passive_remove", "node": other["id"], "prune": True}]]}))
+            self.assertEqual(both - before, other["cost"], other["name"])  # the cost listed is the cost paid (v21)
+            if after == before:
+                kept.append(other["name"])
+                break
+        self.assertTrue(kept, "no notable whose path leaves the old dead end alone")
+
+    def test_a_candidate_measures_the_same_in_a_batch_as_alone(self):
+        # v21: the generator measures its candidates forty at a time and keeps the metrics of the one it accepts, so
+        # a candidate tried after others in the same request must give what it gives alone, and what the saved state
+        # gives when it is replayed. Before canonicalPaths, PoB broke the tie between equal-cost paths by the order of
+        # its allocated-nodes table, which the earlier candidates had changed: on this tree 16 of 162 candidates
+        # measured differently in a batch (other travel nodes for the same cost).
+        state = []
+        for _ in range(12):
+            c = WORKER.call("candidates", {"xml": self.new["xml"], "name": "t", "changes": state, "maxPath": 10})
+            cheap = min((p for p in c["passives"] if p["type"] == "Notable"), key=lambda p: (p["cost"], p["id"]))
+            state.append({"type": "passive_add", "node": cheap["id"]})
+        c = WORKER.call("candidates", {"xml": self.new["xml"], "name": "t", "changes": state, "maxPath": 10})
+        moves = [[{"type": "passive_add", "node": p["id"]}] for p in c["passives"]]
+        batch = []
+        for i in range(0, len(moves), 40):
+            batch.extend(WORKER.call("try", {"xml": self.new["xml"], "name": "t", "changes": state, "candidates": moves[i:i + 40]}))
+        base = WORKER.call("try", {"xml": self.new["xml"], "name": "t", "changes": state, "candidates": [[]]})[0]["metrics"]
+        differ = []
+        for p, move, b in zip(c["passives"], moves, batch):
+            alone = WORKER.call("try", {"xml": self.new["xml"], "name": "t", "changes": state, "candidates": [move]})[0]
+            # the metrics of the state with the candidate accepted (replayed, as export does) are the metrics measured
+            replayed = WORKER.call("try", {"xml": self.new["xml"], "name": "t", "changes": state + move, "candidates": [[]]})[0]
+            if not (alone["metrics"] == b["metrics"] == replayed["metrics"]):
+                differ.append(p["name"])
+            self.assertEqual(b["metrics"]["passivePointsUsed"] - base["passivePointsUsed"], p["cost"], p["name"])  # the cost listed
+        self.assertEqual(differ, [])
 
     def test_group_replace_swaps_an_aura_and_undoes(self):
         # v20 buff swap: the group that holds one aura holds another instead; a try puts the first one back

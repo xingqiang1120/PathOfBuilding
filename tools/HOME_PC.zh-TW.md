@@ -85,7 +85,7 @@ python tools/labdata.py push --pc <代號>
 ```
 
 - 核心數：工作管理員 → 效能 → CPU →「邏輯處理器」。home 實測用 `--jobs 12`（每組約 1.1～1.4 GB 記憶體）。
-- `labdata.py pull` 會順便把別台的舊版結果放進 `libraryenchmark\`，退步比較才有上一版可比。
+- `labdata.py pull` 會順便把別台的舊版結果放進 `library\benchmark\`，退步比較才有上一版可比。
 - 跑的時候不要讓電腦睡眠。第一次跑請回報記憶體用量（工作管理員），之後好決定 `--jobs`。
 - `python tools/labdata.py status` 看各台已經交了哪些版本，同一版不用重跑。
 

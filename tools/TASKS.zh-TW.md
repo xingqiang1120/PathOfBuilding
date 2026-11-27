@@ -11,7 +11,7 @@
 
 ## T1 家裡電腦第一次準備＋跑第 13 版考試（2026-11-26 晚上）
 - 給：home
-- 狀態：已交回（home，2026-11-27）
+- 狀態：已驗收（2026-11-27 阿福：結果與私人庫檔案相符，benchmark.py 修正已合併；Glacial Hammer 混沌抗不過底線算不及格，第 14 版處理）
 - 內容：
   1. 照 HOME_PC A 段準備（已經有 Claude；缺 Python、Git、GitHub CLI 的話先裝，`gh auth login` 登入擁有私人庫的帳號）。
   2. 照 B 段把這個對話命名為「PoB 執行 home」、打開 Remote Control。

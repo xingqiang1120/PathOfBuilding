@@ -50,11 +50,15 @@ FOCUS = {"damage": 0.5, "balanced": 1.0, "defence": 2.0}
 # 15: recovery counts the net regeneration (PoB's NetLifeRegen: regeneration minus the build's own degeneration, e.g.
 #     Righteous Fire, Blood Rage); a build that loses life every second is penalised. Righteous Fire (both), Pact of
 #     Beidat and Blood and Sand may be chosen as buffs.
-GENERATOR_VERSION = 15
+# 16: deterministic: every candidate list is sorted before it is tried (PoB's pairs() order differs between processes;
+#     the tree step tries only the first 80 untried passives - now the cheapest first, then by id - and of equal gains
+#     the first is kept), so the same version gives the same build twice (v15 gave Storm Call / Assassin 84% and 100%
+#     of the author's DPS in two runs). PoB producing no output once is retried.
+GENERATOR_VERSION = 16
 # Results of older versions from STILL_VALID_FROM on still count as done in self-play, except for the skills a later
 # version changed (changed_since_valid). Version 9 only changed minion skills (the minion's skill is now chosen),
 # unarmed attacks (empty main hand) and spells that need a staff.
-STILL_VALID_FROM = 15
+STILL_VALID_FROM = 16
 
 
 def changed_since_valid(skill, info):
@@ -419,6 +423,9 @@ def unsustainable(m):
     return 1 + math.log(1 - per_second / pool * 100) if per_second < 0 else 0.0
 
 
+TIE = 1e-9  # score gains closer than this count as equal (v16: the first of the sorted candidates is kept)
+
+
 def log(*args):
     print(*args, flush=True)
 
@@ -550,7 +557,8 @@ class Generator:
             gain = self.score(r["metrics"]) - base
             if per_point:
                 gain /= max(per_point[i], 1)
-            if gain > 1e-6 and (best is None or gain > best[2]):
+            # equal gains (within TIE) keep the earlier candidate: the lists are sorted, so this is reproducible
+            if gain > 1e-6 and (best is None or gain > best[2] + TIE):
                 best = (move, r["metrics"], gain)
         return best, res
 
@@ -732,7 +740,7 @@ class Generator:
         while True:
             a = WORKER.call("ascendancy_candidates", dict(self.params(), changes=self.state))
             free = a["available"] - a["used"]
-            cands = [c for c in a["candidates"] if c["cost"] <= free]
+            cands = sorted((c for c in a["candidates"] if c["cost"] <= free), key=lambda c: c["id"])
             if not cands:
                 return
             moves = [[{"type": "passive_add", "node": c["id"]}] for c in cands]
@@ -767,6 +775,8 @@ class Generator:
                               "name": f"jewel socket {j['id']} with a {self.jewel} jewel"} for j in sockets]
             if not passives:
                 break
+            # cheapest first, then by id: fixes which 80 untried candidates are tried when there are more (v16)
+            passives.sort(key=lambda p: (p["cost"], str(p["id"])))
             # Re-try the best-known candidates and every candidate never tried
             ranked = sorted(passives, key=lambda p: -(known.get(p["id"], (math.inf,))[0]))
             untried = [p for p in ranked if p["id"] not in known]
@@ -926,7 +936,7 @@ class Generator:
         self.step = "unique screen"
         base = self.score(self.current)
         shortlist = []
-        for slot, names in cands.get("uniques", {}).items():
+        for slot, names in sorted(cands.get("uniques", {}).items()):  # a JSON object: its order is PoB's pairs() order
             if not names or slot in self.uniques:
                 continue
             res = self.try_all([self.unique_move(slot, n) for n in names])

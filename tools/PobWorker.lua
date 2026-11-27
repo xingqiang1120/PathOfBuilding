@@ -642,29 +642,32 @@ local changeHandlers = {
 	passive_remove = function(c)
 		local node = findNode(c.node)
 		if not node.alloc then return node.dn .. " was not allocated" end
+		local function allocatedLinks(n)
+			local links = 0
+			for _, other in ipairs(n.linked or { }) do if other.alloc then links = links + 1 end end
+			return links
+		end
+		-- PoB keeps the travel nodes that led to the removed node (they are still connected), so removing a notable
+		-- frees one point and leaves its path as a dead end. prune: from the removed node's neighbours outwards, a small
+		-- node this removal left with at most one allocated neighbour goes too, so the path's points come back (the
+		-- generator's tree swap, v18). Small nodes that were a dead end already (allocated on purpose) stay (v19).
+		local wasLeaf = { }
+		if c.prune then
+			for id, n in pairs(build.spec.allocNodes) do
+				if n.type == "Normal" and allocatedLinks(n) <= 1 then wasLeaf[id] = true end
+			end
+		end
 		local freed = #(node.depends or { node })
 		build.spec:DeallocNode(node)
 		if c.prune then
-			-- PoB keeps the travel nodes that led to the removed node (they are still connected), so removing a notable
-			-- frees one point and leaves its path as a dead end. prune: small nodes left with at most one allocated
-			-- neighbour go too, repeatedly, so the path's points come back (the generator's tree swap, v18)
-			local again = true
-			while again do
-				again = false
-				local leaves = { }
-				for _, n in pairs(build.spec.allocNodes) do
-					if n.type == "Normal" and not n.ascendancyName and n.linked then
-						local links = 0
-						for _, other in ipairs(n.linked) do if other.alloc then links = links + 1 end end
-						if links <= 1 then table.insert(leaves, n) end
-					end
-				end
-				for _, n in ipairs(leaves) do
-					if n.alloc then
-						freed = freed + #(n.depends or { n })
-						build.spec:DeallocNode(n)
-						again = true
-					end
+			local frontier = { }
+			for _, other in ipairs(node.linked or { }) do table.insert(frontier, other) end
+			while #frontier > 0 do
+				local n = table.remove(frontier, 1)
+				if n.alloc and n.type == "Normal" and not n.ascendancyName and not wasLeaf[n.id] and allocatedLinks(n) <= 1 then
+					freed = freed + #(n.depends or { n })
+					build.spec:DeallocNode(n)
+					for _, other in ipairs(n.linked or { }) do table.insert(frontier, other) end
 				end
 			end
 		end

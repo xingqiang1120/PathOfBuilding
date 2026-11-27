@@ -58,6 +58,16 @@ class GenerateTest(unittest.TestCase):
         self.assertEqual(kept["passivePointsUsed"] - plain["passivePointsUsed"], 1)
         self.assertEqual(kept["passivePointsUsed"] - pruned["passivePointsUsed"], node["cost"])
         self.assertEqual(pruned["passivePointsUsed"], self.new["metrics"]["passivePointsUsed"])
+        # v19: prune only takes the dead end this removal made. A chain of small nodes that was a dead end already (here:
+        # the path left behind by a plain removal) stays when another notable is removed with prune
+        other = next(p for p in c["passives"] if p["cost"] >= 2 and p["id"] != node["id"])
+        chain = add + [{"type": "passive_remove", "node": node["id"]}]  # node's cost - 1 small nodes, a dead end
+        before, both, after = (r["metrics"]["passivePointsUsed"] for r in WORKER.call("try", {"xml": self.new["xml"], "name": "t", "changes": chain, "candidates": [
+            [], [{"type": "passive_add", "node": other["id"]}],
+            [{"type": "passive_add", "node": other["id"]}, {"type": "passive_remove", "node": other["id"], "prune": True}]]}))
+        self.assertEqual(before, self.new["metrics"]["passivePointsUsed"] + node["cost"] - 1)
+        self.assertGreaterEqual(both - before, 1)
+        self.assertEqual(after, before)
 
     def gear(self, r, attribute="Dex"):
         armour, _ = generate.armour_set(attribute)
@@ -178,12 +188,18 @@ class GenerateTest(unittest.TestCase):
         prof = generate.unique_profile("Doryani's Prototype")
         self.assertEqual(prof["slot"], "Body Armour")
         g = generate.Generator("Storm Call", "Assassin", build_around="Doryani's Prototype")
-        self.assertEqual(g.penalty({"FireResist": 75, "ColdResist": 75, "LightningResist": -160}), 0)  # lightning ignored
+        full = {"Life": 4000}  # v19: life + energy shield at the floor
+        self.assertEqual(g.penalty(dict(full, FireResist=75, ColdResist=75, LightningResist=-160)), 0)  # lightning ignored
         # v17: chaos below 0 costs like an uncapped element (0.05 a point) on top of the soft term; immune (no max hit) costs nothing
-        capped = {"FireResist": 75, "ColdResist": 75, "LightningResist": -160, "ChaosMaximumHitTaken": 5000}
+        capped = dict(full, FireResist=75, ColdResist=75, LightningResist=-160, ChaosMaximumHitTaken=5000)
         self.assertAlmostEqual(g.penalty(dict(capped, ChaosResist=0)), 60 * generate.CHAOS_PENALTY)
         self.assertAlmostEqual(g.penalty(dict(capped, ChaosResist=-8)), 68 * generate.CHAOS_PENALTY + 8 * generate.CHAOS_FLOOR_PENALTY)
-        self.assertEqual(g.penalty({"FireResist": 75, "ColdResist": 75, "LightningResist": -160, "ChaosResist": -60}), 0)  # immune
+        self.assertEqual(g.penalty(dict(full, FireResist=75, ColdResist=75, LightningResist=-160, ChaosResist=-60)), 0)  # immune
+        # v19: life + energy shield below the floor costs LIFE_FLOOR_PENALTY a point; energy shield counts
+        immune = {"FireResist": 75, "ColdResist": 75, "LightningResist": -160, "ChaosResist": -60}
+        self.assertAlmostEqual(g.penalty(dict(immune, Life=3600)), 400 * generate.LIFE_FLOOR_PENALTY)
+        self.assertAlmostEqual(g.penalty(dict(immune, Life=1, EnergyShield=3999)), 0)
+        self.assertAlmostEqual(g.penalty(dict(immune, Life=5000)), 0)
         g.resists_later = True  # while supports are chosen only the soft term counts
         self.assertAlmostEqual(g.penalty(dict(capped, ChaosResist=-8)), 68 * generate.CHAOS_PENALTY)
         g.resists_later = False

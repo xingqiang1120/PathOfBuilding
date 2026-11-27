@@ -61,11 +61,13 @@ FOCUS = {"damage": 0.5, "balanced": 1.0, "defence": 2.0}
 #     kept when the build scores higher. A probe of v17 (Cyclone, Glacial Hammer, Storm Call / Hierophant) showed every
 #     tree candidate is tried in every round (the 80-untried cap never cut one), so breadth was not what the greedy
 #     growth lacked: it had no way back from a node chosen for the gain it had when the tree was small.
-GENERATOR_VERSION = 18
+# 19: life + energy shield below LIFE_FLOOR (the playable floor, 4000) costs LIFE_FLOOR_PENALTY a point: the score had
+#     no floor, so Cyclone / Slayer sat at 3,600 for versions and the v18 tree swap traded Glacial Hammer's life for DPS.
+GENERATOR_VERSION = 19
 # Results of older versions from STILL_VALID_FROM on still count as done in self-play, except for the skills a later
 # version changed (changed_since_valid). Version 9 only changed minion skills (the minion's skill is now chosen),
 # unarmed attacks (empty main hand) and spells that need a staff.
-STILL_VALID_FROM = 18
+STILL_VALID_FROM = 19
 
 
 def changed_since_valid(skill, info):
@@ -405,6 +407,11 @@ CHAOS_PENALTY = 0.005  # 0.01 made a life build take Chaos Inoculation just to d
 # 0 was chosen by the user from a v17 comparison of 0 / 30 / 60: higher floors cost five of the ten templates life or DPS.
 CHAOS_FLOOR = 0
 CHAOS_FLOOR_PENALTY = 0.05
+# Life + energy shield a mapping build needs (the benchmark's floor); every point below costs LIFE_FLOOR_PENALTY. 0.002 a
+# point: 100 life short costs 0.2, about 16 times what 100 life is worth through ln(EHP), so it is a floor, not a weight.
+LIFE_FLOOR = 4000
+# POB_LIFE_FLOOR_PENALTY: experiment only (benchmark v19 compares strengths for the user to choose from)
+LIFE_FLOOR_PENALTY = float(os.environ.get("POB_LIFE_FLOOR_PENALTY", "0.002"))
 RECOVERY_WEIGHT = 0.2
 RECOVERY_POOL_MIN = 1000
 
@@ -547,6 +554,9 @@ class Generator:
             p += max(0, CHAOS_TARGET - chaos) * CHAOS_PENALTY
             if not self.resists_later:
                 p += max(0, CHAOS_FLOOR - chaos) * CHAOS_FLOOR_PENALTY
+        # life + energy shield below the playable floor (v19); a constant offset while nothing changes the pool, so the
+        # early steps (supports, ascendancy) compare as before, and the tree is drawn to life until the floor is met
+        p += max(0, LIFE_FLOOR - (m.get("Life") or 0) - (m.get("EnergyShield") or 0)) * LIFE_FLOOR_PENALTY
         # before the tree, missing attributes are left to the tree (a curse needing Int would never be tried otherwise)
         p += (m.get("attributeShortfall") or 0) * (0 if self.attributes_later else 0.02)
         p += unsustainable(m)

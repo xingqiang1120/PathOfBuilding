@@ -83,16 +83,14 @@ def run_one(job, out_dir):
 def author_job(entry):
     """The author's build scored as it is, and the generator's job with its items."""
     xml, name, build_id = library.resolve(entry["build"])
-    # the author's Vaal skills are taken out: PoB counts their buff as always up (Vaal Arctic Armour +1.17 defence for
-    # Storm Call / Assassin, v13 gap report), and the generator may not choose them (decision 2026-11-27), so with them
-    # the author would be scored on something neither side can really keep up
-    summary = generate.WORKER.call("summary", {"xml": xml, "name": name})
-    vaal = [g["name"] for sk in summary["skills"] if not sk.get("source") for g in sk["gems"]  # one remove per gem
-            if not g.get("support") and g["name"].startswith("Vaal ")]
+    # the author's Vaal skills are turned off (PoB's "Enable Vaal ..." box; the gem's other skill stays, e.g. Vaal Summon
+    # Skeletons of Mages still summons): PoB counts their buff as always up (Vaal Arctic Armour +1.17 defence for
+    # Storm Call / Assassin, v13 gap report), and the generator may not choose them (decision 2026-11-27)
     r = generate.WORKER.call("try", {"xml": xml, "name": name, "infer": True, "inferCharges": True,
-                                     "candidates": [[{"type": "gem_remove", "gem": v} for v in vaal]]})[0]
+                                     "candidates": [[{"type": "vaal_off"}]]})[0]
     if "metrics" not in r:
-        raise RuntimeError(f"author build without its Vaal skills ({', '.join(vaal)}): {r.get('error', '')[:200]}")
+        raise RuntimeError(f"author build with its Vaal skills off: {r.get('error', '')[:200]}")
+    vaal = r.get("applied") or []
     m = r["metrics"]
     s = generate.WORKER.call("strip_build", {"xml": xml, "name": name})
     minion = bool(s["skillInfo"].get("minion"))

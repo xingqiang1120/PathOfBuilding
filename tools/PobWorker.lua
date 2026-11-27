@@ -551,6 +551,26 @@ local changeHandlers = {
 		end
 		error("gem '" .. c.gem .. "' not found in group " .. index)
 	end,
+	vaal_off = function(c)
+		-- the Vaal skill of every Vaal gem off, the gem's other skill kept (Vaal Summon Skeletons of Mages still summons
+		-- the mages): PoB's own "Enable Vaal ...:" box. Only effects with a global effect (buffs) honour the box, which
+		-- are the ones PoB would count as always up (benchmark, 2026-11-27)
+		local off = { }
+		for _, group in ipairs(build.skillsTab.socketGroupList) do
+			for _, gem in ipairs(group.gemList) do
+				local data = gem.gemData
+				if data and data.vaalGem then
+					for i, effect in ipairs(data.grantedEffectList or { }) do
+						if i <= 2 and effect and not effect.support and (effect.name or ""):match("^Vaal ") and gem["enableGlobal" .. i] ~= false then
+							gem["enableGlobal" .. i] = false
+							table.insert(off, effect.name)
+						end
+					end
+				end
+			end
+		end
+		return "Vaal skills off: " .. (#off > 0 and table.concat(off, ", ") or "none")
+	end,
 	gem_level = function(c)
 		local group, index = findGroup(c.group or c.gem)
 		for _, gem in ipairs(group.gemList) do
@@ -1436,7 +1456,7 @@ function methods.skill_list(p)
 end
 
 -- Fast evaluation for searches: load once, then apply each candidate, measure and undo it (no reload per candidate).
--- Supports passive_add, gem_add, gem_replace, gem_level, group_add, item_equip, item_remove, config_set; others error.
+-- Supports passive_add, gem_add, gem_replace, gem_level, vaal_off, group_add, item_equip, item_remove, config_set; others error.
 local function applyReversible(change)
 	local t = change.type
 	if t == "passive_add" or t == "mastery_add" then
@@ -1464,6 +1484,17 @@ local function applyReversible(change)
 				group.gemList[i] = s.gem
 			end
 			build.skillsTab:ProcessSocketGroup(group)
+		end
+	elseif t == "vaal_off" then
+		local saved = { }
+		for _, group in ipairs(build.skillsTab.socketGroupList) do
+			for _, gem in ipairs(group.gemList) do
+				table.insert(saved, { gem, gem.enableGlobal1, gem.enableGlobal2 })
+			end
+		end
+		local result = changeHandlers[t](change)
+		return result, function()
+			for _, s in ipairs(saved) do s[1].enableGlobal1, s[1].enableGlobal2 = s[2], s[3] end
 		end
 	elseif t == "group_add" then
 		local result = changeHandlers[t](change)

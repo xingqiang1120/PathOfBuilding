@@ -52,10 +52,13 @@
 
 ## 決定（2026-11-27 阿福）
 - Vaal 技能：PoB 當作永遠開著，生成器**不選**，等「實用模式」（有持續時間折算）再開放。考試裡作者 build 的 Vaal 技能也照算，
-  所以作者的防禦被高估（例如 Vaal Arctic Armour +1.17）。阿福之後會讓考卷替作者評分時關掉 Vaal 技能，兩邊才公平（改考卷是 office 的事）。
+  所以作者被高估（例如 Smite／Slayer 的 Vaal Smite）。考卷已改成替作者評分時關掉 Vaal 效果（見下）。
 - 輔助性技能（RF、Pact of Beidat、Blood and Sand）可以開放，但評分要先算淨回復（扣掉 RF 自燃），home 第 15 版處理。
 - 回復權重造成的路徑雜訊（Smite／Gladiator v13 96% → v14 84% → v15 89%）先接受；搜尋穩定性（多起點取最佳）排在混沌抗之後。
-- 考卷改動（office，2026-11-27）：替作者評分時拿掉作者的 Vaal 技能（benchmark.py author_job）。第 15 版的作者組成績要用新考卷重算才算數。
+- 考卷改動（office，2026-11-27）：替作者評分時關掉作者 Vaal 寶石的 Vaal 效果（Worker 新的 `vaal_off`，等於 PoB 的「Enable Vaal ...」勾選框；
+  寶石的另一個技能保留，例如 Vaal Summon Skeletons of Mages 照樣召喚）。第 15 版作者組要用新考卷重算才算數。
+- 更正：Storm Call／Hierophant 的作者本來就把 Vaal Arctic Armour 和 Vaal Molten Shell 的 Vaal 效果關掉了（enableGlobal1=false），
+  所以它的防禦差距**不是** Vaal 造成的，要從別的地方找（差距報告裡的 +1.17 是把 Vaal 全開的寶石加進生成的 build 量出來的）。
 
 ## 各台規格（實測）
 - home：16 邏輯核心、31 GB。每組 generate 約 1.1～1.4 GB，用 `--jobs 12`。整套考試約 10 分鐘。

@@ -50,7 +50,7 @@
 
 ## T3 home：生成器計算優化負責人（2026-11-27 起，持續）
 - 給：home
-- 狀態：待做
+- 狀態：進行中（v14 已交回，等阿福驗收）
 - 內容：home 自己負責「改生成器→跑考試→交回」的循環，不用等阿福逐項派工。
   1. 從最新的差距報告（`library\benchmark\v<版本>-gap.md`）和 HANDOFF「已知的下一批問題」挑一個問題。
   2. 開分支 `home/v<下一版>-<主題>`，改 `tools/generate.py`（和它需要的 PobWorker.lua、tools/data/ 的樣板資料），
@@ -66,6 +66,29 @@
   - 改到計分方式（score、penalty、defence 的權重）要在交回裡講清楚對每組的影響，因為它會改變所有 build 的取捨。
 - 第一批題目：輔助性技能（Righteous Fire 類、Vaal 技能、Pact of Beidat）、Overloaded Intensity 為什麼沒被選、Glacial Hammer 混沌抗底線。
 - 交回：
+  ### v14 `home/v14-support-pool`：輔助池會更新、互換做到沒改善（2026-11-27 12:07，home）
+  - **題目**：Overloaded Intensity 為什麼沒被選。
+  - **原因**：PoB 只有在 Intensify 已經接上之後才把 Overloaded Intensity 列為「可以輔助 Storm Call」；生成器的輔助池是一開始
+    （還沒有任何輔助）抓一次就固定，之後選輔助、最後互換都用同一份，所以它從頭到尾沒被試過。另外最後的互換只做一輪、照原順序，
+    換了 Awakened Empower 之後（Storm Call／Assassin 從 500 萬跳到 1.2 億）前面的寶石不會重看。
+  - **改了什麼**（只動 `tools/generate.py`，不動計分）：`refresh_support_pool()`，每接上一顆輔助就重抓一次池子；`retune_supports()`
+    改成最多 3 輪、有換就再來一輪、沒換就停。GENERATOR_VERSION／STILL_VALID_FROM 升到 14。
+  - **考試 v13 → v14**：作者組 3/7 → 3/7、底線 8/10 → 8/10、樣板組退步 0 組（Raise Zombie +0.69、Glacial Hammer +0.05，其餘 +0.00）。
+    - 目標項：Storm Call／Hierophant 60% → **85%**（8,713 萬 → 1 億 2,360 萬；互換時把 Awakened Spell Echo 換成 Overloaded Intensity）。
+      DPS 過了，但防禦 12.07 比作者 12.44 低 0.37，所以還不算及格（作者靠 Vaal Arctic Armour +1.17）。
+    - Raise Zombie／Necromancer：70 萬 → 140 萬（多輪互換：Greater Spell Echo → Awakened Empower、→ Greater Spell Echo、→ Awakened Minion Damage）。
+    - **退步一組（作者組）：Smite／Gladiator 96% → 84%，分數 28.77 → 28.66（−0.10），仍及格。** 原因是搜尋路徑不同，不是計分改了：
+      v13 的樹上剛好有擊中回血來源（每秒 1,013），輔助全拿傷害；v14 的樹沒拿到，互換時把 Volatility 換成 Life Gain on Hit
+      （每秒 1,109），分數上回復項 +0.46 > ln(DPS) −0.35。兩版的最後四顆輔助一樣。這是貪婪搜尋的路徑噪音，請阿福判斷算不算退步；
+      如果要壓噪音，方向是「每秒回復 %」的 0.2 權重與對數無上限（49% 生命／秒和 20% 差不多值）——這屬計分調整，另開分支談。
+    - 其他作者組數字與 v13 完全相同（Storm Call／Assassin 74%、Reave 66%、KB Necro 178%、Smite／Slayer 111%、Skeletons 189%）。
+  - **時間／記憶體**（--jobs 12）：全套 14 分 16 秒＋差距報告 43 秒；Python 合計尖峰 14.3 GB、系統 25.3 GB／31 GB（多了每顆輔助一次 candidates 呼叫，
+    單組作者 build 從 4.5 分變 3.8～7.9 分）。
+  - **下一題準備（還沒改）**：在三組沒及格的生成 build 上單獨加作者的輔助性技能量過：Righteous Fire 對兩組 Storm Call +41～42% DPS、
+    RF of Arcane Devotion +26%、Pact of Beidat +16～22%、Blood and Sand 對 Reave +15%、Vaal Smite 對 Reave +30%、Vaal RF +71%。
+    但 PoB 把 Vaal 技能和 RF 都當成永遠開著，而且目前評分用的是毛回復（LifeRegenRecovery），RF 的自燃沒被算到。
+    PoB 有 NetLifeRegen／TotalDegen，下一個分支打算把淨回復輸出進評分再開放 RF／Pact of Beidat／Blood and Sand；Vaal 技能是否公平要先問阿福。
+  - 結果：私人庫 `results/v14/home/`（v14.md、v14.json、v14-gap.md）。
 
 ## T4 office：保留考卷
 - 給：使用者＋阿福（office）、pc2 跑

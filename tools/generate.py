@@ -45,11 +45,13 @@ OUT_DIR = os.environ.get("POB_GENERATE_DIR") or os.path.join(library.ROOT, "src"
 FOCUS = {"damage": 0.5, "balanced": 1.0, "defence": 2.0}
 # Version of the generator's rules, kept with every run: results of different versions are not comparable.
 # 2: realistic skill stages (Blade Blast, Explosive Arrow), dual-wield weapons, runs stop when the skill deals no damage.
-GENERATOR_VERSION = 13
+# 14: the support pool is refreshed after every support taken (a support that needs another one linked first, e.g.
+#     Overloaded Intensity after Intensify, was never in the pool), and the final swaps repeat until none improves.
+GENERATOR_VERSION = 14
 # Results of older versions from STILL_VALID_FROM on still count as done in self-play, except for the skills a later
 # version changed (changed_since_valid). Version 9 only changed minion skills (the minion's skill is now chosen),
 # unarmed attacks (empty main hand) and spells that need a staff.
-STILL_VALID_FROM = 13
+STILL_VALID_FROM = 14
 
 
 def changed_since_valid(skill, info):
@@ -662,10 +664,17 @@ class Generator:
             move, metrics, _ = found[0]
             self.accept("minion skill", move, metrics, f"minion skill: {skills[move[0]['skill'] - 1]}")
 
-    def pick_supports(self, count=5):
-        self.step = "support"
+    def refresh_support_pool(self):
+        """The supports PoB says can support the skill as it is linked now. Some only qualify once another support is
+        linked (Overloaded Intensity needs Intensify: Storm Call / Hierophant benchmark v13, +88% DPS never tried), so
+        the pool is read again after every support taken and before the final swaps."""
         cands = WORKER.call("candidates", dict(self.params(), changes=self.state))
         self.support_pool = [s for s in cands["supports"] if not DELIVERY.search(s)]
+        return cands
+
+    def pick_supports(self, count=5):
+        self.step = "support"
+        cands = self.refresh_support_pool()
         self.points = cands["points"]
         self.links = []
         # supports are chosen without the resistance penalty: a support only moves resistances through item mechanics
@@ -686,6 +695,7 @@ class Generator:
             move, metrics, _ = found[0]
             self.links.append(move[0]["gem"])
             self.accept("support", move, metrics, f"support: {move[0]['gem']}")
+            self.refresh_support_pool()
 
     def pick_ascendancy(self):
         self.step = "ascendancy"
@@ -910,17 +920,27 @@ class Generator:
                 move, metrics, _ = found[0]
                 self.accept("pantheon", move, metrics, f"pantheon: {move[0]['value']}")
 
-    def retune_supports(self):
+    def retune_supports(self, passes=3):
+        """Each support against every other the skill can take, now that the tree is known. Repeated while a swap
+        improves the score (at most `passes` rounds): one swap changes what the others are worth (Arcane Surge ->
+        Awakened Empower raised Storm Call / Assassin from 5M to 122M DPS in v13, and nothing before it was re-tried)."""
         self.step = "support swap"
-        for gem in list(self.links):
-            pool = self.narrow("support", [s for s in self.support_pool if s not in self.links])
-            moves = [[{"type": "gem_replace", "group": 1, "gem": gem, "with": s}] for s in pool]
-            found = self.best(moves, self.current)
-            if found and found[0]:
-                move, metrics, _ = found[0]
-                new = move[0]["with"]
-                self.links[self.links.index(gem)] = new
-                self.accept("support swap", move, metrics, f"support: {gem} -> {new}")
+        for _ in range(passes):
+            self.refresh_support_pool()
+            swapped = False
+            for gem in list(self.links):
+                pool = self.narrow("support", [s for s in self.support_pool if s not in self.links])
+                moves = [[{"type": "gem_replace", "group": 1, "gem": gem, "with": s}] for s in pool]
+                found = self.best(moves, self.current)
+                if found and found[0]:
+                    move, metrics, _ = found[0]
+                    new = move[0]["with"]
+                    self.links[self.links.index(gem)] = new
+                    self.accept("support swap", move, metrics, f"support: {gem} -> {new}")
+                    self.refresh_support_pool()
+                    swapped = True
+            if not swapped:
+                break
 
     def run(self):
         started = time.time()

@@ -16,7 +16,8 @@ Three checks (agreed 2026-11-26):
      compared with the author's build. Pass: DPS at least 80% of the author's and defence (the score's defence part)
      no more than 0.1 below. Not the whole score: the authors often leave resistances uncapped, which the score's
      penalties punish so hard that the generator "won" while dealing a ninth of the damage (first run, 2026-11-26). Tree jewels and cluster jewels are dropped (the generator cannot
-     place them yet), so a gap there is expected and reported.
+     place them yet), so a gap there is expected and reported. The author's Vaal skills are removed before scoring
+     (2026-11-27): PoB counts them as always up and the generator does not choose them.
   2. Floors: every template run must be playable for mapping at level 95 - elemental resistances capped, chaos
      resistance >= 0 (or immune), life + energy shield and the smallest max hit above the floors in the suite file.
   3. No regression: each template run's score against the previous version's result. A drop of more than 0.05 is
@@ -82,14 +83,23 @@ def run_one(job, out_dir):
 def author_job(entry):
     """The author's build scored as it is, and the generator's job with its items."""
     xml, name, build_id = library.resolve(entry["build"])
-    r = generate.WORKER.call("try", {"xml": xml, "name": name, "infer": True, "inferCharges": True, "candidates": [[]]})[0]
+    # the author's Vaal skills are taken out: PoB counts their buff as always up (Vaal Arctic Armour +1.17 defence for
+    # Storm Call / Assassin, v13 gap report), and the generator may not choose them (decision 2026-11-27), so with them
+    # the author would be scored on something neither side can really keep up
+    summary = generate.WORKER.call("summary", {"xml": xml, "name": name})
+    vaal = [g["name"] for sk in summary["skills"] if not sk.get("source") for g in sk["gems"]  # one remove per gem
+            if not g.get("support") and g["name"].startswith("Vaal ")]
+    r = generate.WORKER.call("try", {"xml": xml, "name": name, "infer": True, "inferCharges": True,
+                                     "candidates": [[{"type": "gem_remove", "gem": v} for v in vaal]]})[0]
+    if "metrics" not in r:
+        raise RuntimeError(f"author build without its Vaal skills ({', '.join(vaal)}): {r.get('error', '')[:200]}")
     m = r["metrics"]
     s = generate.WORKER.call("strip_build", {"xml": xml, "name": name})
     minion = bool(s["skillInfo"].get("minion"))
     sc = scorer(minion, generate.worn_profile(build_id)[1])
     author = {"metrics": m, "dps": sc.dps(m), "score": sc.score(m), "defence": sc.defence(m), "penalty": sc.penalty(m)}
     return {"key": "author " + entry["label"], "label": entry["label"], "skill": s["skill"], "ascendancy": s["ascendancy"],
-            "gearFrom": entry["build"], "author": author, "jewelsDropped": s.get("jewelsDropped", 0)}
+            "gearFrom": entry["build"], "author": author, "jewelsDropped": s.get("jewelsDropped", 0), "vaalRemoved": vaal}
 
 
 def template_jobs(suite):
@@ -150,7 +160,7 @@ def report(data):
     if authors:
         lines += ["## 1. Same items as the author", "",
                   f"Pass: DPS >= {AUTHOR_DPS:.0%} of the author's and defence >= author's - {AUTHOR_MARGIN}. "
-                  "Shown as generator / author.", "",
+                  "Shown as generator / author. The author is scored without Vaal skills (PoB counts them always up).", "",
                   "| Build | DPS gen / author | Defence gen / author | Score gen / author | Jewels dropped | Pass |",
                   "|---|---|---|---|---|---|"]
         passed = 0

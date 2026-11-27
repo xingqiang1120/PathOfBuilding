@@ -29,7 +29,7 @@
 - **pc2**：跑保留考試（獨立的第二份考卷），之後階段二跑自我對弈。
 
 ## 目前階段：一（先把計算改準）
-- 生成器第 14 版。自我對弈**暫停**：規則還在改，跑了下一版就作廢。
+- 生成器第 15 版。自我對弈**暫停**：規則還在改，跑了下一版就作廢。
 - 算力用來跑驗收考試（`tools/benchmark.py`）和差距報告（`tools/gap.py`），阿福看報告決定下一版改什麼。
 - 進入階段二（凍結版本、連跑幾晚自我對弈）的門檻：作者組 ≥ 5/7、底線 10/10、連續兩版沒有退步。
 - 版本規則：生成器的修改累積起來一天發一版（升 GENERATOR_VERSION），不在別台跑到一半時改版。
@@ -41,6 +41,7 @@
 | 12 | 2/7 | 9/10 | Smite／Gladiator 11%（沒選輔助寶石）；Glacial Hammer 退步 0.68 |
 | 13 | 3/7 | 8/10 | home 跑。Smite／Gladiator 96% 及格；Glacial Hammer 分數回來但混沌抗 -8 不過底線（算問題，第 14 版修）；沒有退步 10/10 |
 | 14 | 3/7 | 8/10 | home。輔助池每接一顆重抓、最後互換重複：Storm Call／Hierophant 60%→85%（防禦還差 0.37）；Smite／Gladiator 96%→84%（貪婪路徑雜訊，仍及格）；沒有退步 |
+| 15 | 2/7 | 8/10 | home。淨回復、開放 RF／Pact／Blood and Sand：Hierophant 112%、Assassin 84%、Reave 76% DPS；Smite／Gladiator 防禦差 0.01 掉出及格（路徑雜訊，阿福接受）；樣板零退步 |
 
 ## 已知的下一批問題（依優先，第 13 版差距報告）
 1. 輔助性技能：作者有的 Righteous Fire 類、Vaal 技能（Vaal Arctic Armour 防禦 +1.17）、Pact of Beidat，生成器都沒選。
@@ -53,7 +54,8 @@
 - Vaal 技能：PoB 當作永遠開著，生成器**不選**，等「實用模式」（有持續時間折算）再開放。考試裡作者 build 的 Vaal 技能也照算，
   所以作者的防禦被高估（例如 Vaal Arctic Armour +1.17）。阿福之後會讓考卷替作者評分時關掉 Vaal 技能，兩邊才公平（改考卷是 office 的事）。
 - 輔助性技能（RF、Pact of Beidat、Blood and Sand）可以開放，但評分要先算淨回復（扣掉 RF 自燃），home 第 15 版處理。
-- 回復權重造成的路徑雜訊（Smite／Gladiator v13→v14 −0.10）先接受，之後另開分支談計分。
+- 回復權重造成的路徑雜訊（Smite／Gladiator v13 96% → v14 84% → v15 89%）先接受；搜尋穩定性（多起點取最佳）排在混沌抗之後。
+- 考卷改動（office，2026-11-27）：替作者評分時拿掉作者的 Vaal 技能（benchmark.py author_job）。第 15 版的作者組成績要用新考卷重算才算數。
 
 ## 各台規格（實測）
 - home：16 邏輯核心、31 GB。每組 generate 約 1.1～1.4 GB，用 `--jobs 12`。整套考試約 10 分鐘。

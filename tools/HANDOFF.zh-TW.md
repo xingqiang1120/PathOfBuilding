@@ -41,7 +41,7 @@
 | 12 | 2/7 | 9/10 | Smite／Gladiator 11%（沒選輔助寶石）；Glacial Hammer 退步 0.68 |
 | 13 | 3/7 | 8/10 | home 跑。Smite／Gladiator 96% 及格；Glacial Hammer 分數回來但混沌抗 -8 不過底線（算問題，第 14 版修）；沒有退步 10/10 |
 | 14 | 3/7 | 8/10 | home。輔助池每接一顆重抓、最後互換重複：Storm Call／Hierophant 60%→85%（防禦還差 0.37）；Smite／Gladiator 96%→84%（貪婪路徑雜訊，仍及格）；沒有退步 |
-| 15 | 2/7 | 8/10 | home。淨回復、開放 RF／Pact／Blood and Sand：Hierophant 112%、Assassin 84%、Reave 76% DPS；Smite／Gladiator 防禦差 0.01 掉出及格（路徑雜訊，阿福接受）；樣板零退步 |
+| 15 | 3/7 | 8/10 | home。淨回復、開放 RF／Pact／Blood and Sand。新考卷（作者關 Vaal）重算：Smite／Slayer 100%、Reave 82%（轉及格）、Skeletons 189%；Hierophant 112%、Assassin 84～100% DPS 過但防禦不足 |
 
 ## 已知的下一批問題（依優先，第 13 版差距報告）
 1. 輔助性技能：作者有的 Righteous Fire 類、Vaal 技能（Vaal Arctic Armour 防禦 +1.17）、Pact of Beidat，生成器都沒選。
@@ -59,6 +59,11 @@
   寶石的另一個技能保留，例如 Vaal Summon Skeletons of Mages 照樣召喚）。第 15 版作者組要用新考卷重算才算數。
 - 更正：Storm Call／Hierophant 的作者本來就把 Vaal Arctic Armour 和 Vaal Molten Shell 的 Vaal 效果關掉了（enableGlobal1=false），
   所以它的防禦差距**不是** Vaal 造成的，要從別的地方找（差距報告裡的 +1.17 是把 Vaal 全開的寶石加進生成的 build 量出來的）。
+
+- **生成器不是決定性的**（home 2026-11-27 發現）：同一版跑兩次，Storm Call／Assassin 84% vs 100%、Smite／Gladiator 及格 vs 不及格。
+  可能是 Lua pairs() 迭代順序每個程序不同，分數打平時取到不同候選。**下一版（v16）先做決定性**（候選排序、打平固定規則），
+  混沌抗延到 v17、多起點取最佳在之後。在那之前「沒有退步」的判定要打折看。
+- Worker 偶發錯誤：12 組同時跑時 ascendancy_candidates 曾回「attempt to index local 'o' (a nil value)」（mainOutput 為空），重試正常。再出現就查。
 
 ## 各台規格（實測）
 - home：16 邏輯核心、31 GB。每組 generate 約 1.1～1.4 GB，用 `--jobs 12`。整套考試約 10 分鐘。

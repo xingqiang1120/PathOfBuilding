@@ -50,7 +50,7 @@
 
 ## T3 home：生成器計算優化負責人（2026-11-27 起，持續）
 - 給：home
-- 狀態：進行中（v14 已交回，等阿福驗收）
+- 狀態：進行中（v14 已驗收合併；v15 已交回，等阿福驗收）
 - 內容：home 自己負責「改生成器→跑考試→交回」的循環，不用等阿福逐項派工。
   1. 從最新的差距報告（`library\benchmark\v<版本>-gap.md`）和 HANDOFF「已知的下一批問題」挑一個問題。
   2. 開分支 `home/v<下一版>-<主題>`，改 `tools/generate.py`（和它需要的 PobWorker.lua、tools/data/ 的樣板資料），
@@ -89,6 +89,38 @@
     但 PoB 把 Vaal 技能和 RF 都當成永遠開著，而且目前評分用的是毛回復（LifeRegenRecovery），RF 的自燃沒被算到。
     PoB 有 NetLifeRegen／TotalDegen，下一個分支打算把淨回復輸出進評分再開放 RF／Pact of Beidat／Blood and Sand；Vaal 技能是否公平要先問阿福。
   - 結果：私人庫 `results/v14/home/`（v14.md、v14.json、v14-gap.md）。
+
+  ### v15 `home/v15-aux-skills`：淨回復進評分，開放 Righteous Fire／Pact of Beidat／Blood and Sand（2026-11-27 12:37，home）
+  - **題目**：輔助性技能。前提是先讓評分看得到它們的代價。
+  - **改了什麼**（`tools/generate.py`、`tools/PobWorker.lua` 多輸出 4 個數字、`tools/tests/test_generate.py` 加測試）：
+    1. 評分的「每秒回復 %」改用 PoB 的淨回復（NetLifeRegen／NetEnergyShieldRegen：回復扣掉自己造成的持續傷害，例如 RF 自燃、
+       Blood Rage 每秒 4%、Annihilation's Approach 藥水期間的火傷）。PoB 沒給淨值時維持原本的毛回復，所以沒有自傷的 build 分數不變。
+       已確認 PoB 把 RF 算成真的持續傷害：Hierophant 加 RF 後淨回復 1,220 → 768，剛好是 90% × (1 − 85% 火抗)。
+    2. 新扣分 `unsustainable`：連吸血、擊中回血全額算進去，淨回復還是負的（站著打也在掉血）→ 扣 1 分（等於 DPS 少 63%）再加
+       ln(1 + 每秒掉的 %)。回復加分那邊維持吸血只算一半（要打到才有）。
+    3. BUFF_SKILLS 加 Righteous Fire、Righteous Fire of Arcane Devotion、Pact of Beidat、Blood and Sand；主技能不會再被當增益加一次；
+       兩種 RF 互斥（EXCLUSIVE_BUFFS）——PoB 會把兩顆疊加（Hierophant 兩顆都帶衝到作者的 159%），遊戲裡同名增益不疊，沒人會兩顆都帶。
+       Vaal 技能不開放（阿福 2026-11-27 決定：PoB 當永遠開著，高估）。
+  - **公式本身對舊 build 的影響**（把 v14 的 17 個 build 用 v15 公式重算，不重跑搜尋）：16 個變動在 −0.05 以內（帶 Blood Rage 的 Smite／Slayer、
+    Glacial Hammer、Cyclone 各 −0.01～−0.03）；只有作者組 Storm Call／Assassin 從 29.72 → 26.78（−2.94）：v14 的那個 build 每秒淨掉 164 血、
+    沒有吸血，來源是作者的鞋子 Annihilation's Approach（藥水期間每秒受火傷換 Adrenaline；作者本人靠每秒 839 吸血撐住，生成器的沒有）。
+  - **考試 v14 → v15**（--jobs 12，14 分 41 秒＋gap 39 秒；Python 尖峰 14.3 GB、系統 25.4 GB／31 GB）：
+    - 底線 8/10 → 8/10；樣板組退步 0（最大 Tornado Shot −0.04、Glacial Hammer −0.03，在 0.05 內）；進步：Fireball +0.23、Fireball block +0.34、
+      Essence Drain +0.25、Doryani 樣板 +0.33、Raise Zombie +0.13、Cyclone +0.10。新增益被選的情況：Fireball 兩組、Doryani 樣板、Raise Zombie、
+      Essence Drain 選了 RF of Arcane Devotion 和／或 Pact of Beidat；Cyclone 選了 Blood and Sand。
+    - 作者組 DPS 四組進步：Storm Call／Hierophant 85% → **112%**（RF of Arcane Devotion＋Pact of Beidat）、Storm Call／Assassin 74% → **84%**、
+      Reave 66% → **76%**（Blood and Sand）、Smite／Gladiator 84% → 89%。退步：Smite／Slayer 111% → 94%、KB Necro 178% → 171%（仍遠超作者）。
+    - **作者組及格 3/7 → 2/7**（Smite／Slayer、Skeletons 及格）。少的那組是 Smite／Gladiator：DPS 89% 過了，防禦 10.11 比作者 10.22 低 0.11，
+      門檻是 0.10，差 0.01。公式本身只讓它 −0.01（Blood Rage 的扣血）；其餘 −0.22 是搜尋走了另一條路（分數 28.65 → 28.49，用生成器自己的尺也更低）。
+      這組連續兩版在及格線上翻來翻去（v13 96%、v14 84%、v15 89% 但防禦掉），是貪婪搜尋的噪音，不是這次改動造成的；要治本得讓搜尋更穩
+      （例如多起點取最佳），另開題目。
+    - Hierophant（112%）、Assassin（84%）DPS 都過了但防禦差 0.26／0.32 不及格；作者兩組都靠 Vaal Arctic Armour（+1.17），阿福說考卷端處理。
+  - **有沒有 build 因淨回復為負而換配置**：有，Storm Call／Assassin（作者裝備）：v14 淨 −164／秒；v15 多選 Pact of Beidat＋RF of Arcane Devotion，
+    樹多拿回復，最後淨 +353／秒、DPS 1.29 億 → 1.46 億、防禦 11.04 → 10.89。Doryani 樣板也多選了這兩個並拿到每秒 2,588 吸血（混沌抗 70 → 48，仍過底線）。
+    帶 Blood Rage 的六個 build 都留著 Blood Rage（自己的回復或吸血撐得住，沒被扣分）。
+  - **請阿福判斷**：嚴格照「沒有任何一組退步」，作者組及格數 3 → 2 不過；但那一組差 0.01、主因是路徑噪音，而 DPS 四組進步、樣板組零退步六進步。
+    我的建議是收 v15，Smite／Gladiator 的穩定性另開題。
+  - 結果：私人庫 `results/v15/home/`（v15.md、v15.json、v15-gap.md）。
 
 ## T4 office：保留考卷
 - 給：使用者＋阿福（office）、pc2 跑

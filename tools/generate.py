@@ -47,11 +47,14 @@ FOCUS = {"damage": 0.5, "balanced": 1.0, "defence": 2.0}
 # 2: realistic skill stages (Blade Blast, Explosive Arrow), dual-wield weapons, runs stop when the skill deals no damage.
 # 14: the support pool is refreshed after every support taken (a support that needs another one linked first, e.g.
 #     Overloaded Intensity after Intensify, was never in the pool), and the final swaps repeat until none improves.
-GENERATOR_VERSION = 14
+# 15: recovery counts the net regeneration (PoB's NetLifeRegen: regeneration minus the build's own degeneration, e.g.
+#     Righteous Fire, Blood Rage); a build that loses life every second is penalised. Righteous Fire (both), Pact of
+#     Beidat and Blood and Sand may be chosen as buffs.
+GENERATOR_VERSION = 15
 # Results of older versions from STILL_VALID_FROM on still count as done in self-play, except for the skills a later
 # version changed (changed_since_valid). Version 9 only changed minion skills (the minion's skill is now chosen),
 # unarmed attacks (empty main hand) and spells that need a staff.
-STILL_VALID_FROM = 14
+STILL_VALID_FROM = 15
 
 
 def changed_since_valid(skill, info):
@@ -251,7 +254,15 @@ def weapon_options(info, attribute, archetype=None):
 BUFF_SKILLS = ["Hatred", "Anger", "Wrath", "Zealotry", "Malevolence", "Pride", "Haste", "Grace", "Determination", "Discipline",
                "Precision", "Purity of Elements", "Herald of Ash", "Herald of Ice", "Herald of Thunder", "Herald of Agony",
                "Herald of Purity", "War Banner", "Dread Banner", "Defiance Banner", "Arctic Armour", "Tempest Shield",
-               "Flesh and Stone", "Vitality", "Enduring Cry", "Blood Rage"]  # Enduring Cry: endurance charges (inferred)
+               "Flesh and Stone", "Vitality", "Enduring Cry", "Blood Rage",  # Enduring Cry: endurance charges (inferred)
+               # permanent buffs with a cost PoB models (v15): Righteous Fire burns the player (net regeneration, see
+               # recovery()), Pact of Beidat reserves life, Blood and Sand reserves mana. The real builds of the v13
+               # benchmark used them: Storm Call +41% DPS from Righteous Fire, Reave +15% from Blood and Sand.
+               # Vaal skills are not offered: PoB counts their buff as always up (decision 2026-11-27).
+               "Righteous Fire", "Righteous Fire of Arcane Devotion", "Pact of Beidat", "Blood and Sand"]
+# Buffs that give the same buff in the game (a transfigured gem and its original): one of each set at most. PoB adds
+# both (Storm Call / Hierophant with both Righteous Fires: 159% of the author's DPS, v15 check), the game does not.
+EXCLUSIVE_BUFFS = [{"Righteous Fire", "Righteous Fire of Arcane Devotion"}]
 
 # Utility skills, with how many a build uses. PoB counts each as always up, so only those where that is fair:
 # - guard: Steelskin / Molten Shell absorb a hit (cast before a boss's big hit); one guard at a time in the game.
@@ -382,12 +393,30 @@ RECOVERY_WEIGHT = 0.2
 RECOVERY_POOL_MIN = 1000
 
 
-def recovery(m):
+def sustain(m, hit_share=0.5):
+    """(net recovery per second, pool): regeneration minus the build's own degeneration (PoB's NetLifeRegen /
+    NetEnergyShieldRegen: Righteous Fire, Blood Rage, Annihilation's Approach... - the gross LifeRegenRecovery when
+    PoB gives no net value), plus hit_share of leech and life on hit, which need hitting."""
     # at least RECOVERY_POOL_MIN: a tiny pool (life 1 and no energy shield) would make any regeneration look huge
     pool = max((m.get("Life") or 0) + (m.get("EnergyShield") or 0), RECOVERY_POOL_MIN)
-    per_second = ((m.get("LifeRegenRecovery") or 0) + (m.get("EnergyShieldRegenRecovery") or 0)
-                  + 0.5 * ((m.get("LifeLeechGainRate") or 0) + (m.get("EnergyShieldLeechGainRate") or 0) + (m.get("LifeOnHitRate") or 0)))
+    life = m.get("NetLifeRegen") if m.get("NetLifeRegen") is not None else (m.get("LifeRegenRecovery") or 0)
+    es = m.get("NetEnergyShieldRegen") if m.get("NetEnergyShieldRegen") is not None else (m.get("EnergyShieldRegenRecovery") or 0)
+    per_second = life + es + hit_share * ((m.get("LifeLeechGainRate") or 0) + (m.get("EnergyShieldLeechGainRate") or 0) + (m.get("LifeOnHitRate") or 0))
+    return per_second, pool
+
+
+def recovery(m):
+    per_second, pool = sustain(m)
     return math.log(1 + max(per_second, 0) / pool * 100)
+
+
+def unsustainable(m):
+    """Penalty for a build whose own degeneration beats its recovery even while hitting (leech and life on hit in
+    full: to live it must keep attacking) - v15. 1 (the same as losing 63% of the DPS) plus the rate: a build losing
+    10% of its life a second is not playable, whatever it deals. Righteous Fire on a build without the regeneration
+    for it, or Annihilation's Approach without leech, land here."""
+    per_second, pool = sustain(m, hit_share=1.0)
+    return 1 + math.log(1 - per_second / pool * 100) if per_second < 0 else 0.0
 
 
 def log(*args):
@@ -488,6 +517,7 @@ class Generator:
         if m.get("ChaosMaximumHitTaken"):
             p += max(0, CHAOS_TARGET - (m.get("ChaosResist") or 0)) * CHAOS_PENALTY
         p += (m.get("attributeShortfall") or 0) * (0 if self.attributes_later else 0.02)
+        p += unsustainable(m)
         if (m.get("ManaUnreserved") if m.get("ManaUnreserved") is not None else 0) < 0:
             p += 5
         if (m.get("LifeUnreserved") if m.get("LifeUnreserved") is not None else 1) < 1:
@@ -794,14 +824,17 @@ class Generator:
 
     def add_buffs(self):
         self.step = "buff"
-        present = {c.get("gems", [None])[0] for c in self.state if c["type"] == "group_add"}
-        pool = [s for s in BUFF_SKILLS if s not in present]
+        present = {c.get("gems", [None])[0] for c in self.state if c["type"] == "group_add"} | {self.skill}
+        # the main skill is not also a buff; of an exclusive set, only one (EXCLUSIVE_BUFFS)
+        taken = lambda s: s in present or any(s in group and present & group for group in EXCLUSIVE_BUFFS)
+        pool = [s for s in BUFF_SKILLS if not taken(s)]
         while pool:
             found = self.best([[{"type": "group_add", "gems": [s]}] for s in pool], self.current)
             if not found or not found[0]:
                 break
             move, metrics, _ = found[0]
-            pool.remove(move[0]["gems"][0])
+            present.add(move[0]["gems"][0])
+            pool = [s for s in pool if not taken(s)]
             self.accept("buff", move, metrics, f"aura/buff: {move[0]['gems'][0]}")
 
     def add_utility(self):

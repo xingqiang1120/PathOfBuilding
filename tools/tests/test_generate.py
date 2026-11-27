@@ -149,6 +149,16 @@ class GenerateTest(unittest.TestCase):
         self.assertEqual(generate.weapon_options(r["skillInfo"], "Dex", "block"), [])  # bow only: no shield
         self.assertLess(generate.recovery({"Life": 1000, "LifeRegenRecovery": 10}),
                         generate.recovery({"Life": 1000, "LifeRegenRecovery": 50}))
+        # v15: the net regeneration counts when PoB gives it (Righteous Fire burns 20% of life a second here)
+        self.assertEqual(generate.recovery({"Life": 1000, "LifeRegenRecovery": 300, "NetLifeRegen": 100}),
+                         generate.recovery({"Life": 1000, "LifeRegenRecovery": 100}))
+        self.assertEqual(generate.recovery({"Life": 1000, "LifeRegenRecovery": 100, "NetLifeRegen": -100}), 0)
+        self.assertEqual(generate.unsustainable({"Life": 1000, "LifeRegenRecovery": 100, "NetLifeRegen": 100}), 0)
+        self.assertGreater(generate.unsustainable({"Life": 1000, "LifeRegenRecovery": 100, "NetLifeRegen": -100}), 1)  # 10% a second
+        self.assertGreater(generate.unsustainable({"Life": 1000, "NetLifeRegen": -300}),
+                           generate.unsustainable({"Life": 1000, "NetLifeRegen": -100}))
+        # leech and life on hit (half) can carry a negative net regeneration
+        self.assertEqual(generate.unsustainable({"Life": 1000, "NetLifeRegen": -100, "LifeLeechGainRate": 400}), 0)
 
     def test_build_around_profile(self):
         prof = generate.unique_profile("Doryani's Prototype")

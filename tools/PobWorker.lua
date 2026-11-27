@@ -425,7 +425,8 @@ local function metrics()
 		"PhysicalMaximumHitTaken", "FireMaximumHitTaken", "ColdMaximumHitTaken", "LightningMaximumHitTaken", "ChaosMaximumHitTaken",
 		"FireResist", "ColdResist", "LightningResist", "ChaosResist", "EffectiveBlockChance", "EffectiveSpellBlockChance",
 		"EffectiveSpellSuppressionChance", "MovementSpeedMod", "Str", "Dex", "Int", "LifeRegenRecovery", "Speed", "HitChance", "CritChance",
-		"EnergyShieldRegenRecovery", "LifeLeechGainRate", "EnergyShieldLeechGainRate", "LifeOnHitRate", "PhysicalDamageReduction" }) do
+		"EnergyShieldRegenRecovery", "LifeLeechGainRate", "EnergyShieldLeechGainRate", "LifeOnHitRate", "PhysicalDamageReduction",
+		"NetLifeRegen", "NetEnergyShieldRegen", "TotalDegen", "TotalNetRegen" }) do
 		if type(o[key]) == "number" then
 			m[key] = round(o[key], 2)
 		end

@@ -26,6 +26,7 @@ attribute; weapons with typical damage rolls). No uniques, jewels, flasks or clu
 Output: src/Builds/generated/<name>.xml (open in PoB) and library/reports/generate-<name>.md.
 """
 import argparse
+import copy
 import datetime
 import json
 import math
@@ -75,11 +76,16 @@ FOCUS = {"damage": 0.5, "balanced": 1.0, "defence": 2.0}
 #     request had changed, so a node measured in a batch could take other travel nodes than the same node replayed from
 #     the saved state (Storm Call / Assassin around Doryani's Prototype, v20: 303 evasion and +0.009 score the exported
 #     build did not have). The score a try measures is now the score the saved build has.
-GENERATOR_VERSION = 21
+# 22: the tree is grown twice, once per tie rule between equal-cost paths (TIE_RULES, a request parameter of the
+#     worker), and the better tree is kept; the search goes on under that rule, which the saved build records. A single
+#     rule is one of many equally valid ones, and benchmark v21 against its reversed-tie run showed how much the greedy
+#     search depends on it: 9 of 17 builds differed, Smite / Gladiator by 0.55, Raise Spectre by 0.17, while every
+#     divergence began while the tree grew (simdata trajectories).
+GENERATOR_VERSION = 22
 # Results of older versions from STILL_VALID_FROM on still count as done in self-play, except for the skills a later
 # version changed (changed_since_valid). Version 9 only changed minion skills (the minion's skill is now chosen),
 # unarmed attacks (empty main hand) and spells that need a staff.
-STILL_VALID_FROM = 21
+STILL_VALID_FROM = 22
 
 
 def changed_since_valid(skill, info):
@@ -463,7 +469,10 @@ def unsustainable(m):
     return 1 + math.log(1 - per_second / pool * 100) if per_second < 0 else 0.0
 
 
-TIE = 1e-9  # score gains closer than this count as equal (v16: the first of the sorted candidates is kept)
+TIE = 1e-9
+# the tie rules the tree is grown under (v22): the worker's names; POB_TIE_RULES="alt,altdesc" is another pair, for
+# measuring how much the result still depends on the rule (the exam run twice, once per pair)
+TIE_RULES = tuple(os.environ.get("POB_TIE_RULES", "asc,desc").split(","))  # score gains closer than this count as equal (v16: the first of the sorted candidates is kept)
 # Tree swap (v18): per pass the SWAP_TRIALS allocated nodes cheapest to remove are tried; the freed points are spent
 # with the gains measured while the tree grew (SWAP_SHORTLIST best known candidates, SWAP_UNTRIED new ones a round)
 SWAP_PASSES = 3
@@ -515,11 +524,12 @@ class Generator:
         self.life_floor = LIFE_FLOOR  # 0 with an author's items (v19)
         self.life_floor_later = True  # the life floor counts from the tree swap on (v19)
         self.tree_known = {}  # candidate id -> (gain per point, name, cost) measured while the tree grew (v18)
+        self.tie = TIE_RULES[0]  # the tie rule between equal-cost paths the search runs under (v22, tree_phase)
 
     # --- PoB calls ---------------------------------------------------------------------------------------------------
     def params(self):
         # inferCharges: power/frenzy/endurance charges on when the build has a source (tools/PobWorker.lua)
-        return {"xml": self.xml, "name": self.name, "infer": self.infer, "inferCharges": self.infer}
+        return {"xml": self.xml, "name": self.name, "infer": self.infer, "inferCharges": self.infer, "tie": self.tie}
 
     def try_all(self, candidates, costs=None):
         out = []
@@ -924,6 +934,35 @@ class Generator:
             log(f"  [tree swap] -{r['name']} ({r['frees']} points) +{added} -> score {base:.3f} -> {self.score(metrics):.3f}, "
                 f"DPS {self.dps(metrics):,.0f}, life {metrics.get('Life')}")
 
+    def tree_phase(self):
+        """The tree grown and swapped once under each tie rule (TIE_RULES), from the same gems and flasks; the better
+        tree is kept and the search goes on under its rule (v22). Where two paths cost the same, PoB takes one by a
+        fixed order (canonicalPaths); which one changes where the greedy growth ends up, and benchmark v21's runs
+        under two orders diverged while the tree grew, nowhere later."""
+        fields = ("state", "current", "history", "tree_known", "jewel", "life_floor_later", "tie", "step")
+        start = {f: copy.deepcopy(getattr(self, f)) for f in fields}
+        best = None
+        for rule in TIE_RULES:
+            for f in fields:
+                setattr(self, f, copy.deepcopy(start[f]))
+            self.tie = rule
+            log(f"  [tree start] tie rule {rule}")
+            self.current = self.try_all([[]])[0]["metrics"]  # same build, scored again with the attribute penalty
+            self.grow_tree()
+            self.life_floor_later = False  # from here the pool below the floor costs (v19); the tree swap repairs it first
+            if pool(self.current) < self.life_floor:
+                log(f"  life + energy shield {pool(self.current)} is below the floor {self.life_floor}: the tree swap repairs it")
+            self.retune_tree()
+            score = self.score(self.current)
+            log(f"  [tree start] tie rule {rule}: score {score:.3f}, DPS {self.dps(self.current):,.0f}, life {self.current.get('Life')}")
+            if best is None or score > best[0] + TIE:
+                best = (score, rule, {f: getattr(self, f) for f in fields})
+        for f, v in best[2].items():
+            setattr(self, f, v)
+        self.history.append({"step": "tree start", "move": [], "note": f"tie rule kept: {self.tie} (of {', '.join(TIE_RULES)})",
+                             "dps": self.dps(self.current), "score": self.score(self.current)})
+        log(f"  [tree start] kept tie rule {self.tie}")
+
     def socket_move(self, sock, kind=None):
         """Allocate a jewel socket (unless it already is) and put a template jewel in it."""
         move = [{"type": "passive_add", "node": sock["node"] if "node" in sock else sock["id"]}] if sock["cost"] else []
@@ -1178,12 +1217,7 @@ class Generator:
         self.add_debuffs()
         self.pick_flasks()
         self.attributes_later = False
-        self.current = self.try_all([[]])[0]["metrics"]  # same build, scored again with the attribute penalty
-        self.grow_tree()
-        self.life_floor_later = False  # from here the pool below the floor costs (v19); the tree swap repairs it first
-        if pool(self.current) < self.life_floor:
-            log(f"  life + energy shield {pool(self.current)} is below the floor {self.life_floor}: the tree swap repairs it")
-        self.retune_tree()
+        self.tree_phase()
         self.add_buffs()
         self.add_utility()
         self.add_debuffs()
@@ -1231,6 +1265,8 @@ class Generator:
             "Immortal Call and movement skills are not used.",
             "The amulet's anoint and the helmet's labyrinth enchant are chosen for the build.",
             "Tree jewel sockets hold template rare jewels (life plus three good rolls of one kind); no cluster, abyss or unique jewels.",
+            f"Where two tree paths cost the same, the one taken follows the order '{self.tie}' of node ids (the tree was grown once "
+            f"per order {', '.join(TIE_RULES)}; this one scored higher). A replay of the generator's changes needs the same order.",
             "Power, frenzy and endurance charges count at their maximum when the build has a source (none against a lone boss "
             "if every source needs kills).",
             (f"Search guided by {self.guide}: supports tried in weight order (top {GUIDE_TOP} + {GUIDE_EXPLORE} at random)."
@@ -1314,7 +1350,7 @@ def main():
     if os.environ.get("POB_RESULT_JSON"):  # tools/benchmark.py reads the result from here
         with open(os.environ["POB_RESULT_JSON"], "w", encoding="utf-8") as f:
             json.dump({"metrics": m, "dps": g.dps(m), "score": g.score(m), "defence": g.defence(m), "penalty": g.penalty(m),
-                       "build": path, "report": report, "minutes": g.elapsed / 60, "generator": GENERATOR_VERSION}, f)
+                       "build": path, "report": report, "minutes": g.elapsed / 60, "generator": GENERATOR_VERSION, "tie": g.tie}, f)
     log(f"\nDPS {g.dps(m):,.0f} · life {m.get('Life')} · EHP {m.get('TotalEHP'):,.0f} · {g.elapsed / 60:.1f} min")
     log(f"build:  {path}\nreport: {report}")
 

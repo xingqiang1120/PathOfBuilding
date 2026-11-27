@@ -503,11 +503,23 @@ end
 -- nodes than the same node alone or replayed from the saved state (v21: Storm Call / Assassin, Harrier through
 -- three dexterity nodes or none, 303 evasion the exported build did not have). The allocated nodes are put in a fresh
 -- table in id order before the paths are built, so the tie goes the same way everywhere.
+local tieOrder = nil  -- the current request's tie rule (see canonicalPaths)
+TIE_ORDERS = {
+	asc = function(a, b) return a < b end,
+	desc = function(a, b) return a > b end,
+	-- another pair, unrelated to the first: by the id's last three digits first (noise measurement, v22)
+	alt = function(a, b) if a % 1000 ~= b % 1000 then return a % 1000 < b % 1000 end return a < b end,
+	altdesc = function(a, b) if a % 1000 ~= b % 1000 then return a % 1000 > b % 1000 end return a > b end,
+}
+
 local function canonicalPaths()
 	local spec = build.spec
 	local ids = { }
 	for id in pairs(spec.allocNodes) do table.insert(ids, id) end
-	table.sort(ids)
+	-- the order is the tie rule (request parameter "tie", v22): any fixed order is as valid as any other, and a search
+	-- run under two of them lands in different places (benchmark v21 against its reversed-tie run: 9 of 17 builds
+	-- differed, one by 0.55); the generator grows the tree under two and keeps the better, then stays with that one
+	table.sort(ids, TIE_ORDERS[tieOrder or "asc"] or TIE_ORDERS.asc)
 	local fresh = { }
 	for _, id in ipairs(ids) do fresh[id] = spec.allocNodes[id] end
 	spec.allocNodes = fresh
@@ -1885,6 +1897,7 @@ for line in io.stdin:lines() do
 			if not method then
 				respond({ id = req.id, ok = false, error = "unknown method '" .. tostring(req.method) .. "'" })
 			else
+				tieOrder = req.params and req.params.tie or nil
 				local ok, result = pcall(method, req.params or { })
 				if ok then
 					respond({ id = req.id, ok = true, result = result })

@@ -105,6 +105,34 @@ class GenerateTest(unittest.TestCase):
             self.assertEqual(b["metrics"]["passivePointsUsed"] - base["passivePointsUsed"], p["cost"], p["name"])  # the cost listed
         self.assertEqual(differ, [])
 
+    def test_tie_rules_cost_the_same_and_replay_alike(self):
+        # v22: the tie rule between equal-cost paths is a request parameter. Under another rule every candidate costs
+        # the same (it is a tie) and some land on other travel nodes; a candidate still measures the same in a batch,
+        # alone and replayed under its rule (so a saved build replays under the rule it records). On this tree (the 20
+        # cheapest notables) 5 of 179 candidates take another path under "desc".
+        state = []
+        for _ in range(20):
+            c = WORKER.call("candidates", {"xml": self.new["xml"], "name": "t", "changes": state, "maxPath": 10, "tie": "asc"})
+            cheap = min((p for p in c["passives"] if p["type"] == "Notable"), key=lambda p: (p["cost"], p["id"]))
+            state.append({"type": "passive_add", "node": cheap["id"]})
+        asc = WORKER.call("candidates", {"xml": self.new["xml"], "name": "t", "changes": state, "maxPath": 10, "tie": "asc"})
+        desc = WORKER.call("candidates", {"xml": self.new["xml"], "name": "t", "changes": state, "maxPath": 10, "tie": "desc"})
+        self.assertEqual([(p["id"], p["cost"]) for p in asc["passives"]], [(p["id"], p["cost"]) for p in desc["passives"]])
+        moves = [[{"type": "passive_add", "node": p["id"]}] for p in desc["passives"]]
+        batch, other_rule = [], []
+        for i in range(0, len(moves), 40):
+            batch += WORKER.call("try", {"xml": self.new["xml"], "name": "t", "changes": state, "candidates": moves[i:i + 40], "tie": "desc"})
+            other_rule += WORKER.call("try", {"xml": self.new["xml"], "name": "t", "changes": state, "candidates": moves[i:i + 40], "tie": "asc"})
+        differ = [i for i, (b, o) in enumerate(zip(batch, other_rule)) if b["metrics"] != o["metrics"]]
+        self.assertTrue(differ, "no candidate took another path under the other tie rule (nothing to test)")
+        for i in differ:
+            self.assertEqual(other_rule[i]["metrics"]["passivePointsUsed"], batch[i]["metrics"]["passivePointsUsed"])
+        for i in differ + list(range(0, len(moves), max(1, len(moves) // 10))):
+            alone = WORKER.call("try", {"xml": self.new["xml"], "name": "t", "changes": state, "candidates": [moves[i]], "tie": "desc"})[0]
+            replayed = WORKER.call("try", {"xml": self.new["xml"], "name": "t", "changes": state + moves[i], "candidates": [[]], "tie": "desc"})[0]
+            self.assertEqual(alone["metrics"], batch[i]["metrics"], desc["passives"][i]["name"])
+            self.assertEqual(replayed["metrics"], batch[i]["metrics"], desc["passives"][i]["name"])
+
     def test_group_replace_swaps_an_aura_and_undoes(self):
         # v20 buff swap: the group that holds one aura holds another instead; a try puts the first one back
         add = [{"type": "group_add", "gems": ["Zealotry"]}]

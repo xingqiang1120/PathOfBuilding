@@ -396,9 +396,9 @@ GUIDE_EXPLORE = 5
 CHAOS_TARGET = 60
 CHAOS_PENALTY = 0.005  # 0.01 made a life build take Chaos Inoculation just to drop the penalty (2026-11-26)
 # Below 0 the build is not playable for mapping (the benchmark's floor): every point under 0 costs as much as a point of
-# uncapped fire / cold / lightning (v16). The soft term above still applies between 0 and CHAOS_TARGET.
-# POB_CHAOS_FLOOR: experiment only (benchmark v17 compared floors of 0, 30 and 60 for the user to choose from)
-CHAOS_FLOOR = int(os.environ.get("POB_CHAOS_FLOOR", "0"))
+# uncapped fire / cold / lightning (v17). The soft term above still applies between 0 and CHAOS_TARGET.
+# 0 was chosen by the user from a v17 comparison of 0 / 30 / 60: higher floors cost five of the ten templates life or DPS.
+CHAOS_FLOOR = 0
 CHAOS_FLOOR_PENALTY = 0.05
 RECOVERY_WEIGHT = 0.2
 RECOVERY_POOL_MIN = 1000

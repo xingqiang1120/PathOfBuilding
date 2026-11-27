@@ -541,6 +541,15 @@ local changeHandlers = {
 		build.skillsTab:ProcessSocketGroup(group)
 		return "new group: " .. table.concat(names, ", ")
 	end,
+	group_replace = function(c)
+		-- the group that holds gem `gem` (an aura / buff the generator added alone) now holds `with` instead (v20)
+		local group, index = findGroup(c.gem)
+		local gem = { enableGlobal1 = true, enableGlobal2 = true, count = 1 }
+		local new = setGem(gem, c.with, c.level, c.quality)
+		group.gemList = { gem }
+		build.skillsTab:ProcessSocketGroup(group)
+		return string.format("group %d: %s -> %s", index, c.gem, new)
+	end,
 	gem_add = function(c)
 		local group, index = findGroup(c.group)
 		local gem = { enableGlobal1 = true, enableGlobal2 = true, count = 1 }
@@ -1557,6 +1566,11 @@ local function applyReversible(change)
 	elseif t == "group_add" then
 		local result = changeHandlers[t](change)
 		return result, function() table.remove(build.skillsTab.socketGroupList) end
+	elseif t == "group_replace" then
+		local group = findGroup(change.gem)
+		local saved = group.gemList
+		local result = changeHandlers[t](change)
+		return result, function() group.gemList = saved build.skillsTab:ProcessSocketGroup(group) end
 	elseif t == "item_equip" or t == "item_remove" then
 		local slot = assert(build.itemsTab.slots[change.slot], "no item slot '" .. tostring(change.slot) .. "'")
 		local old, oldActive = slot.selItemId, slot.active

@@ -69,6 +69,21 @@ class GenerateTest(unittest.TestCase):
         self.assertGreaterEqual(both - before, 1)
         self.assertEqual(after, before)
 
+    def test_group_replace_swaps_an_aura_and_undoes(self):
+        # v20 buff swap: the group that holds one aura holds another instead; a try puts the first one back
+        add = [{"type": "group_add", "gems": ["Zealotry"]}]
+        res = WORKER.call("try", {"xml": self.new["xml"], "name": "t", "changes": add, "candidates": [
+            [], [{"type": "group_replace", "gem": "Zealotry", "with": "Tempest Shield"}], []]})
+        first, swapped, last = res
+        self.assertIn("group 2: Zealotry -> Tempest Shield", swapped["applied"][0])
+        self.assertNotEqual(swapped["metrics"]["ManaUnreserved"], first["metrics"]["ManaUnreserved"])
+        self.assertEqual(last["metrics"]["ManaUnreserved"], first["metrics"]["ManaUnreserved"])
+        self.assertEqual(last["metrics"]["playerDPS"], first["metrics"]["playerDPS"])
+        g = generate.Generator("Kinetic Blast of Clustering", "Necromancer")
+        g.state = [{"type": "group_add", "gems": ["Zealotry"]}, {"type": "group_add", "gems": ["Steelskin"]},
+                   {"type": "group_replace", "gem": "Zealotry", "with": "Tempest Shield"}]
+        self.assertEqual(g.skill_groups(), ["Tempest Shield", "Steelskin"])
+
     def gear(self, r, attribute="Dex"):
         armour, _ = generate.armour_set(attribute)
         return [{"type": "item_equip", "slot": s, "raw": raw} for s, raw in armour.items()] + \

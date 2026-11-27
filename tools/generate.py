@@ -66,11 +66,15 @@ FOCUS = {"damage": 0.5, "balanced": 1.0, "defence": 2.0}
 #     start sent Glacial Hammer down a life-first path: 4,948 life, DPS 4.5M -> 1.5M). Not with an author's items: they
 #     set the life budget (a floor at the author's own 3,378 cost Smite / Gladiator 40% of its DPS). The score had no
 #     floor, so Cyclone / Slayer sat at 3,600 for versions and the v18 tree swap traded Glacial Hammer's life for DPS.
-GENERATOR_VERSION = 19
+# 20: the tree swap runs again at the very end, measuring every candidate afresh, and the auras / buffs are swapped
+#     against the ones not taken (group_replace): both were decided before flasks, jewels and the support swaps changed
+#     what defence is worth (Storm Call / Assassin went from 113M to 175M DPS after its tree was final; Tempest Shield
+#     alone was worth +0.17 to +0.20 defence to both Storm Call builds, but DPS auras chosen on a bare build had the mana).
+GENERATOR_VERSION = 20
 # Results of older versions from STILL_VALID_FROM on still count as done in self-play, except for the skills a later
 # version changed (changed_since_valid). Version 9 only changed minion skills (the minion's skill is now chosen),
 # unarmed attacks (empty main hand) and spells that need a staff.
-STILL_VALID_FROM = 19
+STILL_VALID_FROM = 20
 
 
 def changed_since_valid(skill, info):
@@ -858,7 +862,7 @@ class Generator:
             self.accept("tree", move, metrics, f"{what}: {node['name']} ({node['cost']} points, {metrics.get('passivePointsUsed')}/{available})")
         self.tree_known = known
 
-    def retune_tree(self):
+    def retune_tree(self, fresh=False):
         """Once the tree is full: the allocated notables and keystones cheapest to remove (score lost per point freed)
         are each taken out in turn and their points spent again on the best candidates of the finished build; the swap
         is kept when the build scores higher (v18). The greedy growth commits to a node for the gain it had when the
@@ -871,8 +875,10 @@ class Generator:
         while True:
             # while the pool is short of the floor the swap keeps going, and measures its candidates afresh: the gains
             # kept from the tree's growth did not count life (v19)
-            short = pool(self.current) < self.life_floor
-            if passes >= (SWAP_PASSES_FLOOR if short else SWAP_PASSES):
+            # fresh (the final pass, v20): flasks, jewels, auras and supports changed what every node is worth, so the
+            # gains kept from the growth are not used either
+            short = pool(self.current) < self.life_floor or fresh
+            if passes >= (SWAP_PASSES_FLOOR if pool(self.current) < self.life_floor else SWAP_PASSES):
                 return
             passes += 1
             cands = WORKER.call("candidates", dict(self.params(), changes=self.state, maxPath=10))
@@ -943,9 +949,39 @@ class Generator:
                 move, metrics, _ = found[0]
                 self.accept("jewel", move, metrics, f"jewel: {slot} -> {move[0]['raw'].splitlines()[1]}")
 
+    def skill_groups(self):
+        """The skills of the groups the search added, after any swaps (group_add / group_replace), in order."""
+        names = []
+        for c in self.state:
+            if c["type"] == "group_add":
+                names.append(c["gems"][0])
+            elif c["type"] == "group_replace":
+                names[names.index(c["gem"])] = c["with"]
+        return names
+
+    def retune_buffs(self, passes=2):
+        """Each aura / buff against every one not taken, once the tree, flasks and supports are known (v20). The buffs
+        were chosen on a bare build, where DPS auras filled the reservation; by the end a defensive one may be worth
+        more (Tempest Shield: +0.17 to +0.20 defence to both Storm Call builds of benchmark v19, but no mana was left)."""
+        self.step = "buff swap"
+        for _ in range(passes):
+            swapped = False
+            for gem in [g for g in self.skill_groups() if g in BUFF_SKILLS]:
+                present = set(self.skill_groups()) | {self.skill}
+                others = present - {gem}
+                taken = lambda s: s in present or any(s in group and others & group for group in EXCLUSIVE_BUFFS)
+                pool = [s for s in BUFF_SKILLS if not taken(s)]
+                found = self.best([[{"type": "group_replace", "gem": gem, "with": s}] for s in pool], self.current)
+                if found and found[0]:
+                    move, metrics, _ = found[0]
+                    self.accept("buff swap", move, metrics, f"aura/buff: {gem} -> {move[0]['with']}")
+                    swapped = True
+            if not swapped:
+                break
+
     def add_buffs(self):
         self.step = "buff"
-        present = {c.get("gems", [None])[0] for c in self.state if c["type"] == "group_add"} | {self.skill}
+        present = set(self.skill_groups()) | {self.skill}
         # the main skill is not also a buff; of an exclusive set, only one (EXCLUSIVE_BUFFS)
         taken = lambda s: s in present or any(s in group and present & group for group in EXCLUSIVE_BUFFS)
         pool = [s for s in BUFF_SKILLS if not taken(s)]
@@ -960,7 +996,7 @@ class Generator:
 
     def add_utility(self):
         """Guard skill, golem and warcries, each kind up to its limit, while they improve the score."""
-        present = {c.get("gems", [None])[0] for c in self.state if c["type"] == "group_add"}
+        present = set(self.skill_groups())
         for kind, names, limit in UTILITY:
             self.step = kind
             have = [n for n in names if n in present]
@@ -977,7 +1013,7 @@ class Generator:
 
     def add_debuffs(self):
         self.step = "curse"
-        present = {c.get("gems", [None])[0] for c in self.state if c["type"] == "group_add"}
+        present = set(self.skill_groups())
         pool = [s for s in DEBUFF_SKILLS if s not in present]
         while pool:
             found = self.best([[{"type": "group_add", "gems": [s]}] for s in pool], self.current)
@@ -1152,6 +1188,10 @@ class Generator:
         self.pick_uniques()
         self.pick_pantheon()
         self.retune_supports()
+        # once everything else is known: the auras against the ones not taken, then the tree swap once more, every
+        # candidate measured afresh (v20)
+        self.retune_buffs()
+        self.retune_tree(fresh=True)
         self.elapsed = time.time() - started
         self.recorder.finish(self.current)
         return self.current

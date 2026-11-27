@@ -61,8 +61,11 @@ FOCUS = {"damage": 0.5, "balanced": 1.0, "defence": 2.0}
 #     kept when the build scores higher. A probe of v17 (Cyclone, Glacial Hammer, Storm Call / Hierophant) showed every
 #     tree candidate is tried in every round (the 80-untried cap never cut one), so breadth was not what the greedy
 #     growth lacked: it had no way back from a node chosen for the gain it had when the tree was small.
-# 19: life + energy shield below LIFE_FLOOR (the playable floor, 4000) costs LIFE_FLOOR_PENALTY a point: the score had
-#     no floor, so Cyclone / Slayer sat at 3,600 for versions and the v18 tree swap traded Glacial Hammer's life for DPS.
+# 19: life + energy shield below LIFE_FLOOR (the playable floor, 4000) costs LIFE_FLOOR_PENALTY a point, from the tree
+#     swap on: the tree grows as before, then the swap repairs the pool at the smallest cost (the penalty on from the
+#     start sent Glacial Hammer down a life-first path: 4,948 life, DPS 4.5M -> 1.5M). Not with an author's items: they
+#     set the life budget (a floor at the author's own 3,378 cost Smite / Gladiator 40% of its DPS). The score had no
+#     floor, so Cyclone / Slayer sat at 3,600 for versions and the v18 tree swap traded Glacial Hammer's life for DPS.
 GENERATOR_VERSION = 19
 # Results of older versions from STILL_VALID_FROM on still count as done in self-play, except for the skills a later
 # version changed (changed_since_valid). Version 9 only changed minion skills (the minion's skill is now chosen),
@@ -407,13 +410,22 @@ CHAOS_PENALTY = 0.005  # 0.01 made a life build take Chaos Inoculation just to d
 # 0 was chosen by the user from a v17 comparison of 0 / 30 / 60: higher floors cost five of the ten templates life or DPS.
 CHAOS_FLOOR = 0
 CHAOS_FLOOR_PENALTY = 0.05
-# Life + energy shield a mapping build needs (the benchmark's floor); every point below costs LIFE_FLOOR_PENALTY. 0.002 a
-# point: 100 life short costs 0.2, about 16 times what 100 life is worth through ln(EHP), so it is a floor, not a weight.
+# Life + energy shield a mapping build needs (the benchmark's floor); every point below costs LIFE_FLOOR_PENALTY once the
+# tree has grown (life_floor_later). 0.002 a point: 100 life short costs 0.2, about 16 times what 100 life is worth
+# through ln(EHP) and twice a 10% DPS node, so the repair stops only at the floor. The tree swap keeps going while the
+# pool is short (up to SWAP_PASSES_FLOOR passes) and re-measures its candidates then (SWAP_UNTRIED_FLOOR a round), as the
+# gains measured while the tree grew did not count life.
 LIFE_FLOOR = 4000
 # POB_LIFE_FLOOR_PENALTY: experiment only (benchmark v19 compares strengths for the user to choose from)
 LIFE_FLOOR_PENALTY = float(os.environ.get("POB_LIFE_FLOOR_PENALTY", "0.002"))
+SWAP_PASSES_FLOOR = 8
+SWAP_UNTRIED_FLOOR = 40
 RECOVERY_WEIGHT = 0.2
 RECOVERY_POOL_MIN = 1000
+
+
+def pool(m):
+    return (m.get("Life") or 0) + (m.get("EnergyShield") or 0)
 
 
 def sustain(m, hit_share=0.5):
@@ -491,6 +503,8 @@ class Generator:
         self.attributes_later = False
         self.resists_later = False
         self.quiet = False  # accept() without a log line (tree swap trials, v18)
+        self.life_floor = LIFE_FLOOR  # 0 with an author's items (v19)
+        self.life_floor_later = True  # the life floor counts from the tree swap on (v19)
         self.tree_known = {}  # candidate id -> (gain per point, name, cost) measured while the tree grew (v18)
 
     # --- PoB calls ---------------------------------------------------------------------------------------------------
@@ -554,9 +568,11 @@ class Generator:
             p += max(0, CHAOS_TARGET - chaos) * CHAOS_PENALTY
             if not self.resists_later:
                 p += max(0, CHAOS_FLOOR - chaos) * CHAOS_FLOOR_PENALTY
-        # life + energy shield below the playable floor (v19); a constant offset while nothing changes the pool, so the
-        # early steps (supports, ascendancy) compare as before, and the tree is drawn to life until the floor is met
-        p += max(0, LIFE_FLOOR - (m.get("Life") or 0) - (m.get("EnergyShield") or 0)) * LIFE_FLOOR_PENALTY
+        # life + energy shield below the playable floor, from the tree swap on (v19): the tree grows for the score, then
+        # the swap and every later step repair the pool at the smallest cost
+        # (getattr: tools/benchmark.py scores authors with a Generator made without __init__; it has no life floor)
+        if not getattr(self, "life_floor_later", True):
+            p += max(0, getattr(self, "life_floor", LIFE_FLOOR) - pool(m)) * LIFE_FLOOR_PENALTY
         # before the tree, missing attributes are left to the tree (a curse needing Int would never be tried otherwise)
         p += (m.get("attributeShortfall") or 0) * (0 if self.attributes_later else 0.02)
         p += unsustainable(m)
@@ -621,6 +637,9 @@ class Generator:
             self.xml, self.state, self.weapon = r["xml"], [], f"from {name}"
             self.current = self.try_all([[]])[0]["metrics"]
             self.jewels_dropped = r.get("jewelsDropped", 0)
+            # the author's items set the life budget, so no life floor here (the exam checks floors on template gear only):
+            # with the floor at the author's own pool, Smite / Gladiator went from 107% to 63% of the author's DPS (v19)
+            self.life_floor = 0
             log(f"{r['class']} / {r['ascendancy']}, {r['skill']} with the gear of {name} (level {self.current.get('passivePointsAvailable')} points; "
                 f"{self.jewels_dropped} tree jewels not used)")
             return
@@ -848,7 +867,14 @@ class Generator:
         grew (tree_known), so a trial costs a few dozen tries, not a full round of 80."""
         self.step = "tree swap"
         protected = set(DEFENCES.get(self.archetype, {}).get("keystones", []))  # the archetype's own keystones stay
-        for _ in range(SWAP_PASSES):
+        passes = 0
+        while True:
+            # while the pool is short of the floor the swap keeps going, and measures its candidates afresh: the gains
+            # kept from the tree's growth did not count life (v19)
+            short = pool(self.current) < self.life_floor
+            if passes >= (SWAP_PASSES_FLOOR if short else SWAP_PASSES):
+                return
+            passes += 1
             cands = WORKER.call("candidates", dict(self.params(), changes=self.state, maxPath=10))
             removable = [r for r in cands.get("removable", []) if r["name"] not in protected]
             if not removable:
@@ -867,7 +893,8 @@ class Generator:
                 self.current, self.history = removed, []
                 self.quiet = True
                 try:
-                    self.grow_tree(untried_batch=SWAP_UNTRIED, shortlist=SWAP_SHORTLIST, known=dict(saved[3]))
+                    self.grow_tree(untried_batch=SWAP_UNTRIED_FLOOR if short else SWAP_UNTRIED, shortlist=SWAP_SHORTLIST,
+                                   known=None if short else dict(saved[3]))
                 finally:
                     self.quiet = False
                     self.step = "tree swap"
@@ -1112,6 +1139,9 @@ class Generator:
         self.attributes_later = False
         self.current = self.try_all([[]])[0]["metrics"]  # same build, scored again with the attribute penalty
         self.grow_tree()
+        self.life_floor_later = False  # from here the pool below the floor costs (v19); the tree swap repairs it first
+        if pool(self.current) < self.life_floor:
+            log(f"  life + energy shield {pool(self.current)} is below the floor {self.life_floor}: the tree swap repairs it")
         self.retune_tree()
         self.add_buffs()
         self.add_utility()

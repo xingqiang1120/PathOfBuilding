@@ -2,8 +2,14 @@
 
     python tools/benchmark.py run [--jobs 4] [--only authors|template]   run the suite (heavy: about 10 minutes a build)
     python tools/benchmark.py report                                       rewrite the report from the last results
+    python tools/benchmark.py run --holdout [--jobs 4]                     the hold-out exam (see below)
 
 Suite: tools/data/benchmark.json. Results: library/benchmark/v<version>.json and .md (library/ is git-ignored).
+
+Hold-out exam (--holdout, agreed 2026-11-27): a second suite of real builds that the generator is NOT tuned against,
+kept in the private data repo (pob-lab-data/holdout/holdout.json, same format). Results: v<version>-holdout.json and .md.
+Whoever changes the generator must not open it or tune for it: it checks that a gain on the main exam is real and not
+learned from those seven builds.
 
 Three checks (agreed 2026-11-26):
   1. Authors: with the author's own items (--gear-from), the generator rebuilds tree, gems, auras and config, and is
@@ -28,11 +34,20 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import generate  # noqa: E402
+import labdata  # noqa: E402
 import library  # noqa: E402
+import re  # noqa: E402
 
 ROOT = library.ROOT
 SUITE = os.path.join(ROOT, "tools", "data", "benchmark.json")
 OUT = os.path.join(ROOT, "library", "benchmark")
+HOLDOUT = os.path.join(labdata.DATA, "holdout", "holdout.json")
+
+
+def result_files(name=""):
+    """{version: path} of the results of one suite (name "" = the main exam, "holdout" = the hold-out exam)."""
+    pattern = re.compile(r"v(\d+)" + (f"-{re.escape(name)}" if name else "") + r"\.json")
+    return {int(m.group(1)): os.path.join(OUT, f) for f in os.listdir(OUT) if (m := re.fullmatch(pattern, f))} if os.path.isdir(OUT) else {}
 AUTHOR_DPS = 0.8  # the generator's DPS at least 80% of the author's
 AUTHOR_MARGIN = 0.1  # and its defence (the score's defence part) at most 0.1 below
 REGRESSION = 0.05
@@ -79,7 +94,7 @@ def author_job(entry):
 
 def template_jobs(suite):
     jobs = []
-    for t in suite["template"]:
+    for t in suite.get("template", []):
         key = f"{t['skill']} / {t['ascendancy']}" + (f" ({t['archetype']})" if t.get("archetype") else "") + (
             f" around {t['buildAround']}" if t.get("buildAround") else "")
         jobs.append(dict(t, key=key, label=key))
@@ -102,12 +117,19 @@ def floors(m, f, ignored=()):
             ("smallest max hit", small, small >= f["SmallestMaxHit"])]
 
 
-def previous_results(version):
-    files = sorted(glob.glob(os.path.join(OUT, "v*.json")), key=lambda p: int(os.path.basename(p)[1:-5]))
-    older = [p for p in files if int(os.path.basename(p)[1:-5]) < version]
+def suite_floors(suite):
+    """The suite's floors; a suite without them (the hold-out exam) uses the main exam's."""
+    if "floors" in suite:
+        return suite["floors"]
+    with open(SUITE, encoding="utf-8") as f:
+        return json.load(f)["floors"]
+
+
+def previous_results(version, name=""):
+    older = [v for v in result_files(name) if v < version]
     if not older:
         return None, {}
-    with open(older[-1], encoding="utf-8") as f:
+    with open(result_files(name)[max(older)], encoding="utf-8") as f:
         data = json.load(f)
     return data.get("version"), {r["key"]: r for r in data["results"]}
 
@@ -118,8 +140,10 @@ def fmt(x):
 
 def report(data):
     suite = data["suite"]
-    prev_version, prev = previous_results(data["version"])
-    lines = [f"# Generator benchmark: version {data['version']}", "", f"Run {data['date']}. Suite: tools/data/benchmark.json.", ""]
+    name = data.get("name", "")
+    prev_version, prev = previous_results(data["version"], name)
+    title = "Hold-out exam" if name == "holdout" else "Generator benchmark"
+    lines = [f"# {title}: version {data['version']}", "", f"Run {data['date']}. Suite: {data.get('suitePath', 'tools/data/benchmark.json')}.", ""]
     authors = [r for r in data["results"] if r.get("gearFrom")]
     templ = [r for r in data["results"] if not r.get("gearFrom")]
     summary = []
@@ -143,7 +167,7 @@ def report(data):
         summary.append(f"authors {passed}/{len(authors)}")
     if templ:
         lines += ["", "## 2. Playable floors and 3. regression (template gear)", "",
-                  f"Floors: {', '.join(f'{k} {v}' for k, v in suite['floors'].items() if not k.startswith('_'))}. "
+                  f"Floors: {', '.join(f'{k} {v}' for k, v in suite_floors(suite).items() if not k.startswith('_'))}. "
                   f"Regression: score drop over {REGRESSION} against version {prev_version}.", "",
                   "| Run | DPS | Life+ES | Smallest hit | Chaos res | Floors | Score | vs previous |", "|---|---|---|---|---|---|---|---|"]
         floor_ok = reg_ok = 0
@@ -152,7 +176,7 @@ def report(data):
                 lines.append(f"| {r['label']} | error | | | | no | | |")
                 continue
             prof = generate.unique_profile(r["buildAround"]) if r.get("buildAround") else None
-            checks = floors(r["metrics"], suite["floors"], (prof or {}).get("ignoreResistPenalty", ()))
+            checks = floors(r["metrics"], suite_floors(suite), (prof or {}).get("ignoreResistPenalty", ()))
             failed = [c for c, _, ok in checks if not ok]
             floor_ok += not failed
             p = prev.get(r["key"])
@@ -173,16 +197,20 @@ def main():
     ap.add_argument("command", choices=["run", "report"])
     ap.add_argument("--jobs", type=int, default=4)
     ap.add_argument("--only", choices=["authors", "template"])
+    ap.add_argument("--holdout", action="store_true", help="the hold-out exam from the private data repo")
     args = ap.parse_args()
     os.makedirs(OUT, exist_ok=True)
     version = generate.GENERATOR_VERSION
-    path = os.path.join(OUT, f"v{version}.json")
-    with open(SUITE, encoding="utf-8") as f:
+    name, suite_path = ("holdout", HOLDOUT) if args.holdout else ("", SUITE)
+    path = os.path.join(OUT, f"v{version}" + (f"-{name}" if name else "") + ".json")
+    if not os.path.exists(suite_path):
+        raise SystemExit(f"no suite at {suite_path}" + (" (python tools/labdata.py pull first)" if args.holdout else ""))
+    with open(suite_path, encoding="utf-8") as f:
         suite = json.load(f)
     if args.command == "run":
         jobs = []
         if args.only != "template":
-            for e in suite["authors"]:
+            for e in suite.get("authors", []):
                 try:
                     jobs.append(author_job(e))
                 except Exception as exc:  # a build PoB cannot load: reported, not fatal
@@ -201,7 +229,8 @@ def main():
             with open(path, encoding="utf-8") as f:
                 old = {r["key"]: r for r in json.load(f)["results"]}
         old.update({r["key"]: r for r in results})
-        data = {"version": version, "date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), "suite": suite,
+        data = {"version": version, "name": name, "suitePath": os.path.relpath(suite_path, ROOT).replace(os.sep, "/"),
+                "date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), "suite": suite,
                 "results": list(old.values())}
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=1)

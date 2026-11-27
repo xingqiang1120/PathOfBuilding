@@ -48,5 +48,36 @@
 - 完成標準：`python tools/labdata.py status` 列得出版本；阿福能傳訊息給「PoB 執行 pc2」。
 - 交回：
 
+## T3 home：生成器計算優化負責人（2026-11-27 起，持續）
+- 給：home
+- 狀態：待做
+- 內容：home 自己負責「改生成器→跑考試→交回」的循環，不用等阿福逐項派工。
+  1. 從最新的差距報告（`library\benchmark\v<版本>-gap.md`）和 HANDOFF「已知的下一批問題」挑一個問題。
+  2. 開分支 `home/v<下一版>-<主題>`，改 `tools/generate.py`（和它需要的 PobWorker.lua、tools/data/ 的樣板資料），
+     升 `GENERATOR_VERSION` 和 `STILL_VALID_FROM`，跑單元測試和完整考試（`--jobs 12`）。
+  3. 及格條件（全部要有）：沒有任何一組退步（分數掉超過 0.05）；底線沒有變少；作者組或底線至少一項變好，或差距報告裡目標那一項變小。
+  4. 推分支、`labdata.py push --pc home`，在這個任務下面寫交回（改了什麼、為什麼、考試前後），再傳訊息給阿福。
+  5. 阿福看 diff，在 pc2 跑保留考試，都過了才合併到 feature/ai-tools。合併前 home 可以先開下一個分支，但要從上一個分支接著做，版號依序。
+- 規則：
+  - **不能改考卷和及格標準**：`tools/benchmark.py` 的判定、`tools/data/benchmark.json`、`tools/ACCEPTANCE.zh-TW.md` 不動。
+    考試程式有 bug 可以修，但另開一個 commit 說明，不要跟生成器的修改混在一起。
+  - **不開保留考卷**：私人庫的 `holdout/` 和任何 `*-holdout*` 結果不看、不針對它調整。
+  - 一個分支只解一個問題，方便看出是哪個改動造成的效果。
+  - 改到計分方式（score、penalty、defence 的權重）要在交回裡講清楚對每組的影響，因為它會改變所有 build 的取捨。
+- 第一批題目：輔助性技能（Righteous Fire 類、Vaal 技能、Pact of Beidat）、Overloaded Intensity 為什麼沒被選、Glacial Hammer 混沌抗底線。
+- 交回：
+
+## T4 office：保留考卷
+- 給：使用者＋阿福（office）、pc2 跑
+- 狀態：待做（等使用者收集 build）
+- 內容：使用者手動收集 5～10 個新的真人 build（最好是主考卷沒有的技能和昇華），阿福匯入 build 庫，寫進私人庫
+  `holdout/holdout.json`。home 每交一版，pc2 跑 `python tools/benchmark.py run --holdout` 和 `python tools/gap.py --benchmark --holdout`。
+- 完成標準：保留考卷有至少 5 組，pc2 能跑出結果。
+
+## T5 office：實戰驗證
+- 給：使用者＋阿福（office）
+- 狀態：待做
+- 內容：照 `tools/PLAYTEST.zh-TW.md`，一次測一個生成器的 build，阿福把結果整理成修正規則派給 home。
+
 ## （暫停）家裡電腦跑自我對弈（第 2～5 份）
 - 階段二才開始，指令見 HOME_PC B 段。

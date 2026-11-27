@@ -2,6 +2,7 @@
 
     python tools/gap.py <author library id> <generated build .xml> [--out report.md]
     python tools/gap.py --benchmark            every author pair of the last benchmark run (library/benchmark/)
+    python tools/gap.py --benchmark --holdout  the same for the hold-out exam
 
 1. Differences: the main skill's supports, other skills (auras, curses, buffs), keystones, notables and masteries,
    ascendancy notables, Config values.
@@ -102,12 +103,16 @@ def main():
     ap.add_argument("author", nargs="?")
     ap.add_argument("generated", nargs="?")
     ap.add_argument("--benchmark", action="store_true")
+    ap.add_argument("--holdout", action="store_true", help="with --benchmark: the hold-out exam's results (not for whoever tunes the generator)")
     ap.add_argument("--out")
     args = ap.parse_args()
     if args.benchmark:
-        files = sorted((f for f in os.listdir(benchmark.OUT) if f.startswith("v") and f.endswith(".json")),
-                       key=lambda f: int(f[1:-5]))
-        with open(os.path.join(benchmark.OUT, files[-1]), encoding="utf-8") as f:
+        name = "holdout" if args.holdout else ""
+        files = benchmark.result_files(name)
+        if not files:
+            raise SystemExit("no benchmark results: run python tools/benchmark.py run" + (" --holdout" if name else ""))
+        latest = files[max(files)]
+        with open(latest, encoding="utf-8") as f:
             data = json.load(f)
         texts = []
         for r in data["results"]:
@@ -115,7 +120,7 @@ def main():
                 text, _ = gap(r["gearFrom"], r["build"], r["label"])
                 texts.append(text)
                 print(text, flush=True)
-        out = args.out or os.path.join(benchmark.OUT, files[-1][:-5] + "-gap.md")
+        out = args.out or latest[:-5] + "-gap.md"
         with open(out, "w", encoding="utf-8") as f:
             f.write("\n".join(texts))
         print(f"written {out}")

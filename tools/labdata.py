@@ -2,6 +2,7 @@
 
 The build library holds account and character names, so it is not in this (public) repo. The private repo holds:
     inputs/            builds.db, raw/, summary/ - what the benchmark needs (from the office PC)
+    holdout/           holdout.json - the hold-out exam (office and pc2 only: whoever tunes the generator does not open it)
     results/v<N>/<pc>/ v<N>.md, v<N>.json, v<N>-gap.md - each PC's benchmark and gap report
 
     python tools/labdata.py pull                    get the data repo (clone the first time); copy inputs/ into library/
@@ -89,6 +90,8 @@ def pull(_):
     base, out = os.path.join(DATA, "results"), os.path.join(LIBRARY, "benchmark")
     added = []
     for v in (os.listdir(base) if os.path.isdir(base) else []):
+        # main-exam results only: the hold-out results stay in the data repo, so whoever tunes the generator does not
+        # get them in library/ without asking
         for pc in sorted(os.listdir(os.path.join(base, v)), key=lambda p: PCS.index(p) if p in PCS else 99):
             src = os.path.join(base, v, pc, f"{v}.json")
             if os.path.exists(src) and not os.path.exists(os.path.join(out, f"{v}.json")):
@@ -105,7 +108,8 @@ def push(args):
     out = os.path.join(LIBRARY, "benchmark")
     dst = os.path.join(DATA, "results", f"v{version}", args.pc)
     names = [f"v{version}.md", f"v{version}.json", f"v{version}-gap.md"]
-    found = [n for n in names if os.path.exists(os.path.join(out, n))]
+    # every file of that version: the main exam, its gap report, and the hold-out exam if this PC ran it
+    found = sorted(f for f in os.listdir(out) if re.match(rf"v{version}[.-]", f)) if os.path.isdir(out) else []
     if not found:
         raise SystemExit(f"no results for version {version} in {out}")
     for n in found:

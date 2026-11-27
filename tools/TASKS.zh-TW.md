@@ -50,7 +50,7 @@
 
 ## T3 home：生成器計算優化負責人（2026-11-27 起，持續）
 - 給：home
-- 狀態：進行中（v14～v17 已驗收合併；v18 樹換血＋v19 生命底線已交回，兩版一起驗收）
+- 狀態：進行中（v14～v19 已驗收合併；v20 防禦差距已交回，等阿福驗收）
 - 內容：home 自己負責「改生成器→跑考試→交回」的循環，不用等阿福逐項派工。
   1. 從最新的差距報告（`library\benchmark\v<版本>-gap.md`）和 HANDOFF「已知的下一批問題」挑一個問題。
   2. 開分支 `home/v<下一版>-<主題>`，改 `tools/generate.py`（和它需要的 PobWorker.lua、tools/data/ 的樣板資料），
@@ -250,6 +250,54 @@
     如果要 Cyclone 不掉 DPS，得靠別的來源補生命（珠寶、藥水、暗金），這是之後的題目。
   - 結果：私人庫 `results/v19/home/`：v19.json／.md／-gap.md（第二次）、v19-rerun.*（第一次，相同）。
   - 下一題（給阿福排）：第 2 題 KB Necro／Storm Call 防禦差距（Hierophant 線索：護甲 32.7k vs 14.2k、生命；Assassin 防禦差 0.45）。
+
+  ### v20 `home/v20-defence-gap`：防禦差距（第 2 題）——差在格擋，原因是順序：樹和光環都在「其他東西還沒定」時就決定了（2026-11-27 23:40，home）
+  - **先量**（三組作者裝：KB Necro、Storm Call／Assassin、Storm Call／Hierophant，v19 的生成 build 對作者 build）：
+    1. **防禦分數拆開**：差距全在 ln(EHP)，最小最大承傷和回復生成的都不輸作者（Assassin 最小承傷 14.9k vs 作者 13.1k）。
+    2. **EHP 差在格擋**：PoB 的 TotalEHP = 能吃幾下 × 每下傷害，格擋是乘法。有效格擋／法術格擋：KB 作者 72／72 vs 生成 36／25；Assassin 作者 90／88 vs 42／52；
+       Hierophant 作者 78／73 vs 75／44。Doryani 兩組的護甲（作者 20k／33k vs 生成 5k／15k）是第二項，但只影響閃電承傷，而閃電不是生成 build 最小的那項。
+    3. **每個零件單加到生成 build 上**（v19-gap 的移植法再加格擋欄）：Tempest Shield 一顆 Hierophant 法術格擋 44 → 71、防禦 +0.195；Assassin 52 → 82、+0.168；
+       零點數、零 DPS。Assassin 的 Faith and Steel 2 點 +0.125、Cruel Preparation 2 點 +0.108。格擋零件合起來比單加總和大（Assassin 四個合加 +0.64 vs 單加總和 +0.57）。
+    4. **為什麼生成器沒拿**：(a) Tempest Shield 要保留魔力，光環在空 build 上選時 DPS 光環先佔滿（Assassin 加上去保留 −265，Hierophant −167）；
+       (b) 樹換血在藥水、珠寶、輔助互換**之前**就結束，之後 Assassin DPS 從 1.13 億跳到 1.75 億，防禦節點相對變值錢，但沒有步驟回頭看樹：
+       在最終 build 上算，拆最便宜的 2 點只損 0.034、加 Faith and Steel 賺 +0.085——換血會做，只是沒機會。
+    5. **評分有沒有算漏**（阿福問的）：沒有。護甲對閃電的折算、格擋、閃避、壓制都在 PoB 的 EHP 裡，defence 分數用的就是它。差距是**搜尋順序**，不是公式。
+       KB Necro 例外：作者是 CI＋Bone Offering（Mistress of Sacrifice 讓祭品作用在自己）的格擋路線，是整個原型的選擇，局部換血到不了；
+       生成的 DPS 是作者的 203%，分數比作者高（26.9 vs 26.5），但考卷要防禦 ≥ 作者 −0.1——分數和考卷在這組意見不同，要不要讓生成器知道「DPS 夠了就換防禦」是另一題。
+  - **改了什麼**（`tools/generate.py`、`tools/PobWorker.lua`、測試；不動考卷）：
+    1. **光環互換**（retune_buffs）：所有東西定了之後，每個已選光環／增益對所有沒選的逐一互換，分數進步就換，最多 2 回。Worker 新增 `group_replace`（可還原）。
+    2. **結尾再做一次樹換血**（retune_tree(fresh=True)）：在光環互換之後，候選全部重新量（長樹時量的增益已失效），每輪 40 個新候選。
+    3. 版號 20。單元測試 62 全過（新增 group_replace 換光環並還原、skill_groups 追蹤互換）。
+  - **完整考試**（`--jobs 12`，連跑兩次 17/17 相同；每輪 30 分鐘，v19 是 18.5 分）：作者 **5/7**（Hierophant 新過；v19 4/7）、底線 **10/10**、對 v19 **無退步 10/10**（10 組樣板 7 組進步、3 組持平）。
+
+    | 組 | 分數 v19 → v20 | DPS（作者%） | 防禦（作者） | v20 多做了什麼 | 判定 |
+    |---|---|---|---|---|---|
+    | Storm Call／Hierophant | 31.08 → 31.28 | 1.50 億 → 1.45 億（104% → 100%） | 12.25 → **12.49**（12.42） | Wrath → Tempest Shield、RF of Arcane Devotion → Righteous Fire；拆 Annihilation、Divine Fervour | **過（v19 不過）** |
+    | Storm Call／Assassin | 29.74 → 29.80 | 1.75 億 → 1.67 億（100% → 96%） | 10.76 → 10.86（11.21，差 0.35） | Zealotry → Wrath；拆 Coldhearted Calculation、Enduring Bond 拿防禦珠寶、Mana Mastery、Resourcefulness | 不過 |
+    | KB Necro | 26.91 → 26.94 | 7.1M → 7.0M（203%） | 11.15 → 11.19（11.76，差 0.57） | 光環沒換；結尾拆 Will of Blades | 不過（原型問題，見上） |
+    | Smite／Slayer | 30.08 → 30.22 | 1.50 億 → 1.28 億（117% → 100%） | 11.27 → 11.56 | Wrath → Arctic Armour、Blood Rage → Tempest Shield、Enduring Cry → Blood Rage | 過 |
+    | Smite／Gladiator | 28.73 → 29.30 | 1.29 億 → 1.46 億（107% → 122%） | 10.16 → 10.61 | Purity of Elements → Wrath、Precision → Vitality、Blood Rage → War Banner、Herald of Thunder → Precision | 過 |
+    | Reave／Gladiator | 30.80 → 30.86 | 1.49 億 → 1.59 億（85% → 91%） | 12.01 → 12.00 | 光環沒換；結尾拆 Bladedancer、Beef、Bloodless | 過 |
+    | Skeleton Mages | 26.26 → 26.28 | 2.77M → 2.78M（195%） | 11.43 → 11.44 | 結尾拆 Mind Over Matter、Melding | 過 |
+    | GH／Champion（crit） | 25.78 → 26.05（+0.27） | 3.60M → 4.49M | 10.80 → 10.84 | Vitality → Precision、Anger → Hatred、Herald of Ash → Tempest Shield | 底線過 |
+    | Essence Drain | 22.63 → 22.81（+0.18） | 137k → 185k | 10.88 → 10.76 | 結尾拆 Steeped in the Profane、Melding | 底線過 |
+    | Fireball（兩組） | +0.12／+0.14 | 8.0M → 8.8M／7.4M → 8.1M | +0.02／+0.05 | Vitality → Tempest Shield、Anger → Zealotry | 底線過 |
+    | Cyclone／Slayer | 25.54 → 25.66（+0.12） | 2.59M → 2.97M | 10.77 → 10.76 | Haste → Flesh and Stone、Blood and Sand → Pride；生命 4,017 → 4,044 | 底線過；v19 的 −0.14 補回大半 |
+    | Raise Zombie／Spectre | +0.03／+0.02 | 1.56M → 1.53M／相同 | +0.05／+0.02 | Vitality → Tempest Shield／結尾拆 Might、Mind Over Matter | 底線過 |
+    | GH／Champion、Tornado Shot | +0.00 | 相同 | 相同 | 一字不差 | 底線過 |
+    | Doryani 樣板 | 28.47 → 28.46（−0.00） | 76.0M → 74.4M | 10.38 → 10.40 | 結尾拆 Breath of Lightning 拿 Physique、Fervour | 底線過 |
+
+  - **怎麼看**：
+    1. Tempest Shield 在 6 組靠互換拿到（Hierophant、Smite／Slayer、GH crit、Fireball×2、Zombie；KB、Reave、Spectre 原本就有），印證「量」的結論：格擋便宜、原本是順序讓它排不進去。
+    2. 互換也會往 DPS 走（Smite／Gladiator Purity → Wrath +17%、Assassin Zealotry → Wrath），它只認分數，不是偏防禦。
+    3. Assassin 還差 0.35：作者格擋 90／88 是好幾個格擋零件合起來的（Faith and Steel、Sanctuary、Arcane Guarding 等，四個合加 +0.64 而單加各只 +0.1 左右），換血一次拆 2～3 點只拿得到一個，單個不夠划算；和 KB 一樣偏「路線」問題，但沒 KB 那麼遠。
+    4. **一個觀察**：Doryani 樣板組結尾換血搜尋中量到 28.469 → 28.473（+0.004），考卷重算存檔的 build 卻是 28.464——搜尋中的量測和存檔重算差 0.009（DPS 相同，差在防禦）。
+       不影響任何判定，但表示「存檔重放」和「try 量測」有一點不一致（可能是精通或 prune 重放），值得之後查一下。
+    5. 時間：每組多 2～8 分鐘（光環互換每回 ≈ 已選光環數 × 未選光環數次 try；結尾換血每輪 40 個新候選 × 5 次試拆），整輪 18.5 → 30 分。
+  - 結果：私人庫 `results/v20/home/`：v20.json／.md／-gap.md（第二次）、v20-rerun.*（第一次，相同）。
+  - 第二階段條件：作者 ≥ 5/7 這版達到；「連續兩版無退步」v19 是 9/10（Cyclone）、v20 10/10，再一版無退步就齊。
+  - 下一題（給阿福排）：(a) Assassin／KB 剩下的格擋差距是路線問題——要不要讓生成器在 DPS 遠超作者時主動往防禦走（分數和考卷目前意見不同）；
+    (b) 搜尋量測 vs 存檔重算的 0.009 差；(c) 時間 30 分，若要縮短可把光環互換限制在「有保留魔力的光環」。
 
 ## T4 office：保留考卷
 - 給：使用者＋阿福（office）、pc2 跑

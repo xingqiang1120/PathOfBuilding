@@ -56,11 +56,16 @@ FOCUS = {"damage": 0.5, "balanced": 1.0, "defence": 2.0}
 #     of the author's DPS in two runs). PoB producing no output once is retried.
 # 17: chaos resistance below 0 is penalised like an uncapped elemental resistance (CHAOS_FLOOR_PENALTY a point), on top
 #     of the soft term; the playable floor says chaos >= 0 and Glacial Hammer / Champion sat at -8 for three versions.
-GENERATOR_VERSION = 17
+# 18: tree swap: once the tree is full, the allocated notables / keystones cheapest to remove (score lost per point freed)
+#     are each taken out in turn and their points spent again on the best candidates of the finished build; a swap is
+#     kept when the build scores higher. A probe of v17 (Cyclone, Glacial Hammer, Storm Call / Hierophant) showed every
+#     tree candidate is tried in every round (the 80-untried cap never cut one), so breadth was not what the greedy
+#     growth lacked: it had no way back from a node chosen for the gain it had when the tree was small.
+GENERATOR_VERSION = 18
 # Results of older versions from STILL_VALID_FROM on still count as done in self-play, except for the skills a later
 # version changed (changed_since_valid). Version 9 only changed minion skills (the minion's skill is now chosen),
 # unarmed attacks (empty main hand) and spells that need a staff.
-STILL_VALID_FROM = 17
+STILL_VALID_FROM = 18
 
 
 def changed_since_valid(skill, info):
@@ -431,6 +436,12 @@ def unsustainable(m):
 
 
 TIE = 1e-9  # score gains closer than this count as equal (v16: the first of the sorted candidates is kept)
+# Tree swap (v18): per pass the SWAP_TRIALS allocated nodes cheapest to remove are tried; the freed points are spent
+# with the gains measured while the tree grew (SWAP_SHORTLIST best known candidates, SWAP_UNTRIED new ones a round)
+SWAP_PASSES = 3
+SWAP_TRIALS = 5
+SWAP_SHORTLIST = 16
+SWAP_UNTRIED = 8
 
 
 def log(*args):
@@ -472,6 +483,8 @@ class Generator:
         self.recorder = None
         self.attributes_later = False
         self.resists_later = False
+        self.quiet = False  # accept() without a log line (tree swap trials, v18)
+        self.tree_known = {}  # candidate id -> (gain per point, name, cost) measured while the tree grew (v18)
 
     # --- PoB calls ---------------------------------------------------------------------------------------------------
     def params(self):
@@ -578,8 +591,9 @@ class Generator:
         self.state.extend(move)
         self.current = metrics
         self.history.append({"step": step, "move": move, "note": note, "dps": self.dps(metrics), "score": self.score(metrics)})
-        log(f"  [{step}] {note or describe(move)} -> DPS {self.dps(metrics):,.0f}, life {metrics.get('Life')}, "
-            f"phys max hit {metrics.get('PhysicalMaximumHitTaken')}, score {self.score(metrics):.3f}")
+        if not self.quiet:
+            log(f"  [{step}] {note or describe(move)} -> DPS {self.dps(metrics):,.0f}, life {metrics.get('Life')}, "
+                f"phys max hit {metrics.get('PhysicalMaximumHitTaken')}, score {self.score(metrics):.3f}")
 
     # --- steps -------------------------------------------------------------------------------------------------------
     def create(self):
@@ -764,9 +778,9 @@ class Generator:
             node = next(c for c in cands if c["id"] == move[0]["node"])
             self.accept("ascendancy", move, metrics, f"ascendancy: {node['name']}")
 
-    def grow_tree(self, max_path=10, shortlist=30):
+    def grow_tree(self, max_path=10, shortlist=30, untried_batch=80, known=None):
         self.step = "tree"
-        known = {}  # node id -> (gain per point, name, cost) from the last time it was tried
+        known = {} if known is None else known  # node id -> (gain per point, name, cost) from the last time it was tried
         while True:
             cands = WORKER.call("candidates", dict(self.params(), changes=self.state, maxPath=max_path))
             used, available = self.current.get("passivePointsUsed", 0), cands["points"][1]
@@ -797,7 +811,7 @@ class Generator:
                 by_weight = sorted(untried, key=lambda p: -w.get(str(p["id"]), 0.5))
                 head, rest = by_weight[:70], by_weight[70:]
                 untried = head + self.rng.sample(rest, min(10, len(rest)))
-            batch = untried[:80] + [p for p in ranked if p["id"] in known][:shortlist]
+            batch = untried[:untried_batch] + [p for p in ranked if p["id"] in known][:shortlist]
             moves = [self.socket_move(p) if p.get("jewel") else
                      [{"type": "mastery_add", "node": p["node"], "effect": p["effect"]} if p.get("mastery") else
                       {"type": "passive_add", "node": p["id"]}] for p in batch]
@@ -813,6 +827,54 @@ class Generator:
             known.pop(node["id"], None)
             what = "mastery" if node.get("mastery") else "jewel" if node.get("jewel") else "passive"
             self.accept("tree", move, metrics, f"{what}: {node['name']} ({node['cost']} points, {metrics.get('passivePointsUsed')}/{available})")
+        self.tree_known = known
+
+    def retune_tree(self):
+        """Once the tree is full: the allocated notables and keystones cheapest to remove (score lost per point freed)
+        are each taken out in turn and their points spent again on the best candidates of the finished build; the swap
+        is kept when the build scores higher (v18). The greedy growth commits to a node for the gain it had when the
+        tree was small, and it had no way back: a probe of v17 showed every candidate is tried in every round, so what
+        the search lacked was not more candidates. The freed points are spent with the gains measured while the tree
+        grew (tree_known), so a trial costs a few dozen tries, not a full round of 80."""
+        self.step = "tree swap"
+        protected = set(DEFENCES.get(self.archetype, {}).get("keystones", []))  # the archetype's own keystones stay
+        for _ in range(SWAP_PASSES):
+            cands = WORKER.call("candidates", dict(self.params(), changes=self.state, maxPath=10))
+            removable = [r for r in cands.get("removable", []) if r["name"] not in protected]
+            if not removable:
+                return
+            # prune: the travel nodes left as a dead end go too (PoB alone frees one point and strands the path)
+            res = self.try_all([[{"type": "passive_remove", "node": r["id"], "prune": True}] for r in removable])
+            base, used = self.score(self.current), self.current.get("passivePointsUsed", 0)
+            # cheapest removals per point freed first; ties by id, so the order is reproducible
+            losses = sorted(((base - self.score(m["metrics"])) / max(used - m["metrics"].get("passivePointsUsed", used), 1),
+                             str(r["id"]), dict(r, frees=used - m["metrics"].get("passivePointsUsed", used)), m["metrics"])
+                            for r, m in zip(removable, res) if "metrics" in m)
+            saved = (list(self.state), self.current, list(self.history), dict(self.tree_known))
+            best = None
+            for _, _, r, removed in losses[:SWAP_TRIALS]:
+                self.state = saved[0] + [{"type": "passive_remove", "node": r["id"], "prune": True}]
+                self.current, self.history = removed, []
+                self.quiet = True
+                try:
+                    self.grow_tree(untried_batch=SWAP_UNTRIED, shortlist=SWAP_SHORTLIST, known=dict(saved[3]))
+                finally:
+                    self.quiet = False
+                    self.step = "tree swap"
+                gain = self.score(self.current) - base
+                if gain > TIE and (best is None or gain > best[0] + TIE):
+                    best = (gain, r, removed, list(self.state), self.current, list(self.history))
+            self.state, self.current, self.history, self.tree_known = saved
+            if best is None:
+                return
+            gain, r, removed, state, metrics, steps = best
+            self.state, self.current = state, metrics
+            self.history.append({"step": "tree swap", "move": [{"type": "passive_remove", "node": r["id"], "prune": True}],
+                                 "note": f"tree swap: -{r['name']} ({r['frees']} points)", "dps": self.dps(removed), "score": self.score(removed)})
+            self.history.extend(steps)
+            added = " / ".join(s["note"].split(" (")[0].split(": ", 1)[-1] for s in steps) or "nothing"
+            log(f"  [tree swap] -{r['name']} ({r['frees']} points) +{added} -> score {base:.3f} -> {self.score(metrics):.3f}, "
+                f"DPS {self.dps(metrics):,.0f}, life {metrics.get('Life')}")
 
     def socket_move(self, sock, kind=None):
         """Allocate a jewel socket (unless it already is) and put a template jewel in it."""
@@ -1040,6 +1102,7 @@ class Generator:
         self.attributes_later = False
         self.current = self.try_all([[]])[0]["metrics"]  # same build, scored again with the attribute penalty
         self.grow_tree()
+        self.retune_tree()
         self.add_buffs()
         self.add_utility()
         self.add_debuffs()

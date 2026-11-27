@@ -45,6 +45,20 @@ class GenerateTest(unittest.TestCase):
         self.assertEqual(last["passivePointsUsed"], first["passivePointsUsed"])
         self.assertEqual(last["playerDPS"], first["playerDPS"])
 
+    def test_passive_remove_frees_the_path(self):
+        # v18 tree swap: PoB alone frees the notable's own point and keeps its path (still connected); with prune the
+        # dead-end travel nodes go too, so the whole cost comes back. The worker lists the notable as removable.
+        c = WORKER.call("candidates", {"xml": self.new["xml"], "name": "t"})
+        node = next(p for p in c["passives"] if p["cost"] >= 3)
+        add = [{"type": "passive_add", "node": node["id"]}]
+        after = WORKER.call("candidates", {"xml": self.new["xml"], "name": "t", "changes": add})
+        self.assertEqual([str(r["id"]) for r in after["removable"]], [str(node["id"])])
+        kept, plain, pruned = (r["metrics"] for r in WORKER.call("try", {"xml": self.new["xml"], "name": "t", "changes": add, "candidates": [
+            [], [{"type": "passive_remove", "node": node["id"]}], [{"type": "passive_remove", "node": node["id"], "prune": True}]]}))
+        self.assertEqual(kept["passivePointsUsed"] - plain["passivePointsUsed"], 1)
+        self.assertEqual(kept["passivePointsUsed"] - pruned["passivePointsUsed"], node["cost"])
+        self.assertEqual(pruned["passivePointsUsed"], self.new["metrics"]["passivePointsUsed"])
+
     def gear(self, r, attribute="Dex"):
         armour, _ = generate.armour_set(attribute)
         return [{"type": "item_equip", "slot": s, "raw": raw} for s, raw in armour.items()] + \

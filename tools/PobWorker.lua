@@ -644,6 +644,30 @@ local changeHandlers = {
 		if not node.alloc then return node.dn .. " was not allocated" end
 		local freed = #(node.depends or { node })
 		build.spec:DeallocNode(node)
+		if c.prune then
+			-- PoB keeps the travel nodes that led to the removed node (they are still connected), so removing a notable
+			-- frees one point and leaves its path as a dead end. prune: small nodes left with at most one allocated
+			-- neighbour go too, repeatedly, so the path's points come back (the generator's tree swap, v18)
+			local again = true
+			while again do
+				again = false
+				local leaves = { }
+				for _, n in pairs(build.spec.allocNodes) do
+					if n.type == "Normal" and not n.ascendancyName and n.linked then
+						local links = 0
+						for _, other in ipairs(n.linked) do if other.alloc then links = links + 1 end end
+						if links <= 1 then table.insert(leaves, n) end
+					end
+				end
+				for _, n in ipairs(leaves) do
+					if n.alloc then
+						freed = freed + #(n.depends or { n })
+						build.spec:DeallocNode(n)
+						again = true
+					end
+				end
+			end
+		end
 		build.spec:AddUndoState()
 		return string.format("removed %s (%d point%s freed)", node.dn, freed, freed == 1 and "" or "s")
 	end,
@@ -1477,6 +1501,27 @@ local function applyReversible(change)
 			for id, node in pairs(build.spec.allocNodes) do
 				if not before[id] and node.alloc then build.spec:DeallocNode(node) end
 			end
+		end
+	elseif t == "passive_remove" then
+		-- undo: the nodes allocated before come back as they were (a mastery with its effect), without pathing (v18)
+		local before, masteries = { }, copyTable(build.spec.masterySelections)
+		for id, node in pairs(build.spec.allocNodes) do before[id] = node end
+		local result = changeHandlers[t](change)
+		return result, function()
+			for id, node in pairs(before) do
+				if not node.alloc then
+					node.alloc = true
+					build.spec.allocNodes[id] = node
+					if node.type == "Mastery" and masteries[id] then
+						local effect = build.spec.tree.masteryEffects[masteries[id]]
+						node.sd = effect.sd
+						node.allMasteryOptions = false
+						build.spec.tree:ProcessStats(node)
+						build.spec.masterySelections[id] = masteries[id]
+					end
+				end
+			end
+			build.spec:BuildAllDependsAndPaths()
 		end
 	elseif t == "gem_add" then
 		local group = findGroup(change.group)

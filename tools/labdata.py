@@ -84,6 +84,19 @@ def pull(_):
     for name in INPUTS:
         copy(os.path.join(src, name), os.path.join(LIBRARY, name))
     print(f"inputs copied into {LIBRARY}")
+    # earlier versions' results, so the benchmark's regression check has a previous version on every PC (home had none
+    # and showed "version None", 2026-11-27). This PC's own results are never overwritten.
+    base, out = os.path.join(DATA, "results"), os.path.join(LIBRARY, "benchmark")
+    added = []
+    for v in (os.listdir(base) if os.path.isdir(base) else []):
+        for pc in sorted(os.listdir(os.path.join(base, v)), key=lambda p: PCS.index(p) if p in PCS else 99):
+            src = os.path.join(base, v, pc, f"{v}.json")
+            if os.path.exists(src) and not os.path.exists(os.path.join(out, f"{v}.json")):
+                for name in (f"{v}.json", f"{v}.md"):
+                    copy(os.path.join(base, v, pc, name), os.path.join(out, name))
+                added.append(f"{v} ({pc})")
+    if added:
+        print("earlier results copied into library/benchmark: " + ", ".join(added))
 
 
 def push(args):

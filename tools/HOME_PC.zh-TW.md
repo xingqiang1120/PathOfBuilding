@@ -62,7 +62,7 @@
 > 4. 改程式一律開新分支（<代號>/任務名稱），不要直接改 feature/ai-tools；交回前跑測試（python -m unittest discover tools/tests）。
 > 5. library/ 和 src/Builds/ 不要提交到公開庫（有帳號資料）；不要抓 poe.ninja 的 build 頁面，不要讀遊戲記憶體或封包。
 > 6. 不要刪除資料庫檔案；要刪先問我。
-> 7. commit 用 GitHub no-reply 信箱，最後一行加 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>。
+> 7. commit 用 GitHub no-reply 信箱，最後一行加 Co-Authored-By: <你實際的模型名稱> <noreply@anthropic.com>。
 
 ## C. 跑考試（階段一的日常工作）
 
@@ -84,7 +84,8 @@ python tools/gap.py --benchmark
 python tools/labdata.py push --pc <代號>
 ```
 
-- 核心數：工作管理員 → 效能 → CPU →「邏輯處理器」。
+- 核心數：工作管理員 → 效能 → CPU →「邏輯處理器」。home 實測用 `--jobs 12`（每組約 1.1～1.4 GB 記憶體）。
+- `labdata.py pull` 會順便把別台的舊版結果放進 `libraryenchmark\`，退步比較才有上一版可比。
 - 跑的時候不要讓電腦睡眠。第一次跑請回報記憶體用量（工作管理員），之後好決定 `--jobs`。
 - `python tools/labdata.py status` 看各台已經交了哪些版本，同一版不用重跑。
 

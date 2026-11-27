@@ -3,7 +3,7 @@
 > 負責人 AI「阿福」在公司電腦，每次有進展就更新這份。其他電腦的 AI 開工前先 `git pull` 再讀這份，
 > 然後讀 `tools/TASKS.zh-TW.md`（派給你的任務）。細節：路線圖 `tools/ROADMAP.zh-TW.md`、驗收標準 `tools/ACCEPTANCE.zh-TW.md`。
 
-最後更新：2026-11-26（阿福）
+最後更新：2026-11-27（阿福）
 
 ## 專案是什麼
 使用者（PoE 老玩家，雷射板金公司負責人，不是程式設計師，稱 AI 為「阿福」）的 Path of Building 分支。
@@ -33,18 +33,22 @@
 |---|---|---|---|
 | 11 | 2/7 | 8/10 | |
 | 12 | 2/7 | 9/10 | Smite／Gladiator 11%（沒選輔助寶石）；Glacial Hammer 退步 0.68 |
-| 13 | 待跑（home 2026-11-26 晚上） | | 單獨驗證：Smite／Gladiator 84%（及格），Glacial Hammer 回到 26.01，但混沌抗 -8 |
+| 13 | 3/7 | 8/10 | home 跑。Smite／Gladiator 96% 及格；Glacial Hammer 分數回來但混沌抗 -8 不過底線（算問題，第 14 版修）；沒有退步 10/10 |
 
-## 已知的下一批問題（依優先）
-1. Storm Call 兩組（作者的 60～74%）、Reave（66%）：看 v13 差距報告。
-2. KB Necro 防禦不到作者。
-3. 珠寶：星團、永恆珠寶都被丟掉（作者有，我們沒有）。
-4. 樣板：Glacial Hammer 混沌抗、Cyclone 生命不到底線；Tornado Shot、Essence Drain DPS 偏低。
+## 已知的下一批問題（依優先，第 13 版差距報告）
+1. 輔助性技能：作者有的 Righteous Fire 類、Vaal 技能（Vaal Arctic Armour 防禦 +1.17）、Pact of Beidat，生成器都沒選。
+2. Storm Call／Hierophant 少 Overloaded Intensity（+88%）；Storm Call／Assassin 少 Power Charge On Critical、Less Duration。
+3. 混沌抗：Glacial Hammer 為了分數放掉混沌抗（-8）。底線不過就算不及格，不能拿分數抵。
+4. KB Necro 防禦不到作者；Cyclone 生命不到 4,000。
+5. 珠寶：星團、永恆珠寶都被丟掉（差距報告標 not applicable 的節點）。
+
+## 各台規格（實測）
+- home：16 邏輯核心、31 GB。每組 generate 約 1.1～1.4 GB，用 `--jobs 12`。整套考試約 10 分鐘。
 
 ## 使用者定下的規則（每台都要遵守）
 - 繁體中文；取捨講清楚，不要只丟術語。
 - `library/`、`src/Builds/` 不提交到公開庫（有帳號資料）；真人 build 只放私人庫。
 - 不抓 poe.ninja 的 build 頁面；不讀遊戲記憶體或封包。
 - 不刪資料庫檔案，要刪先問使用者。不關使用者的程式，先問。
-- commit 用 GitHub no-reply 信箱，最後一行 `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`。
+- commit 用 GitHub no-reply 信箱，最後一行 `Co-Authored-By: <你實際的模型名稱> <noreply@anthropic.com>`（照實寫，例如 home 是 Claude Fable 5.1）。
 - 遊玩驗證過的設定，使用者確認後才存。

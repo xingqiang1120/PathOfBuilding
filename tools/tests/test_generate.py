@@ -254,6 +254,62 @@ class GenerateTest(unittest.TestCase):
         finally:
             del os.environ["POB_WEAPON_ATTRIBUTES"]
 
+    def test_socket_budget_and_plan(self):
+        # v27: sockets come from the worn items (base limits for market rares), the main link fills the body armour,
+        # a movement skill is reserved, and the plan never exceeds a slot's sockets or the key total
+        r = WORKER.call("create_build", {"ascendancy": "Slayer", "skill": "Cyclone", "level": 90})
+        g = generate.Generator("Cyclone", "Slayer")
+        g.xml, g.info, g.class_name = r["xml"], r["skillInfo"], r["class"]
+        g.links = ["Melee Physical Damage Support", "Brutality Support", "Fortify Support", "Impale Support", "Pulverise Support"]
+        armour, _ = generate.armour_set("Str")
+        g.state = [{"type": "item_equip", "slot": s, "raw": raw} for s, raw in armour.items()]
+        g.state += next(changes for label, changes in generate.weapon_options(r["skillInfo"], "Str") if label == "Two Handed Axe")
+        cap, info = g.socket_capacity()
+        self.assertEqual(cap, {"Body Armour": 6, "Helmet": 4, "Gloves": 4, "Boots": 4, "Weapon 1": 6, "Weapon 2": 0})
+        self.assertEqual(info["Weapon 1"]["type"], "Two Handed Axe")
+        b = g.budget()
+        self.assertEqual((b["sockets"], b["sockets_used"], b["keys_used"]), (24, 6 + 2, 1 + 1))
+        # ten added groups using all 6 free keys (main 1 + movement 1 + guard, three warcries, Enduring Cry, a curse), so
+        # the next keyed skill can only come in by a swap for a keyed one
+        skills = ["Hatred", "Pride", "Herald of Ash", "Steelskin", "Summon Stone Golem", "Seismic Cry", "Intimidating Cry",
+                  "Rallying Cry", "Enduring Cry", "Vulnerability"]
+        g.state += [{"type": "group_add", "gems": [s]} for s in skills]
+        g.current = WORKER.call("try", {"xml": g.xml, "name": "t", "candidates": [g.state]})[0]["metrics"]
+        b = g.budget()
+        self.assertEqual((b["free_keys"], b["free_sockets"]), (0, 24 - 6 - 2 - 10))
+        moves = g.skill_moves(["Berserk", "Frostbite"], "aura/buff")  # both need a key
+        self.assertTrue(moves and all(m[0]["type"] == "group_replace" for m, _ in moves))  # keys full: swaps only
+        self.assertTrue(any(m[0]["gem"] == "Vulnerability" and m[0]["with"] == "Berserk" for m, _ in moves))
+        self.assertFalse(any(m[0]["gem"] in ("Hatred", "Pride", "Summon Stone Golem") for m, _ in moves))  # no key to give back
+        self.assertEqual(sum(generate.key_cost(s) for s in g.skill_groups()), 6)
+        # the blocked skills are measured once as if a key were free, and the best gain is reported: Berserk raises the
+        # DPS, a second curse is ignored by the curse limit (nothing is lost, so nothing is reported for it)
+        self.assertEqual([(b["reason"], b["step"], b["skill"]) for b in g.blocked], [("keys", "aura/buff", "Berserk")])
+        self.assertGreater(g.blocked[0]["gain"], 0)
+        before = g.score(g.current)
+        g.plan_sockets()
+        for slot, gems in g.sockets["plan"].items():
+            self.assertLessEqual(len(gems), g.sockets["capacity"][slot], slot)
+        self.assertEqual(g.sockets["plan"]["Body Armour"][:1], ["Cyclone"])
+        self.assertEqual(g.sockets["movement_slot"], "Boots")
+        self.assertEqual(sum(len(g.sockets["plan"][s]) for s in ("Helmet", "Gloves", "Boots", "Weapon 1")), 10 + 2)  # 10 groups, movement 2
+        self.assertEqual([p["gem"] for p in g.sockets["placement"]], skills)  # each group placed where PoB scores it best
+        self.assertTrue(all(p["slot"] in generate.SOCKET_SLOTS and all(d <= 1e-9 for d in p["alternatives"].values()) for p in g.sockets["placement"]))
+        self.assertLessEqual(g.sockets["keys_used"], generate.KEYS_TOTAL)
+        self.assertEqual(sum(1 for c in g.state if c["type"] == "group_slot"), 10)
+        # placing a gem in an item changes what PoB calculates (a gem in a socket of its colour gets quality, this helmet
+        # gives socketed AoE gems a level, curse priority follows the slot): the build is measured again and the shift kept
+        self.assertEqual(g.sockets["score_shift"], round(g.score(g.current) - before, 4))
+        self.assertLess(abs(g.sockets["score_shift"]), 0.2)
+        self.assertTrue(generate.valid_groups(["Hatred", "Steelskin"]))
+        self.assertFalse(generate.valid_groups(["Steelskin", "Molten Shell"]))  # two guards
+        self.assertFalse(generate.valid_groups(["Righteous Fire", "Righteous Fire of Arcane Devotion"]))
+        # the exported state evaluates in PoB: the disabled movement group (the last change) adds nothing
+        self.assertEqual(g.state[-1]["type"], "group_add")
+        res = WORKER.call("try", {"xml": g.xml, "name": "t", "candidates": [g.state[:-1], g.state]})
+        self.assertEqual(res[0]["metrics"]["playerDPS"], res[1]["metrics"]["playerDPS"])
+        self.assertEqual(res[1]["metrics"]["playerDPS"], g.current["playerDPS"])
+
     def test_gear_fill_candidates_cover_the_market_groups(self):
         # v26: every accessory slot has its round-C attribute groups; the fill candidates keep the amulet's anoint and
         # skip the rings a build-around profile rewrote

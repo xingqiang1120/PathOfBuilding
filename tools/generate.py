@@ -112,11 +112,25 @@ FOCUS = {"damage": 0.5, "balanced": 1.0, "defence": 2.0}
 #     kept (the user: gear is "fill what is missing", so PoB decides between gear and tree for the attributes). Rings a
 #     build-around profile rewrote (Doryani's) and slots holding a unique do not take part. Helmet and gloves keep
 #     their accuracy items (there is no accuracy-free armour pool yet).
-GENERATOR_VERSION = 26
+# 27: socket and key budget (the user: generated builds held skills no player places, e.g. a golem, because every added
+#     skill was a free socket group). The sockets come from the items actually worn (the worker's sockets method: a
+#     declared Sockets line, else the base's socket limit - body armour 6, helmet / gloves / boots 4, two-handed 6,
+#     one-handed 3, shield 3); the main skill and its supports fill the body armour, 2 sockets and 1 key are reserved
+#     for a movement skill (shown in the build, not calculated), and each added skill costs 1 socket and 0 or 1 key
+#     (KEYS_TOTAL 8). When the sockets or keys are full, a skill can only replace one already placed. At the end every
+#     group is placed in a real item slot (group_slot), so PoB shows which item holds which gems. Colours and the cost
+#     of a 6-link are not modelled (reported as assumptions).
+GENERATOR_VERSION = 27
 # Results of older versions from STILL_VALID_FROM on still count as done in self-play, except for the skills a later
 # version changed (changed_since_valid). Version 9 only changed minion skills (the minion's skill is now chosen),
 # unarmed attacks (empty main hand) and spells that need a staff.
-STILL_VALID_FROM = 26
+STILL_VALID_FROM = 27
+# v27 socket / key budget
+SOCKET_SLOTS = ("Body Armour", "Helmet", "Gloves", "Boots", "Weapon 1", "Weapon 2")
+KEYS_TOTAL = 8  # mouse 3 + QWERT
+MOVEMENT_GEMS = ["Flame Dash", "Second Wind"]  # reserved: 2 linked sockets and 1 key, placed disabled (PoB does not calculate it)
+MOVEMENT_KEYS = 1
+SOCKET_FILL_ORDER = ("Helmet", "Gloves", "Boots", "Weapon 1", "Weapon 2", "Body Armour")
 FILL_SLOTS = ("Ring 1", "Ring 2", "Amulet", "Belt")  # v26 gear fill: the slots with more than one market group
 
 
@@ -386,6 +400,24 @@ UTILITY = [("guard", ["Steelskin", "Molten Shell"], 1),
 DEBUFF_SKILLS = ["Elemental Weakness", "Frostbite", "Flammability", "Conductivity", "Vulnerability", "Punishment", "Despair",
                  "Temporal Chains", "Enfeeble", "Assassin's Mark", "Warlord's Mark", "Sniper's Mark", "Poacher's Mark",
                  "Frost Bomb", "Wave of Conviction"]
+# v27 key cost of an added skill: auras and permanent buffs are toggled once (0 keys), golems are summoned once (0);
+# curses, warcries, guard skills and self-cast buffs need a key each time (1)
+KEY_FREE = (set(BUFF_SKILLS) - {"Enduring Cry", "Blood Rage"}) | set(UTILITY[1][1])
+
+
+def key_cost(skill):
+    return 0 if skill in KEY_FREE else 1
+
+
+def valid_groups(names):
+    """Whether a set of added skill groups keeps the kind limits (one guard, one golem, three warcries; one of an
+    exclusive buff set; no duplicates)."""
+    if len(names) != len(set(names)):
+        return False
+    for kind, pool, limit in UTILITY:
+        if sum(1 for n in names if n in pool) > limit:
+            return False
+    return all(len(set(names) & group) <= 1 for group in EXCLUSIVE_BUFFS)
 
 
 # Utility flasks in slots 2-5 (slot 1 is left for a life flask, which PoB's numbers do not use): quality 20, no
@@ -592,6 +624,8 @@ class Generator:
         self.infer = infer
         self.state = []
         self.history = []
+        self.blocked = []  # v27: skills the socket / key budget kept out (step, skill, gain)
+        self.sockets = None  # v27: the socket plan, once plan_sockets ran
         self.tries = 0
         self.step = "start"
         self.recorder = None
@@ -1096,7 +1130,7 @@ class Generator:
         """The skills of the groups the search added, after any swaps (group_add / group_replace), in order."""
         names = []
         for c in self.state:
-            if c["type"] == "group_add":
+            if c["type"] == "group_add" and c.get("enabled", True):  # the reserved movement group (v27) is not a skill
                 names.append(c["gems"][0])
             elif c["type"] == "group_replace":
                 names[names.index(c["gem"])] = c["with"]
@@ -1117,6 +1151,8 @@ class Generator:
                 others = present - {gem}
                 taken = lambda s: s in present or any(s in group and others & group for group in EXCLUSIVE_BUFFS)
                 choices = [s for s in BUFF_SKILLS if not taken(s) and (only is None or s in only)]  # (not "pool": the life + ES helper)
+                free_keys = self.budget()["free_keys"] + key_cost(gem)  # v27: the swap must fit the keys too
+                choices = [s for s in choices if key_cost(s) <= free_keys]
                 found = self.best([[{"type": "group_replace", "gem": gem, "with": s}] for s in choices], self.current)
                 if found and found[0]:
                     move, metrics, _ = found[0]
@@ -1131,49 +1167,143 @@ class Generator:
             self._reserving = set(WORKER.call("reserving", {})["gems"])
         return self._reserving
 
+    # --- socket / key budget (v27) ----------------------------------------------------------------------------------
+    def socket_capacity(self):
+        """{slot: gem sockets} of the items worn now (PoB fills an item's sockets to its base's limit when no Sockets line
+        says otherwise; abyssal sockets are not counted, they hold jewels), and the items."""
+        info = WORKER.call("sockets", dict(self.params(), changes=self.state))
+        cap = {slot: ((info.get(slot) or {}).get("sockets") or 0) for slot in SOCKET_SLOTS}
+        return cap, info
+
+    def budget(self):
+        """Sockets and keys: capacity, what the main link, the movement reserve and the added groups use, and what is free."""
+        cap, info = self.socket_capacity()
+        groups = self.skill_groups()
+        main = 1 + len(getattr(self, "links", []))
+        used_s = main + len(MOVEMENT_GEMS) + len(groups)
+        used_k = 1 + MOVEMENT_KEYS + sum(key_cost(g) for g in groups)
+        return {"capacity": cap, "items": {s: (info.get(s) or {}).get("name") for s in SOCKET_SLOTS}, "sockets": sum(cap.values()),
+                "sockets_used": used_s, "keys": KEYS_TOTAL, "keys_used": used_k,
+                "free_sockets": sum(cap.values()) - used_s, "free_keys": KEYS_TOTAL - used_k}
+
+    def skill_moves(self, pool, step):
+        """[(move, note)] to bring each skill of pool into the build within the budget: a new group while a socket and
+        the keys are free, otherwise a swap for a group already added (the kind limits hold after the swap). Skills
+        that could only come in by a swap are logged as blocked, with the score they would have added."""
+        b = self.budget()
+        groups = self.skill_groups()
+        moves, blocked = [], []
+        for s in pool:
+            if b["free_sockets"] >= 1 and b["free_keys"] >= key_cost(s):
+                moves.append(([{"type": "group_add", "gems": [s]}], f"{step}: {s}"))
+                continue
+            blocked.append(s)
+            for g in groups:
+                after = [s if x == g else x for x in groups]
+                if valid_groups(after) and b["free_keys"] + key_cost(g) >= key_cost(s):
+                    moves.append(([{"type": "group_replace", "gem": g, "with": s}],
+                                  f"{step}: {s} replaces {g} ({'sockets' if b['free_sockets'] < 1 else 'keys'} full)"))
+        if blocked and not getattr(self, "_blocked_measured", {}).get(step):
+            # what the budget costs: the blocked skills measured once as if a socket were free (the best gain is reported)
+            self._blocked_measured = {**getattr(self, "_blocked_measured", {}), step: True}
+            base = self.score(self.current)
+            res = self.try_all([[{"type": "group_add", "gems": [s]}] for s in blocked])
+            gains = sorted(((self.score(r["metrics"]) - base, s) for s, r in zip(blocked, res) if "metrics" in r), reverse=True)
+            if gains and gains[0][0] > 1e-6:
+                self.blocked.append({"step": step, "skill": gains[0][1], "gain": round(gains[0][0], 3),
+                                     "reason": "sockets" if b["free_sockets"] < 1 else "keys",
+                                     "note": f"best of {len(blocked)} blocked; a swap was still tried"})
+        return moves
+
+    def add_skills(self, step, pool_fn, limit_fn=None):
+        """Greedy: the best move (add or budget swap) among the skills pool_fn() offers, until none improves the score."""
+        while True:
+            pool = pool_fn()
+            if not pool or (limit_fn and not limit_fn()):
+                return
+            moves = self.skill_moves(pool, step)
+            if not moves:
+                return
+            found = self.best([m for m, _ in moves], self.current)
+            if not found or not found[0]:
+                return
+            move, metrics, _ = found[0]
+            note = next(n for m, n in moves if m == move)
+            self.accept(step, move, metrics, note)
+
     def add_buffs(self):
         self.step = "buff"
-        present = set(self.skill_groups()) | {self.skill}
-        # the main skill is not also a buff; of an exclusive set, only one (EXCLUSIVE_BUFFS)
-        taken = lambda s: s in present or any(s in group and present & group for group in EXCLUSIVE_BUFFS)
-        pool = [s for s in BUFF_SKILLS if not taken(s)]
-        while pool:
-            found = self.best([[{"type": "group_add", "gems": [s]}] for s in pool], self.current)
-            if not found or not found[0]:
-                break
-            move, metrics, _ = found[0]
-            present.add(move[0]["gems"][0])
-            pool = [s for s in pool if not taken(s)]
-            self.accept("buff", move, metrics, f"aura/buff: {move[0]['gems'][0]}")
+        def pool():
+            present = set(self.skill_groups()) | {self.skill}
+            # the main skill is not also a buff; of an exclusive set, only one (EXCLUSIVE_BUFFS)
+            taken = lambda s: s in present or any(s in group and present & group for group in EXCLUSIVE_BUFFS)
+            return [s for s in BUFF_SKILLS if not taken(s)]
+        self.add_skills("aura/buff", pool)
 
     def add_utility(self):
         """Guard skill, golem and warcries, each kind up to its limit, while they improve the score."""
-        present = set(self.skill_groups())
         for kind, names, limit in UTILITY:
             self.step = kind
-            have = [n for n in names if n in present]
-            pool = [n for n in names if n not in present]
-            while pool and len(have) < limit:
-                found = self.best([[{"type": "group_add", "gems": [n]}] for n in pool], self.current)
-                if not found or not found[0]:
-                    break
-                move, metrics, _ = found[0]
-                name = move[0]["gems"][0]
-                pool.remove(name)
-                have.append(name)
-                self.accept(kind, move, metrics, f"{kind}: {name}")
+            self.add_skills(kind, lambda: [n for n in names if n not in self.skill_groups()],
+                            lambda: sum(1 for n in names if n in self.skill_groups()) < limit)
 
     def add_debuffs(self):
         self.step = "curse"
-        present = set(self.skill_groups())
-        pool = [s for s in DEBUFF_SKILLS if s not in present]
-        while pool:
-            found = self.best([[{"type": "group_add", "gems": [s]}] for s in pool], self.current)
-            if not found or not found[0]:
-                break
-            move, metrics, _ = found[0]
-            pool.remove(move[0]["gems"][0])
-            self.accept("curse", move, metrics, f"curse/exposure: {move[0]['gems'][0]}")
+        self.add_skills("curse/exposure", lambda: [s for s in DEBUFF_SKILLS if s not in self.skill_groups()])
+
+    def plan_sockets(self):
+        """Every added group placed in a real item's sockets (group_slot), the movement skill reserved (a disabled
+        group), and the plan recorded for the report. Raises if the budget is exceeded - the exam must never see that."""
+        self.step = "sockets"
+        before = self.score(self.current)
+        cap, info = self.socket_capacity()
+        groups = self.skill_groups()
+        plan = {slot: [] for slot in SOCKET_SLOTS}
+        free = dict(cap)
+        plan["Body Armour"] = [self.skill] + list(getattr(self, "links", []))
+        free["Body Armour"] -= len(plan["Body Armour"])
+        if free["Body Armour"] < 0 and not self.gear_from:
+            raise RuntimeError(f"main link needs {len(plan['Body Armour'])} sockets, the body armour has {cap['Body Armour']}")
+        move_slot = next((s for s in ("Boots", "Gloves", "Helmet", "Weapon 1", "Weapon 2", "Body Armour") if free[s] >= len(MOVEMENT_GEMS)), None)
+        if move_slot:
+            plan[move_slot] = plan[move_slot] + [g + " (movement, reserved)" for g in MOVEMENT_GEMS]
+            free[move_slot] -= len(MOVEMENT_GEMS)
+        # each group goes to the free slot where PoB scores it best (ties: SOCKET_FILL_ORDER). The item matters: a gem in
+        # a socket of its colour gains quality, "+1 to Level of Socketed AoE Gems" helps an aura, "Socketed Gems are
+        # Supported by Added Lightning Damage" (Thunderfist) makes an aura reserve more, and resistance per empty socket is
+        # lost (both seen on the authors' items in the v27 exam, -5.8 and -1.9 before this choice).
+        placement = []
+        for g in groups:
+            slots = [s for s in SOCKET_FILL_ORDER if free[s] >= 1]
+            if not slots:
+                raise RuntimeError(f"socket budget exceeded: no socket left for {g} (capacity {cap})")
+            res = self.try_all([[{"type": "group_slot", "gem": g, "slot": s}] for s in slots])
+            scored = [(self.score(r["metrics"]), s, r["metrics"]) for s, r in zip(slots, res) if "metrics" in r]
+            if not scored:
+                raise RuntimeError(f"placing {g}: " + "; ".join(r.get("error", "") for r in res))
+            best = max(scored, key=lambda x: x[0])  # the first slot of the order wins a tie (max keeps the first maximum)
+            score_now, slot, metrics = best
+            placement.append({"gem": g, "slot": slot, "shift": round(score_now - self.score(self.current), 4),
+                              "alternatives": {s: round(sc - score_now, 4) for sc, s, _ in scored if s != slot}})
+            plan[slot].append(g)
+            free[slot] -= 1
+            self.state.append({"type": "group_slot", "gem": g, "slot": slot})
+            self.current = metrics
+        if move_slot:
+            self.state.append({"type": "group_add", "gems": MOVEMENT_GEMS, "slot": move_slot, "enabled": False,
+                               "label": "movement (reserved, not calculated)"})
+        keys_used = 1 + MOVEMENT_KEYS + sum(key_cost(g) for g in groups)
+        if keys_used > KEYS_TOTAL:
+            raise RuntimeError(f"key budget exceeded: {keys_used} > {KEYS_TOTAL}")
+        # the exported build is measured once more (a replay of every change), so the score reported is the build's
+        self.current = self.try_all([[]])[0]["metrics"]
+        self.sockets = {"capacity": cap, "items": {s: (info.get(s) or {}).get("name") for s in SOCKET_SLOTS},
+                        "types": {s: (info.get(s) or {}).get("type") for s in SOCKET_SLOTS}, "plan": plan, "free": free,
+                        "keys_used": keys_used, "keys": KEYS_TOTAL, "movement_slot": move_slot, "blocked": self.blocked,
+                        "placement": placement, "score_shift": round(self.score(self.current) - before, 4)}
+        log(f"  [sockets] " + "; ".join(f"{s} {len(plan[s])}/{cap[s]}" for s in SOCKET_SLOTS if cap[s]) + f"; keys {keys_used}/{KEYS_TOTAL}"
+            + f"; score {before:.3f} -> {self.score(self.current):.3f} once placed"
+            + (f"; blocked: {', '.join(b['skill'] + ' (+' + str(b['gain']) + ')' for b in self.blocked)}" if self.blocked else ""))
 
     def flasks_in(self):
         """{slot: base} of the flasks in the current state (the last one equipped in each slot)."""
@@ -1339,6 +1469,7 @@ class Generator:
         # candidate measured afresh (v20)
         self.retune_buffs()
         self.fill_and_swap()  # v26: the accessory slots choose their market group, then the final tree swap (both paths tried)
+        self.plan_sockets()  # v27: every added gem into a real item's sockets, the movement skill reserved
         self.elapsed = time.time() - started
         self.recorder.finish(self.current, tie=self.tie)
         return self.current
@@ -1439,6 +1570,7 @@ class Generator:
              "from the first support." if weapon_penalty_deferred() else
              "POB_WEAPON_ATTRIBUTES=penalty: weapons ranked with the attribute shortfall penalty (v24's way)."),
             self.gear_fill_note(),
+            self.sockets_note(),
             "Utility flasks (quality 20, no mods) count as always on; flask slot 1 is left for a life flask.",
             "A guard skill counts as up when hit; a golem's buff counts; warcries count averaged over their cooldown. "
             "Immortal Call and movement skills are not used.",
@@ -1450,11 +1582,23 @@ class Generator:
             "if every source needs kills).",
             (f"Search guided by {self.guide}: supports tried in weight order (top {GUIDE_TOP} + {GUIDE_EXPLORE} at random)."
              if self.guide else "Search not guided: every candidate tried."),
-            "No cluster or abyss jewels yet. Sockets and gem colours are not checked.",
+            "No cluster or abyss jewels yet. Sockets are budgeted from the worn items (v27); gem colours and links are not checked.",
             ("A unique replacing a template rare keeps the rare's resistances, attributes and enchantment (as Config custom "
              "modifiers: other gear would carry them) but not its life. Check each unique's conditions in PoB."
              if self.max_uniques else "No unique items (--uniques N to try some)."),
         ])
+
+    def sockets_note(self):
+        s = getattr(self, "sockets", None)
+        if not s:
+            return "Socket budget (v27) was not applied."
+        used = sum(len(v) for v in s["plan"].values())
+        return (f"Socket budget (v27): {used} of {sum(s['capacity'].values())} sockets used (sockets as the worn items allow: a declared "
+                f"Sockets line, else the base's limit; all assumed linked where needed, colours not checked), keys {s['keys_used']} of "
+                f"{s['keys']} (main skill 1, movement 1, each curse / warcry / guard / self-cast buff 1, auras and golems 0). "
+                f"{' and '.join(MOVEMENT_GEMS)} are placed in {s['movement_slot']} as a disabled group: every player carries a movement skill, "
+                f"PoB does not calculate it." + (" Skills kept out by the budget (best gain they would have added): " +
+                "; ".join(f"{b['skill']} (+{b['gain']:.3f}, {b['reason']})" for b in s["blocked"]) + "." if s["blocked"] else " Nothing was kept out by the budget."))
 
     def gear_fill_note(self):
         g = getattr(self, "gear_fill", None)
@@ -1491,6 +1635,24 @@ class Generator:
             lines += ["", "## Spectres tried (best skill each; PoB counts that skill as always used - test in play)", "",
                       "| Spectre | Skill | DPS |", "|---|---|---|"]
             lines += [f"| {n} | {k} | {d:,.0f} |" for _, d, n, k in self.spectre_table]
+        if getattr(self, "sockets", None):
+            s = self.sockets
+            lines += ["", "## Sockets (v27)", "", f"Keys used: {s['keys_used']} / {s['keys']} (main skill 1, movement 1).", "",
+                      "| Slot | Item | Sockets | Gems |", "|---|---|---|---|"]
+            for slot in SOCKET_SLOTS:
+                if s["capacity"].get(slot) or s["plan"].get(slot):
+                    lines.append(f"| {slot} | {s['items'].get(slot) or '-'} | {len(s['plan'][slot])} / {s['capacity'][slot]} | "
+                                 f"{', '.join(s['plan'][slot]) or '-'} |")
+            moved = [p for p in s.get("placement", []) if abs(p["shift"]) >= 0.0005 or any(abs(d) >= 0.0005 for d in p["alternatives"].values())]
+            if moved:
+                lines += ["", "Each group is placed in the free slot where PoB scores it best (the item's socket colours and mods act on "
+                          "its gems). Where the slot mattered (score change on placing; the other slots relative to the chosen one):", ""]
+                lines += [f"- {p['gem']} -> {p['slot']} ({p['shift']:+.3f}; " + ", ".join(f"{k} {v:+.3f}" for k, v in p["alternatives"].items()) + ")"
+                          for p in moved]
+            lines.append(f"Score once every group is placed: {s.get('score_shift', 0):+.3f} against the search's last measurement.")
+            if s["blocked"]:
+                lines += ["", "Kept out by the budget (the best blocked skill of each step and the score it would have added; a swap "
+                          "for a placed skill was still tried):", ""] + [f"- {b['step']}: {b['skill']} +{b['gain']:.3f} ({b['reason']} full)" for b in s["blocked"]]
         lines += ["", "## Assumptions", "", *[f"- {n}" for n in self.notes().splitlines()[1:]],
                   "- Enemy: pinnacle boss (Config). Condition values PoB leaves at 0 are inferred (pob_scenarios explains them).",
                   "- The search is greedy: it finds a good build, not a proven best one."]
@@ -1544,7 +1706,7 @@ def main():
         with open(os.environ["POB_RESULT_JSON"], "w", encoding="utf-8") as f:
             json.dump({"metrics": m, "dps": g.dps(m), "score": g.score(m), "defence": g.defence(m), "penalty": g.penalty(m),
                        "build": path, "report": report, "minutes": g.elapsed / 60, "generator": GENERATOR_VERSION, "tie": g.tie,
-                       "gearFill": getattr(g, "gear_fill", None)}, f)
+                       "gearFill": getattr(g, "gear_fill", None), "sockets": getattr(g, "sockets", None)}, f)
     log(f"\nDPS {g.dps(m):,.0f} · life {m.get('Life')} · EHP {m.get('TotalEHP'):,.0f} · {g.elapsed / 60:.1f} min")
     log(f"build:  {path}\nreport: {report}")
 

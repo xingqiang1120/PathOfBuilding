@@ -561,7 +561,8 @@ local changeHandlers = {
 		error("gem '" .. c.gem .. "' not found in group " .. index)
 	end,
 	group_add = function(c)
-		local group = { label = c.label or "", enabled = true, includeInFullDPS = false, slot = c.slot, gemList = { } }
+		-- enabled=false (v27): a group shown in the build but not calculated (the reserved movement skill)
+		local group = { label = c.label or "", enabled = c.enabled ~= false, includeInFullDPS = false, slot = c.slot, gemList = { } }
 		local names = { }
 		for _, name in ipairs(assert(c.gems, "group_add needs gems")) do
 			local gem = { enableGlobal1 = true, enableGlobal2 = true, count = 1 }
@@ -580,6 +581,12 @@ local changeHandlers = {
 		group.gemList = { gem }
 		build.skillsTab:ProcessSocketGroup(group)
 		return string.format("group %d: %s -> %s", index, c.gem, new)
+	end,
+	group_slot = function(c)
+		-- the item slot a socket group sits in (v27: the generator places each added gem in a real item's sockets)
+		local group, index = findGroup(c.gem or c.group)
+		group.slot = c.slot
+		return string.format("group %d: in %s", index, tostring(c.slot))
 	end,
 	gem_add = function(c)
 		local group, index = findGroup(c.group)
@@ -1552,6 +1559,31 @@ function methods.reserving()
 	return { gems = list }
 end
 
+-- The items in the socketed slots, for the generator's socket budget (v27): the item's type, its base's socket limit
+-- and the sockets its text declares (real items and some uniques have a Sockets line; template rares do not)
+function methods.sockets(p)
+	dirty = true
+	loadFresh(p)
+	selectMain(p)
+	for _, change in ipairs(p.changes or { }) do changeHandlers[change.type](change) end
+	local out = { }
+	for _, slotName in ipairs({ "Weapon 1", "Weapon 2", "Body Armour", "Helmet", "Gloves", "Boots" }) do
+		local slot = build.itemsTab.slots[slotName]
+		local item = slot and slot.selItemId and slot.selItemId ~= 0 and build.itemsTab.items[slot.selItemId]
+		if item then
+			-- gem sockets only: abyssal sockets ("Cannot have non-Abyssal sockets", "Has 1 Abyssal Socket") hold jewels, not gems
+			local gemSockets, abyssal = 0, 0
+			for _, socket in ipairs(item.sockets or { }) do
+				if socket.color == "A" then abyssal = abyssal + 1 else gemSockets = gemSockets + 1 end
+			end
+			out[slotName] = { name = item.name, type = item.type, base = item.baseName,
+				limit = item.base and item.base.socketLimit or 0, sockets = gemSockets, abyssal = abyssal,
+				selectable = item.selectableSocketCount }
+		end
+	end
+	return out
+end
+
 -- Fast evaluation for searches: load once, then apply each candidate, measure and undo it (no reload per candidate).
 -- Supports passive_add, gem_add, gem_replace, gem_level, vaal_off, group_add, item_equip, item_remove, config_set; others error.
 local function applyReversible(change)
@@ -1629,6 +1661,11 @@ local function applyReversible(change)
 		local saved = group.gemList
 		local result = changeHandlers[t](change)
 		return result, function() group.gemList = saved build.skillsTab:ProcessSocketGroup(group) end
+	elseif t == "group_slot" then
+		local group = findGroup(change.gem or change.group)
+		local saved = group.slot
+		local result = changeHandlers[t](change)
+		return result, function() group.slot = saved end
 	elseif t == "item_equip" or t == "item_remove" then
 		local slot = assert(build.itemsTab.slots[change.slot], "no item slot '" .. tostring(change.slot) .. "'")
 		local old, oldActive = slot.selItemId, slot.active

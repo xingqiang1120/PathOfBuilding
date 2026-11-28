@@ -85,6 +85,9 @@ python tools/labdata.py push --pc <代號>
 ```
 
 - 核心數：工作管理員 → 效能 → CPU →「邏輯處理器」。home 實測用 `--jobs 12`（每組約 1.1～1.4 GB 記憶體）。
+- **給使用者看的 build**：放在這台 PoB 的 `src\Builds\AI 試算 v<版號>\`（每版一個資料夾，附報告 .md 和 README），
+  開 `Path of Building.exe` 的 Builds 清單就看得到。`src/Builds` 被 git 忽略，不提交；要給別台的話，同一份放私人庫
+  `results/v<版號>/<代號>/builds/`。
 - 推私人庫的 commit 要簽你自己的模型名稱：`python tools/labdata.py --model "Claude Fable 5.1" push --pc home`，
   或先設環境變數 `POB_MODEL`（沒給就簽 Claude Opus 5.5，那是 office 的）。
 - `labdata.py pull` 會順便把別台的舊版結果放進 `library\benchmark\`，退步比較才有上一版可比。

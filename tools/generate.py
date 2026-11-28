@@ -86,11 +86,22 @@ FOCUS = {"damage": 0.5, "balanced": 1.0, "defence": 2.0}
 #     tie rule of the tree phase, then goes on from the kept rule's draws (so the result does not depend on the order
 #     the rules are tried in). POB_BUFF_SWAP=reserving limits the aura swap to the skills that reserve mana or life
 #     (opt-in: in benchmark v22 three builds kept swaps of Blood Rage, Enduring Cry and Righteous Fire).
-GENERATOR_VERSION = 23
+# 24: the template rares (invented lines: life, a local defence, two resistances, an attribute) are replaced by real
+#     market items: per slot and base type the 5th-best listing under 10 chaos on the official trade site
+#     (international, Covens, 2026-11-28; tools/data/gear_templates.json, built by tools/gear_templates.py from the
+#     private market pool). Helmets, gloves and rings come from the "life + resistances + accuracy" pool, the amulet
+#     from the crit-multiplier pool for the crit archetype and the life + resistances pool otherwise, boots carry
+#     movement speed. No attribute lines any more (the user: attributes only as far as needed): the tree pays for what
+#     the gems need, and the attribute shortfall penalty (0.02 a point, on from the start with template gear) is what
+#     makes it. The es archetype wears the energy-shield-base items as they are (their life is wasted under Chaos
+#     Inoculation) instead of rewriting life lines; the evasion archetype no longer swaps attribute lines for spell
+#     suppression (there are none). Shield and weapons are still template rares. Benchmark scores change with the
+#     gear, so "no regression" starts again from this version.
+GENERATOR_VERSION = 24
 # Results of older versions from STILL_VALID_FROM on still count as done in self-play, except for the skills a later
 # version changed (changed_since_valid). Version 9 only changed minion skills (the minion's skill is now chosen),
 # unarmed attacks (empty main hand) and spells that need a staff.
-STILL_VALID_FROM = 22
+STILL_VALID_FROM = 24
 
 
 def changed_since_valid(skill, info):
@@ -115,44 +126,45 @@ CLASS_ATTRIBUTE = {"Marauder": "Str", "Ranger": "Dex", "Witch": "Int", "Duelist"
                    "Scion": "Str"}
 
 
-# Template rares at a mid budget (about 1-5 divine a week into a league; research 2026-11-26 from PoB's mod tiers and
-# 15 real builds): at most 3 prefixes and 3 suffixes, T2-T3 rolls. Each armour piece has life, a local defence of its
-# base's kind, two resistances and an attribute, so the tree does not have to buy attributes or all of the defence.
+# The shield is still a template rare at a mid budget (research 2026-11-26 from PoB's mod tiers and 15 real builds):
+# life, a local defence of its base's kind, two resistances and an attribute. The eight other rare slots are real
+# market items since v24 (GEAR_TEMPLATES below).
 DEFENCE = {"Str": ("Armour", "+100 to Armour"), "Dex": ("Evasion Rating", "+100 to Evasion Rating"),
            "Int": ("Energy Shield", "+40 to maximum Energy Shield")}
 BASE_STAT = {"Str": "Strength", "Dex": "Dexterity", "Int": "Intelligence"}
 
+# Market gear (v24): tools/data/gear_templates.json, built by tools/gear_templates.py from the private market pool -
+# per slot and base type the 5th-best listing under 10 chaos (international, Covens, 2026-11-28), as PoB item text.
+# A build's armour pieces follow its base kind (Str armour, Dex evasion, Int energy shield); helmets, gloves and the
+# rings come from the accuracy pool, boots have movement speed, the amulet is the crit-multiplier item for the crit
+# archetype and the life + resistances item otherwise, the belt is life + resistances. None of them adds attributes.
+GEAR_TEMPLATES_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "gear_templates.json")
+with open(GEAR_TEMPLATES_PATH, encoding="utf-8") as _f:
+    GEAR_TEMPLATES = json.load(_f)
+BASE_KIND = {"Str": "armour", "Dex": "evasion", "Int": "energy_shield"}
+ARMOUR_SLOTS = ("Helmet", "Body Armour", "Gloves", "Boots")
+
+
+def market_item(slot, group):
+    """PoB item text of the market template worn in slot (group: a base kind or an accessory variant)."""
+    return GEAR_TEMPLATES["slots"][slot][group]["text"]
+
 
 def armour_set(attribute, archetype=None):
+    """{slot: PoB item text} of the rare gear a build starts with, and the shield; attribute picks the base kind."""
     if archetype in DEFENCES:
         armour, shield = armour_set(DEFENCES[archetype].get("bases") or attribute)
         return {slot: defend(slot, raw, archetype) for slot, raw in armour.items()}, defend("Shield", shield, archetype)
+    kind = BASE_KIND[attribute]
+    armour = {slot: market_item(slot, kind) for slot in ARMOUR_SLOTS}
+    armour["Amulet"] = market_item("Amulet", "crit_multi" if archetype == "crit" else "life_res")
+    armour["Ring 1"] = market_item("Ring 1", "accuracy")
+    armour["Ring 2"] = market_item("Ring 2", "accuracy")
+    armour["Belt"] = market_item("Belt", "life_res")
     b = ARMOUR_BASES[attribute]
-    local, flat = DEFENCE[attribute]
-    stat = BASE_STAT[attribute]
-    if archetype == "crit":  # crit on the amulet instead of its attributes (the +16 all implicit stays)
-        amulet_suffixes = ["+40% to Lightning Resistance", *CRIT_AMULET]
-    else:
-        amulet_suffixes = ["+40% to Lightning Resistance", "+40 to Strength", "+30 to Dexterity"]
-    return {
-        "Helmet": item("Template Helmet", b["Helmet"], "+110 to maximum Life", f"60% increased {local}",
-                       "+40% to Fire Resistance", "+40% to Cold Resistance", "+35 to Intelligence"),
-        "Body Armour": item("Template Body Armour", b["Body Armour"], "+150 to maximum Life", f"70% increased {local}",
-                            "+40% to Fire Resistance", "+40% to Cold Resistance", f"+30 to {stat}"),
-        "Gloves": item("Template Gloves", b["Gloves"], "+100 to maximum Life", flat,
-                       "+40% to Cold Resistance", "+40% to Lightning Resistance", "+35 to Dexterity"),
-        "Boots": item("Template Boots", b["Boots"], "+100 to maximum Life", "30% increased Movement Speed",
-                      "+40% to Fire Resistance", "+40% to Lightning Resistance", f"+35 to {stat}"),
-        "Amulet": item("Template Amulet", "Onyx Amulet", "+90 to maximum Life", *amulet_suffixes,
-                       implicits=("+16 to all Attributes",)),
-        "Ring 1": item("Template Ring", "Two-Stone Ring", "+75 to maximum Life", "+40% to Lightning Resistance", "+35 to Dexterity",
-                       "+30 to Intelligence", implicits=("+16% to Fire and Cold Resistances",)),
-        "Ring 2": item("Template Ring", "Two-Stone Ring", "+75 to maximum Life", "+40% to Lightning Resistance", "+35 to Intelligence",
-                       "+30 to Strength", implicits=("+16% to Fire and Cold Resistances",)),
-        "Belt": item("Template Belt", "Leather Belt", "+100 to maximum Life", "+40% to Cold Resistance", "+40% to Lightning Resistance",
-                     "+35 to Strength", implicits=("+40 to maximum Life",)),
-    }, item("Template Shield", b["Shield"], "+120 to maximum Life", f"70% increased {local}", "+40% to Fire Resistance",
-            "+40% to Cold Resistance", f"+30 to {stat}")
+    local, _ = DEFENCE[attribute]
+    return armour, item("Template Shield", b["Shield"], "+120 to maximum Life", f"70% increased {local}", "+40% to Fire Resistance",
+                        "+40% to Cold Resistance", f"+30 to {BASE_STAT[attribute]}")
 
 
 # 3 suffixes: attack speed, crit chance, accuracy (the crit archetype takes crit multiplier instead of accuracy)
@@ -173,14 +185,13 @@ CRIT_ONE_HAND = ["Adds 19 to 40 Physical Damage", "150% increased Physical Damag
                  "37% increased Critical Strike Chance", "+37% to Global Critical Strike Multiplier"]
 CRIT_TWO_HAND = ["Adds 30 to 65 Physical Damage", "150% increased Physical Damage", "16% increased Attack Speed",
                  "37% increased Critical Strike Chance", "+37% to Global Critical Strike Multiplier"]
-CRIT_AMULET = ["+35% to Global Critical Strike Multiplier", "30% increased Global Critical Strike Chance"]
 CRIT_SPELL_WEAPON = item("Template Sceptre", "Void Sceptre", "80% increased Spell Damage", "20% increased Cast Speed",
                          "100% increased Spell Critical Strike Chance", "+35% to Global Critical Strike Multiplier")
-ARCHETYPES = {None: "template gear (hybrid weapon rolls)", "crit": "crit: weapon and amulet with crit rolls",
+ARCHETYPES = {None: "market gear (hybrid weapon rolls)", "crit": "crit: weapon with crit rolls, the crit-multiplier market amulet",
               "armour": "armour: armour bases with flat armour added, Determination",
               "block": "block: shield with attack and spell block (a spell build gives up its spirit shield)",
-              "evasion": "evasion: evasion bases, spell suppression instead of the armour pieces' attributes, Grace",
-              "es": "energy shield: energy shield instead of life, Chaos Inoculation, Discipline",
+              "evasion": "evasion: evasion bases, Grace",
+              "es": "energy shield: energy shield bases (the market items' life is wasted), Chaos Inoculation, Discipline",
               "takenas": "physical taken as elemental: body armour (16% as fire) and Taste of Hate (20% as cold)"}
 
 # Defence archetypes (like crit: a defence only pays off as a set, which the greedy search never builds one step at a
@@ -194,22 +205,14 @@ DEFENCES = {
               "add": {"Shield": ["14% Chance to Block Spell Damage"]},
               # a spirit shield cannot roll block: an Int build gets an evasion / energy shield base instead
               "gear": {"Shield": {"re:\\+30 to \\w+$": "+14% Chance to Block", "Titanium Spirit Shield": "Mirrored Spiked Shield"}}},
-    "evasion": {"bases": "Dex", "buffs": ["Grace"],
-                "gear": {"Helmet": {"+35 to Intelligence": "+13% chance to Suppress Spell Damage"},
-                         "Gloves": {"+35 to Dexterity": "+13% chance to Suppress Spell Damage"},
-                         "Boots": {"+35 to Dexterity": "+16% chance to Suppress Spell Damage"},
-                         "Body Armour": {"+30 to Dexterity": "+20% chance to Suppress Spell Damage"}}},
+    # v24: the evasion archetype used to swap the template pieces' attribute lines for spell suppression; the market
+    # items have no attribute line, so it is bases and Grace only (suppression gear: a later version)
+    "evasion": {"bases": "Dex", "buffs": ["Grace"]},
+    # v24: energy-shield-base market items as they are (their life lines are wasted under Chaos Inoculation - the 10c
+    # market has no life-free ES rares); only the template shield still trades its life for energy shield
     "es": {"bases": "Int", "buffs": ["Discipline"], "keystones": ["Chaos Inoculation"],
            "never": ["The Agnostic"],  # energy shield to 0: with Chaos Inoculation nothing is left
-           "gear": {"Helmet": {"re:^\\+\\d+ to maximum Life$": "+55 to maximum Energy Shield"},
-                    "Body Armour": {"re:^\\+\\d+ to maximum Life$": "+95 to maximum Energy Shield"},
-                    "Gloves": {"re:^\\+\\d+ to maximum Life$": "+45 to maximum Energy Shield"},
-                    "Boots": {"re:^\\+\\d+ to maximum Life$": "+45 to maximum Energy Shield"},
-                    "Amulet": {"re:^\\+\\d+ to maximum Life$": "+50 to maximum Energy Shield"},
-                    "Ring 1": {"re:^\\+\\d+ to maximum Life$": "+40 to maximum Energy Shield"},
-                    "Ring 2": {"re:^\\+\\d+ to maximum Life$": "+40 to maximum Energy Shield"},
-                    "Belt": {"re:^\\+\\d+ to maximum Life$": "+45 to maximum Energy Shield"},
-                    "Shield": {"re:^\\+\\d+ to maximum Life$": "+80 to maximum Energy Shield"}}},
+           "gear": {"Shield": {"re:^\\+\\d+ to maximum Life$": "+80 to maximum Energy Shield"}}},
     "takenas": {"add": {"Body Armour": ["16% of Physical Damage from Hits taken as Fire Damage"]},
                 "flasks": {"Flask 2": "Taste of Hate"}},
 }
@@ -697,7 +700,11 @@ class Generator:
         for slot, lines in prof.get("gear", {}).items():
             raw = self.worn(slot)
             for old, new in lines.items():
-                raw = raw.replace(old, new)
+                if old.startswith("re:"):  # v24: market items differ per slot, so a profile may name a line by pattern
+                    raw = "\n".join(new if re.search(old[3:], x) and not x.startswith(("Rarity", "Item Level", "Implicits")) else x
+                                    for x in raw.split("\n"))
+                else:
+                    raw = raw.replace(old, new)
             self.state.append({"type": "item_equip", "slot": slot, "raw": raw})
         self.state += self.unique_move(prof["slot"], self.around)
         self.moved.setdefault(prof["slot"], moved_lines(self.worn_before_unique(prof["slot"])))
@@ -1277,8 +1284,10 @@ class Generator:
     def notes(self):
         return "\n".join([
             f"Generated {datetime.date.today()} by tools/generate.py: {self.skill}, {self.ascendancy}, focus {self.focus}.",
-            "Template rare gear at a mid budget (life, a local defence, two resistances, an attribute; T2-T3 weapon rolls, "
-            "at most 3 prefixes and 3 suffixes) - an assumption, not real items."
+            f"Market rare gear: per slot and base type the 5th-best listing under 10 chaos on the official trade site "
+            f"({GEAR_TEMPLATES['server']}, {GEAR_TEMPLATES['league']}, {GEAR_TEMPLATES['date']}; tools/data/gear_templates.json) - "
+            "helmet, gloves and rings from the accuracy pool, boots with movement speed, no attribute lines. The shield and the "
+            "weapon are still template rares (T2-T3 rolls, at most 3 prefixes and 3 suffixes)."
             + (f" Archetype {ARCHETYPES[self.archetype]}." if self.archetype else ""),
             "Curses, marks and exposure count as always applied (how they are applied is not modelled).",
             (f"Built around {self.around}: " + " ".join(self.profile.get("why", [])) +

@@ -1,0 +1,997 @@
+{
+ "_about": "Market gear templates for the generator (v24): tools/data/gear_templates.json. Built by tools/gear_templates.py from the private market pool; item lines, base, item level, quality, league and date only - no seller.",
+ "server": "intl",
+ "league": "Covens",
+ "date": "2026-11-28",
+ "price_cap": "10 chaos",
+ "rank": 5,
+ "rule": "Each pool is the 10 best listings under 10 chaos, scored life + elemental resistance (+ the slot's key mod); the generator wears the 5th (Ring 2 the 6th).",
+ "slots": {
+  "Body Armour": {
+   "armour": {
+    "name": "Hate Curtain",
+    "base": "Golden Plate",
+    "item_level": 85,
+    "quality": 0,
+    "mods": [
+     {
+      "type": "explicit",
+      "text": "+280 to Armour"
+     },
+     {
+      "type": "explicit",
+      "text": "+168 to maximum Life"
+     },
+     {
+      "type": "explicit",
+      "text": "+46% to Fire Resistance"
+     },
+     {
+      "type": "explicit",
+      "text": "+47% to Cold Resistance"
+     },
+     {
+      "type": "explicit",
+      "text": "+43% to Lightning Resistance"
+     },
+     {
+      "type": "crafted",
+      "text": "64% increased Armour"
+     }
+    ],
+    "pseudo": {
+     "life": 168.0,
+     "ele_res": 136.0,
+     "chaos_res": 0
+    },
+    "defence_shown": {
+     "Armour": 1689.0
+    },
+    "price_chaos": 10.0,
+    "rank": 5,
+    "of": 10,
+    "thresholds": {
+     "pseudo_total_life": 150,
+     "pseudo_total_elemental_resistance": 135
+    },
+    "key_mod": null,
+    "from": "2026-11-28-r2/chest.json",
+    "text": "Rarity: RARE\nHate Curtain\nGolden Plate\nItem Level: 85\nImplicits: 0\n+280 to Armour\n+168 to maximum Life\n+46% to Fire Resistance\n+47% to Cold Resistance\n+43% to Lightning Resistance\n{crafted}64% increased Armour"
+   },
+   "evasion": {
+    "name": "Viper Jack",
+    "base": "Supreme Leather",
+    "item_level": 85,
+    "quality": 0,
+    "mods": [
+     {
+      "type": "explicit",
+      "text": "+153 to maximum Life"
+     },
+     {
+      "type": "explicit",
+      "text": "+45% to Fire Resistance"
+     },
+     {
+      "type": "explicit",
+      "text": "+44% to Cold Resistance"
+     },
+     {
+      "type": "explicit",
+      "text": "+48% to Lightning Resistance"
+     },
+     {
+      "type": "explicit",
+      "text": "Reflects 39 Physical Damage to Melee Attackers"
+     },
+     {
+      "type": "crafted",
+      "text": "20% increased Evasion Rating"
+     },
+     {
+      "type": "crafted",
+      "text": "+18 to maximum Life"
+     }
+    ],
+    "pseudo": {
+     "life": 171.0,
+     "ele_res": 137.0,
+     "chaos_res": 0
+    },
+    "defence_shown": {
+     "Evasion": 1349.0
+    },
+    "price_chaos": 5.0,
+    "rank": 5,
+    "of": 10,
+    "thresholds": {
+     "pseudo_total_life": 150,
+     "pseudo_total_elemental_resistance": 135
+    },
+    "key_mod": null,
+    "from": "2026-11-28-r2/chest.json",
+    "text": "Rarity: RARE\nViper Jack\nSupreme Leather\nItem Level: 85\nImplicits: 0\n+153 to maximum Life\n+45% to Fire Resistance\n+44% to Cold Resistance\n+48% to Lightning Resistance\nReflects 39 Physical Damage to Melee Attackers\n{crafted}20% increased Evasion Rating\n{crafted}+18 to maximum Life"
+   },
+   "energy_shield": {
+    "name": "Corruption Carapace",
+    "base": "Vaal Regalia",
+    "item_level": 85,
+    "quality": 20,
+    "mods": [
+     {
+      "type": "explicit",
+      "text": "96% increased Energy Shield"
+     },
+     {
+      "type": "explicit",
+      "text": "+171 to maximum Life"
+     },
+     {
+      "type": "explicit",
+      "text": "+48% to Fire Resistance"
+     },
+     {
+      "type": "explicit",
+      "text": "+41% to Cold Resistance"
+     },
+     {
+      "type": "explicit",
+      "text": "+47% to Lightning Resistance"
+     }
+    ],
+    "pseudo": {
+     "life": 171.0,
+     "ele_res": 136.0,
+     "chaos_res": 0
+    },
+    "defence_shown": {
+     "Energy Shield": 454.0
+    },
+    "price_chaos": 5.0,
+    "rank": 5,
+    "of": 10,
+    "thresholds": {
+     "pseudo_total_life": 150,
+     "pseudo_total_elemental_resistance": 135
+    },
+    "key_mod": null,
+    "from": "2026-11-28-r2/chest.json",
+    "text": "Rarity: RARE\nCorruption Carapace\nVaal Regalia\nQuality: 20\nItem Level: 85\nImplicits: 0\n96% increased Energy Shield\n+171 to maximum Life\n+48% to Fire Resistance\n+41% to Cold Resistance\n+47% to Lightning Resistance"
+   }
+  },
+  "Helmet": {
+   "armour": {
+    "name": "Gloom Keep",
+    "base": "Samnite Helmet",
+    "item_level": 85,
+    "quality": 20,
+    "mods": [
+     {
+      "type": "explicit",
+      "text": "+407 to Accuracy Rating"
+     },
+     {
+      "type": "explicit",
+      "text": "16% increased Armour"
+     },
+     {
+      "type": "explicit",
+      "text": "+141 to maximum Life"
+     },
+     {
+      "type": "explicit",
+      "text": "+46% to Fire Resistance"
+     },
+     {
+      "type": "explicit",
+      "text": "+47% to Lightning Resistance"
+     },
+     {
+      "type": "crafted",
+      "text": "+1 to Level of Socketed AoE Gems"
+     },
+     {
+      "type": "crafted",
+      "text": "9% increased Area of Effect"
+     }
+    ],
+    "pseudo": {
+     "life": 141.0,
+     "ele_res": 93.0,
+     "chaos_res": 0,
+     "accuracy": 407.0,
+     "movement_speed": 0
+    },
+    "defence_shown": {
+     "Armour": 387.0
+    },
+    "price_chaos": 10.0,
+    "rank": 5,
+    "of": 10,
+    "thresholds": {
+     "pseudo_total_life": 115,
+     "pseudo_total_elemental_resistance": 90,
+     "explicit_accuracy_rating": 200
+    },
+    "key_mod": "accuracy",
+    "from": "2026-11-28-r3/helmet.json",
+    "text": "Rarity: RARE\nGloom Keep\nSamnite Helmet\nQuality: 20\nItem Level: 85\nImplicits: 0\n+407 to Accuracy Rating\n16% increased Armour\n+141 to maximum Life\n+46% to Fire Resistance\n+47% to Lightning Resistance\n{crafted}+1 to Level of Socketed AoE Gems\n{crafted}9% increased Area of Effect"
+   },
+   "evasion": {
+    "name": "Chimeric Visor",
+    "base": "Dire Pelt",
+    "item_level": 85,
+    "quality": 0,
+    "mods": [
+     {
+      "type": "explicit",
+      "text": "+591 to Accuracy Rating"
+     },
+     {
+      "type": "explicit",
+      "text": "+166 to Evasion Rating"
+     },
+     {
+      "type": "explicit",
+      "text": "+120 to maximum Life"
+     },
+     {
+      "type": "explicit",
+      "text": "+46% to Cold Resistance"
+     },
+     {
+      "type": "explicit",
+      "text": "+46% to Lightning Resistance"
+     }
+    ],
+    "pseudo": {
+     "life": 120.0,
+     "ele_res": 92.0,
+     "chaos_res": 0,
+     "accuracy": 591.0,
+     "movement_speed": 0
+    },
+    "defence_shown": {
+     "Evasion": 749.0
+    },
+    "price_chaos": 4.0,
+    "rank": 5,
+    "of": 10,
+    "thresholds": {
+     "pseudo_total_life": 110,
+     "pseudo_total_elemental_resistance": 90,
+     "explicit_accuracy_rating": 200
+    },
+    "key_mod": "accuracy",
+    "from": "2026-11-28-r3/helmet.json",
+    "text": "Rarity: RARE\nChimeric Visor\nDire Pelt\nItem Level: 85\nImplicits: 0\n+591 to Accuracy Rating\n+166 to Evasion Rating\n+120 to maximum Life\n+46% to Cold Resistance\n+46% to Lightning Resistance"
+   },
+   "energy_shield": {
+    "name": "Bramble Veil",
+    "base": "Mind Cage",
+    "item_level": 85,
+    "quality": 0,
+    "mods": [
+     {
+      "type": "explicit",
+      "text": "+340 to Accuracy Rating"
+     },
+     {
+      "type": "explicit",
+      "text": "+144 to maximum Life"
+     },
+     {
+      "type": "explicit",
+      "text": "+46% to Cold Resistance"
+     },
+     {
+      "type": "explicit",
+      "text": "+48% to Lightning Resistance"
+     }
+    ],
+    "pseudo": {
+     "life": 144.0,
+     "ele_res": 94.0,
+     "chaos_res": 0,
+     "accuracy": 340.0,
+     "movement_speed": 0
+    },
+    "defence_shown": {
+     "Energy Shield": 89.0
+    },
+    "price_chaos": 5.0,
+    "rank": 5,
+    "of": 10,
+    "thresholds": {
+     "pseudo_total_life": 110,
+     "pseudo_total_elemental_resistance": 90,
+     "explicit_accuracy_rating": 200
+    },
+    "key_mod": "accuracy",
+    "from": "2026-11-28-r3/helmet.json",
+    "text": "Rarity: RARE\nBramble Veil\nMind Cage\nItem Level: 85\nImplicits: 0\n+340 to Accuracy Rating\n+144 to maximum Life\n+46% to Cold Resistance\n+48% to Lightning Resistance"
+   }
+  },
+  "Gloves": {
+   "armour": {
+    "name": "Torment Claw",
+    "base": "Vaal Gauntlets",
+    "item_level": 84,
+    "quality": 0,
+    "mods": [
+     {
+      "type": "explicit",
+      "text": "Adds 6 to 12 Fire Damage to Attacks"
+     },
+     {
+      "type": "explicit",
+      "text": "+254 to Accuracy Rating"
+     },
+     {
+      "type": "explicit",
+      "text": "+123 to maximum Life"
+     },
+     {
+      "type": "explicit",
+      "text": "+39% to Fire Resistance"
+     },
+     {
+      "type": "explicit",
+      "text": "+48% to Cold Resistance"
+     }
+    ],
+    "pseudo": {
+     "life": 123.0,
+     "ele_res": 87.0,
+     "chaos_res": 0,
+     "accuracy": 254.0,
+     "movement_speed": 0
+    },
+    "defence_shown": {
+     "Armour": 319.0
+    },
+    "price_chaos": 7.0,
+    "rank": 5,
+    "of": 10,
+    "thresholds": {
+     "pseudo_total_life": 80,
+     "pseudo_total_elemental_resistance": 80,
+     "explicit_accuracy_rating": 200
+    },
+    "key_mod": "accuracy",
+    "from": "2026-11-28-r3/gloves.json",
+    "text": "Rarity: RARE\nTorment Claw\nVaal Gauntlets\nItem Level: 84\nImplicits: 0\nAdds 6 to 12 Fire Damage to Attacks\n+254 to Accuracy Rating\n+123 to maximum Life\n+39% to Fire Resistance\n+48% to Cold Resistance"
+   },
+   "evasion": {
+    "name": "Tempest Grip",
+    "base": "Slink Gloves",
+    "item_level": 85,
+    "quality": 0,
+    "mods": [
+     {
+      "type": "explicit",
+      "text": "+528 to Accuracy Rating"
+     },
+     {
+      "type": "explicit",
+      "text": "+127 to Evasion Rating"
+     },
+     {
+      "type": "explicit",
+      "text": "+125 to maximum Life"
+     },
+     {
+      "type": "explicit",
+      "text": "+46% to Cold Resistance"
+     },
+     {
+      "type": "crafted",
+      "text": "+17% to Fire and Lightning Resistances"
+     }
+    ],
+    "pseudo": {
+     "life": 125.0,
+     "ele_res": 80.0,
+     "chaos_res": 0,
+     "accuracy": 528.0,
+     "movement_speed": 0
+    },
+    "defence_shown": {
+     "Evasion": 444.0
+    },
+    "price_chaos": 10.0,
+    "rank": 5,
+    "of": 10,
+    "thresholds": {
+     "pseudo_total_life": 80,
+     "pseudo_total_elemental_resistance": 80,
+     "explicit_accuracy_rating": 200
+    },
+    "key_mod": "accuracy",
+    "from": "2026-11-28-r3/gloves.json",
+    "text": "Rarity: RARE\nTempest Grip\nSlink Gloves\nItem Level: 85\nImplicits: 0\n+528 to Accuracy Rating\n+127 to Evasion Rating\n+125 to maximum Life\n+46% to Cold Resistance\n{crafted}+17% to Fire and Lightning Resistances"
+   },
+   "energy_shield": {
+    "name": "Eagle Clutches",
+    "base": "Conjurer Gloves",
+    "item_level": 84,
+    "quality": 0,
+    "mods": [
+     {
+      "type": "explicit",
+      "text": "+475 to Accuracy Rating"
+     },
+     {
+      "type": "explicit",
+      "text": "+13 to maximum Energy Shield"
+     },
+     {
+      "type": "explicit",
+      "text": "+28 to maximum Life"
+     },
+     {
+      "type": "explicit",
+      "text": "+47% to Cold Resistance"
+     },
+     {
+      "type": "explicit",
+      "text": "+44% to Lightning Resistance"
+     },
+     {
+      "type": "crafted",
+      "text": "+70 to maximum Life"
+     }
+    ],
+    "pseudo": {
+     "life": 98.0,
+     "ele_res": 91.0,
+     "chaos_res": 0,
+     "accuracy": 475.0,
+     "movement_speed": 0
+    },
+    "defence_shown": {
+     "Energy Shield": 68.0
+    },
+    "price_chaos": 10.0,
+    "rank": 5,
+    "of": 10,
+    "thresholds": {
+     "pseudo_total_life": 80,
+     "pseudo_total_elemental_resistance": 80,
+     "explicit_accuracy_rating": 200
+    },
+    "key_mod": "accuracy",
+    "from": "2026-11-28-r3/gloves.json",
+    "text": "Rarity: RARE\nEagle Clutches\nConjurer Gloves\nItem Level: 84\nImplicits: 0\n+475 to Accuracy Rating\n+13 to maximum Energy Shield\n+28 to maximum Life\n+47% to Cold Resistance\n+44% to Lightning Resistance\n{crafted}+70 to maximum Life"
+   }
+  },
+  "Boots": {
+   "armour": {
+    "name": "Fate Urge",
+    "base": "Antique Greaves",
+    "item_level": 79,
+    "quality": 0,
+    "mods": [
+     {
+      "type": "explicit",
+      "text": "+33 to Armour"
+     },
+     {
+      "type": "explicit",
+      "text": "+104 to maximum Life"
+     },
+     {
+      "type": "explicit",
+      "text": "+42% to Fire Resistance"
+     },
+     {
+      "type": "explicit",
+      "text": "+42% to Cold Resistance"
+     },
+     {
+      "type": "explicit",
+      "text": "+20% to Lightning Resistance"
+     },
+     {
+      "type": "explicit",
+      "text": "25% increased Movement Speed"
+     }
+    ],
+    "pseudo": {
+     "life": 104.0,
+     "movement_speed": 25.0,
+     "ele_res": 104.0,
+     "chaos_res": 0,
+     "accuracy": 0
+    },
+    "defence_shown": {
+     "Armour": 210.0
+    },
+    "price_chaos": 10.0,
+    "rank": 5,
+    "of": 10,
+    "thresholds": {
+     "pseudo_total_life": 95,
+     "pseudo_total_elemental_resistance": 95,
+     "pseudo_increased_movement_speed": 25
+    },
+    "key_mod": "movement_speed",
+    "from": "2026-11-28-r3/boots.json",
+    "text": "Rarity: RARE\nFate Urge\nAntique Greaves\nItem Level: 79\nImplicits: 0\n+33 to Armour\n+104 to maximum Life\n+42% to Fire Resistance\n+42% to Cold Resistance\n+20% to Lightning Resistance\n25% increased Movement Speed"
+   },
+   "evasion": {
+    "name": "Corruption League",
+    "base": "Harpyskin Boots",
+    "item_level": 83,
+    "quality": 23,
+    "mods": [
+     {
+      "type": "explicit",
+      "text": "34% increased Evasion Rating"
+     },
+     {
+      "type": "explicit",
+      "text": "+120 to maximum Life"
+     },
+     {
+      "type": "explicit",
+      "text": "+37% to Fire Resistance"
+     },
+     {
+      "type": "explicit",
+      "text": "+43% to Lightning Resistance"
+     },
+     {
+      "type": "explicit",
+      "text": "25% increased Movement Speed"
+     },
+     {
+      "type": "explicit",
+      "text": "15% increased Stun and Block Recovery"
+     },
+     {
+      "type": "crafted",
+      "text": "+21% to Cold Resistance"
+     }
+    ],
+    "pseudo": {
+     "life": 120.0,
+     "movement_speed": 25.0,
+     "ele_res": 101.0,
+     "chaos_res": 0,
+     "accuracy": 0
+    },
+    "defence_shown": {
+     "Evasion": 555.0
+    },
+    "price_chaos": 10.0,
+    "rank": 5,
+    "of": 10,
+    "thresholds": {
+     "pseudo_total_life": 100,
+     "pseudo_total_elemental_resistance": 100,
+     "pseudo_increased_movement_speed": 25
+    },
+    "key_mod": "movement_speed",
+    "from": "2026-11-28-r3/boots.json",
+    "text": "Rarity: RARE\nCorruption League\nHarpyskin Boots\nQuality: 23\nItem Level: 83\nImplicits: 0\n34% increased Evasion Rating\n+120 to maximum Life\n+37% to Fire Resistance\n+43% to Lightning Resistance\n25% increased Movement Speed\n15% increased Stun and Block Recovery\n{crafted}+21% to Cold Resistance"
+   },
+   "energy_shield": {
+    "name": "Hate Goad",
+    "base": "Conjurer Boots",
+    "item_level": 85,
+    "quality": 0,
+    "mods": [
+     {
+      "type": "explicit",
+      "text": "+115 to maximum Life"
+     },
+     {
+      "type": "explicit",
+      "text": "+47% to Fire Resistance"
+     },
+     {
+      "type": "explicit",
+      "text": "+44% to Cold Resistance"
+     },
+     {
+      "type": "explicit",
+      "text": "30% increased Movement Speed"
+     },
+     {
+      "type": "explicit",
+      "text": "24% increased Stun and Block Recovery"
+     }
+    ],
+    "pseudo": {
+     "life": 115.0,
+     "movement_speed": 30.0,
+     "ele_res": 91.0,
+     "chaos_res": 0,
+     "accuracy": 0
+    },
+    "defence_shown": {
+     "Energy Shield": 50.0
+    },
+    "price_chaos": 5.0,
+    "rank": 5,
+    "of": 10,
+    "thresholds": {
+     "pseudo_total_life": 90,
+     "pseudo_total_elemental_resistance": 90,
+     "pseudo_increased_movement_speed": 25
+    },
+    "key_mod": "movement_speed",
+    "from": "2026-11-28-r3/boots.json",
+    "text": "Rarity: RARE\nHate Goad\nConjurer Boots\nItem Level: 85\nImplicits: 0\n+115 to maximum Life\n+47% to Fire Resistance\n+44% to Cold Resistance\n30% increased Movement Speed\n24% increased Stun and Block Recovery"
+   }
+  },
+  "Ring 1": {
+   "accuracy": {
+    "name": "Torment Knot",
+    "base": "Ruby Ring",
+    "item_level": 77,
+    "quality": 0,
+    "mods": [
+     {
+      "type": "implicit",
+      "text": "+25% to Fire Resistance"
+     },
+     {
+      "type": "explicit",
+      "text": "Adds 6 to 11 Physical Damage to Attacks"
+     },
+     {
+      "type": "explicit",
+      "text": "+341 to Accuracy Rating"
+     },
+     {
+      "type": "explicit",
+      "text": "+99 to Evasion Rating"
+     },
+     {
+      "type": "explicit",
+      "text": "+113 to maximum Life"
+     },
+     {
+      "type": "explicit",
+      "text": "+29% to Cold Resistance"
+     },
+     {
+      "type": "crafted",
+      "text": "+25% to Lightning Resistance"
+     }
+    ],
+    "pseudo": {
+     "life": 113.0,
+     "ele_res": 79.0,
+     "chaos_res": 0,
+     "accuracy": 341.0,
+     "crit_multi": 0
+    },
+    "defence_shown": null,
+    "price_chaos": 5.0,
+    "rank": 5,
+    "of": 10,
+    "thresholds": {
+     "pseudo_total_life": 80,
+     "pseudo_total_elemental_resistance": 75,
+     "explicit_accuracy_rating": 300
+    },
+    "key_mod": "accuracy",
+    "from": "2026-11-28-rB/ring.json",
+    "text": "Rarity: RARE\nTorment Knot\nRuby Ring\nItem Level: 77\nImplicits: 1\n+25% to Fire Resistance\nAdds 6 to 11 Physical Damage to Attacks\n+341 to Accuracy Rating\n+99 to Evasion Rating\n+113 to maximum Life\n+29% to Cold Resistance\n{crafted}+25% to Lightning Resistance"
+   },
+   "chaos_res": {
+    "name": "Agony Eye",
+    "base": "Two-Stone Ring",
+    "item_level": 84,
+    "quality": 0,
+    "mods": [
+     {
+      "type": "implicit",
+      "text": "+14% to Cold and Lightning Resistances"
+     },
+     {
+      "type": "explicit",
+      "text": "+52 to Dexterity"
+     },
+     {
+      "type": "explicit",
+      "text": "+92 to maximum Life"
+     },
+     {
+      "type": "explicit",
+      "text": "+49 to maximum Mana"
+     },
+     {
+      "type": "explicit",
+      "text": "+42% to Cold Resistance"
+     },
+     {
+      "type": "explicit",
+      "text": "+21% to Chaos Resistance"
+     }
+    ],
+    "pseudo": {
+     "life": 92.0,
+     "chaos_res": 21.0,
+     "ele_res": 70.0,
+     "accuracy": 0,
+     "crit_multi": 0
+    },
+    "defence_shown": null,
+    "price_chaos": 5.0,
+    "rank": 5,
+    "of": 10,
+    "thresholds": {
+     "pseudo_total_life": 60,
+     "pseudo_total_elemental_resistance": 50,
+     "pseudo_total_chaos_resistance": 20
+    },
+    "key_mod": "chaos_res",
+    "from": "2026-11-28-rB/ring.json",
+    "text": "Rarity: RARE\nAgony Eye\nTwo-Stone Ring\nItem Level: 84\nImplicits: 1\n+14% to Cold and Lightning Resistances\n+52 to Dexterity\n+92 to maximum Life\n+49 to maximum Mana\n+42% to Cold Resistance\n+21% to Chaos Resistance"
+   }
+  },
+  "Ring 2": {
+   "accuracy": {
+    "name": "Morbid Band",
+    "base": "Two-Stone Ring",
+    "item_level": 83,
+    "quality": 0,
+    "mods": [
+     {
+      "type": "implicit",
+      "text": "+13% to Fire and Cold Resistances"
+     },
+     {
+      "type": "explicit",
+      "text": "Adds 11 to 19 Cold Damage to Attacks"
+     },
+     {
+      "type": "explicit",
+      "text": "Adds 2 to 40 Lightning Damage to Attacks"
+     },
+     {
+      "type": "explicit",
+      "text": "+352 to Accuracy Rating"
+     },
+     {
+      "type": "explicit",
+      "text": "+101 to maximum Life"
+     },
+     {
+      "type": "explicit",
+      "text": "+12% to all Elemental Resistances"
+     },
+     {
+      "type": "explicit",
+      "text": "+27% to Lightning Resistance"
+     }
+    ],
+    "pseudo": {
+     "life": 101.0,
+     "ele_res": 89.0,
+     "chaos_res": 0,
+     "accuracy": 352.0,
+     "crit_multi": 0
+    },
+    "defence_shown": null,
+    "price_chaos": 8.0,
+    "rank": 6,
+    "of": 10,
+    "thresholds": {
+     "pseudo_total_life": 80,
+     "pseudo_total_elemental_resistance": 75,
+     "explicit_accuracy_rating": 300
+    },
+    "key_mod": "accuracy",
+    "from": "2026-11-28-rB/ring.json",
+    "text": "Rarity: RARE\nMorbid Band\nTwo-Stone Ring\nItem Level: 83\nImplicits: 1\n+13% to Fire and Cold Resistances\nAdds 11 to 19 Cold Damage to Attacks\nAdds 2 to 40 Lightning Damage to Attacks\n+352 to Accuracy Rating\n+101 to maximum Life\n+12% to all Elemental Resistances\n+27% to Lightning Resistance"
+   },
+   "chaos_res": {
+    "name": "Kraken Loop",
+    "base": "Two-Stone Ring",
+    "item_level": 85,
+    "quality": 0,
+    "mods": [
+     {
+      "type": "implicit",
+      "text": "+12% to Cold and Lightning Resistances"
+     },
+     {
+      "type": "explicit",
+      "text": "+9 to all Attributes"
+     },
+     {
+      "type": "explicit",
+      "text": "+99 to maximum Life"
+     },
+     {
+      "type": "explicit",
+      "text": "+10% to all Elemental Resistances"
+     },
+     {
+      "type": "explicit",
+      "text": "+24% to Chaos Resistance"
+     }
+    ],
+    "pseudo": {
+     "life": 103.5,
+     "chaos_res": 24.0,
+     "ele_res": 54.0,
+     "accuracy": 0,
+     "crit_multi": 0
+    },
+    "defence_shown": null,
+    "price_chaos": 2.0,
+    "rank": 6,
+    "of": 10,
+    "thresholds": {
+     "pseudo_total_life": 60,
+     "pseudo_total_elemental_resistance": 50,
+     "pseudo_total_chaos_resistance": 20
+    },
+    "key_mod": "chaos_res",
+    "from": "2026-11-28-rB/ring.json",
+    "text": "Rarity: RARE\nKraken Loop\nTwo-Stone Ring\nItem Level: 85\nImplicits: 1\n+12% to Cold and Lightning Resistances\n+9 to all Attributes\n+99 to maximum Life\n+10% to all Elemental Resistances\n+24% to Chaos Resistance"
+   }
+  },
+  "Amulet": {
+   "life_res": {
+    "name": "Rift Noose",
+    "base": "Turquoise Amulet",
+    "item_level": 83,
+    "quality": 0,
+    "mods": [
+     {
+      "type": "implicit",
+      "text": "+17 to Dexterity and Intelligence"
+     },
+     {
+      "type": "explicit",
+      "text": "+124 to maximum Life"
+     },
+     {
+      "type": "explicit",
+      "text": "+12% to all Elemental Resistances"
+     },
+     {
+      "type": "explicit",
+      "text": "+30% to Fire Resistance"
+     },
+     {
+      "type": "explicit",
+      "text": "+39% to Lightning Resistance"
+     }
+    ],
+    "pseudo": {
+     "life": 124.0,
+     "ele_res": 105.0,
+     "chaos_res": 0,
+     "accuracy": 0,
+     "crit_multi": 0
+    },
+    "defence_shown": null,
+    "price_chaos": 10.0,
+    "rank": 5,
+    "of": 10,
+    "thresholds": {
+     "pseudo_total_life": 100,
+     "pseudo_total_elemental_resistance": 100
+    },
+    "key_mod": null,
+    "from": "2026-11-28-rB/amulet.json",
+    "text": "Rarity: RARE\nRift Noose\nTurquoise Amulet\nItem Level: 83\nImplicits: 1\n+17 to Dexterity and Intelligence\n+124 to maximum Life\n+12% to all Elemental Resistances\n+30% to Fire Resistance\n+39% to Lightning Resistance"
+   },
+   "crit_multi": {
+    "name": "Wrath Pendant",
+    "base": "Citrine Amulet",
+    "item_level": 81,
+    "quality": 0,
+    "mods": [
+     {
+      "type": "implicit",
+      "text": "+19 to Strength and Dexterity"
+     },
+     {
+      "type": "explicit",
+      "text": "Adds 8 to 13 Physical Damage to Attacks"
+     },
+     {
+      "type": "explicit",
+      "text": "+36% to Global Critical Strike Multiplier"
+     },
+     {
+      "type": "explicit",
+      "text": "36% increased Armour"
+     },
+     {
+      "type": "explicit",
+      "text": "+100 to maximum Life"
+     },
+     {
+      "type": "explicit",
+      "text": "+36% to Fire Resistance"
+     },
+     {
+      "type": "explicit",
+      "text": "+43% to Lightning Resistance"
+     }
+    ],
+    "pseudo": {
+     "life": 109.5,
+     "ele_res": 79.0,
+     "chaos_res": 0,
+     "accuracy": 0,
+     "crit_multi": 36.0
+    },
+    "defence_shown": null,
+    "price_chaos": 10.0,
+    "rank": 5,
+    "of": 10,
+    "thresholds": {
+     "pseudo_total_life": 80,
+     "pseudo_total_elemental_resistance": 70,
+     "explicit_global_critical_strike_multiplier": 30
+    },
+    "key_mod": "crit_multi",
+    "from": "2026-11-28-rB/amulet.json",
+    "text": "Rarity: RARE\nWrath Pendant\nCitrine Amulet\nItem Level: 81\nImplicits: 1\n+19 to Strength and Dexterity\nAdds 8 to 13 Physical Damage to Attacks\n+36% to Global Critical Strike Multiplier\n36% increased Armour\n+100 to maximum Life\n+36% to Fire Resistance\n+43% to Lightning Resistance"
+   }
+  },
+  "Belt": {
+   "life_res": {
+    "name": "Skull Locket",
+    "base": "Leather Belt",
+    "item_level": 81,
+    "quality": 0,
+    "mods": [
+     {
+      "type": "implicit",
+      "text": "+29 to maximum Life"
+     },
+     {
+      "type": "explicit",
+      "text": "+121 to maximum Life"
+     },
+     {
+      "type": "explicit",
+      "text": "+41% to Fire Resistance"
+     },
+     {
+      "type": "explicit",
+      "text": "+31% to Cold Resistance"
+     },
+     {
+      "type": "explicit",
+      "text": "+31% to Lightning Resistance"
+     },
+     {
+      "type": "explicit",
+      "text": "23% increased Flask Mana Recovery rate"
+     }
+    ],
+    "pseudo": {
+     "life": 150.0,
+     "ele_res": 103.0,
+     "chaos_res": 0,
+     "accuracy": 0,
+     "crit_multi": 0
+    },
+    "defence_shown": null,
+    "price_chaos": 6.0,
+    "rank": 5,
+    "of": 10,
+    "thresholds": {
+     "pseudo_total_life": 130,
+     "pseudo_total_elemental_resistance": 100
+    },
+    "key_mod": null,
+    "from": "2026-11-28-rB/belt.json",
+    "text": "Rarity: RARE\nSkull Locket\nLeather Belt\nItem Level: 81\nImplicits: 1\n+29 to maximum Life\n+121 to maximum Life\n+41% to Fire Resistance\n+31% to Cold Resistance\n+31% to Lightning Resistance\n23% increased Flask Mana Recovery rate"
+   }
+  }
+ }
+}

@@ -10,10 +10,10 @@
     ],
     "gear": {
       "Ring 1": {
-        "+40% to Lightning Resistance": "-130% to Lightning Resistance"
+        "re:\\+\\d+% to Lightning Resistance$": "-130% to Lightning Resistance"
       },
       "Ring 2": {
-        "+40% to Lightning Resistance": "-130% to Lightning Resistance"
+        "re:\\+\\d+% to Lightning Resistance$": "-130% to Lightning Resistance"
       }
     },
     "why": [

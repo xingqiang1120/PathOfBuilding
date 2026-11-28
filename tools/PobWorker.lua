@@ -1571,8 +1571,14 @@ function methods.sockets(p)
 		local slot = build.itemsTab.slots[slotName]
 		local item = slot and slot.selItemId and slot.selItemId ~= 0 and build.itemsTab.items[slot.selItemId]
 		if item then
+			-- gem sockets only: abyssal sockets ("Cannot have non-Abyssal sockets", "Has 1 Abyssal Socket") hold jewels, not gems
+			local gemSockets, abyssal = 0, 0
+			for _, socket in ipairs(item.sockets or { }) do
+				if socket.color == "A" then abyssal = abyssal + 1 else gemSockets = gemSockets + 1 end
+			end
 			out[slotName] = { name = item.name, type = item.type, base = item.baseName,
-				limit = item.base and item.base.socketLimit or 0, sockets = item.sockets and #item.sockets or 0 }
+				limit = item.base and item.base.socketLimit or 0, sockets = gemSockets, abyssal = abyssal,
+				selectable = item.selectableSocketCount }
 		end
 	end
 	return out

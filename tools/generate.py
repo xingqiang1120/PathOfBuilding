@@ -1169,12 +1169,10 @@ class Generator:
 
     # --- socket / key budget (v27) ----------------------------------------------------------------------------------
     def socket_capacity(self):
-        """{slot: sockets} of the items worn now (a declared Sockets line, else the base's socket limit), and the items."""
+        """{slot: gem sockets} of the items worn now (PoB fills an item's sockets to its base's limit when no Sockets line
+        says otherwise; abyssal sockets are not counted, they hold jewels), and the items."""
         info = WORKER.call("sockets", dict(self.params(), changes=self.state))
-        cap = {}
-        for slot in SOCKET_SLOTS:
-            it = info.get(slot)
-            cap[slot] = (it["sockets"] if it.get("sockets") else (it.get("limit") or 0)) if it else 0
+        cap = {slot: ((info.get(slot) or {}).get("sockets") or 0) for slot in SOCKET_SLOTS}
         return cap, info
 
     def budget(self):

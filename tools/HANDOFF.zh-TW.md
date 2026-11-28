@@ -54,6 +54,15 @@
 ## 線索（home 2026-11-27）
 - Storm Call／Hierophant 防禦差距：兩邊都穿 Doryani's Prototype（閃電承傷看護甲）。作者護甲 32,671 vs 生成 14,165，閃電最大承傷 129,810 vs 32,846，生命 5,296 vs 3,800。差距在護甲和生命。
 
+## 使用者看 v23 的回饋（2026-11-28，還沒排版本）
+1. **樣板稀有裝不真實**：屬性給太多（全身約 +200），除非是堆屬性的流派，一般玩家只把屬性配到夠用；而且樣板裝完全沒有混沌抗，
+   天賦樹只好去抓帶混沌抗的點，連跟技能無關的（例如混沌抗＋召喚物傷害）也點。使用者在 home 的 PoB 用「共享裝備」做 94 級
+   一般玩家拿得到的稀有裝（可能分力量／敏捷／智力組），home 取出 `<SharedItems>` 推私人庫 `inputs/gear/shared-items.xml`，阿福看過再決定怎麼接到生成器。
+2. **暴擊流和非暴擊流要先分**：一般玩家一開始就決定走暴擊，還是走直擊（Precise Technique：命中值高於生命時攻擊傷害 40% more、
+   不會暴擊；或 Resolute Technique、Elemental Overload）。兩條路的裝備、天賦完全不同。現在只有 Glacial Hammer 有 crit 這一組，
+   其他技能都是混合武器。方向：每個技能都跑兩條路線（暴擊／非暴擊，裝備和可選的 keystone 各自分開），兩條都交出來，再標出哪條高。
+3. 中文化：使用者想用 PoeCharm2，要裝在另一個資料夾，不能動我們的 checkout。
+
 ## 已知的下一批問題（依優先，第 13 版差距報告）
 1. 輔助性技能：作者有的 Righteous Fire 類、Vaal 技能（Vaal Arctic Armour 防禦 +1.17）、Pact of Beidat，生成器都沒選。
 2. Storm Call／Hierophant 少 Overloaded Intensity（+88%）；Storm Call／Assassin 少 Power Charge On Critical、Less Duration。

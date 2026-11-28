@@ -104,11 +104,20 @@ FOCUS = {"damage": 0.5, "balanced": 1.0, "defence": 2.0}
 #     POB_WEAPON_ATTRIBUTES=penalty keeps the v24 behaviour for comparison. A build-around profile may name lines to
 #     avoid (avoidLines): per slot the pool listing with the least of them is worn instead of the 5th (Doryani's
 #     Prototype: the other slots' lightning resistance offset the rings' -130% in v24, -160 -> -116).
-GENERATOR_VERSION = 25
+# 26: gear fill: once the tree is grown and everything else is chosen, the accessory slots (Ring 1, Ring 2, Amulet,
+#     Belt) try every market group of their slot (accuracy / chaos / strength / dexterity / intelligence / crit
+#     multiplier, the belt life+res / strength; round C of the market pool, tools/data/gear_templates.json) and the
+#     greedy search swaps to the best until nothing improves; then the final tree swap runs, so the tree can drop the
+#     attribute nodes the gear now covers. The run is done both with and without the fill, and the higher score is
+#     kept (the user: gear is "fill what is missing", so PoB decides between gear and tree for the attributes). Rings a
+#     build-around profile rewrote (Doryani's) and slots holding a unique do not take part. Helmet and gloves keep
+#     their accuracy items (there is no accuracy-free armour pool yet).
+GENERATOR_VERSION = 26
 # Results of older versions from STILL_VALID_FROM on still count as done in self-play, except for the skills a later
 # version changed (changed_since_valid). Version 9 only changed minion skills (the minion's skill is now chosen),
 # unarmed attacks (empty main hand) and spells that need a staff.
-STILL_VALID_FROM = 25
+STILL_VALID_FROM = 26
+FILL_SLOTS = ("Ring 1", "Ring 2", "Amulet", "Belt")  # v26 gear fill: the slots with more than one market group
 
 
 def changed_since_valid(skill, info):
@@ -175,6 +184,28 @@ def market_item(slot, group, avoid=None, choices=None):
             choices[slot] = (pick["rank"], pick["name"], line_total(pick["text"], avoid), line_total(g["text"], avoid))
         return pick["text"]
     return g["text"]
+
+
+ATTR_LINE = re.compile(r"^\+(\d+) to (Strength|Dexterity|Intelligence|all Attributes|(?:Strength|Dexterity|Intelligence) and (?:Strength|Dexterity|Intelligence))$")
+
+
+def gear_attributes(state):
+    """{Str, Dex, Int} the worn items of a state give (explicit, implicit and crafted lines)."""
+    worn = {}
+    for c in state:
+        if c["type"] == "item_equip" and c.get("raw"):
+            worn[c["slot"]] = c["raw"]
+    total = {"Str": 0, "Dex": 0, "Int": 0}
+    for raw in worn.values():
+        for x in raw.splitlines():
+            m = ATTR_LINE.match(re.sub(r"^\{\w+\}", "", x))
+            if not m:
+                continue
+            n, what = int(m.group(1)), m.group(2)
+            for a in ("Strength", "Dexterity", "Intelligence"):
+                if what == "all Attributes" or a in what:
+                    total[a[:3]] += n
+    return total
 
 
 def weapon_penalty_deferred():
@@ -1307,10 +1338,72 @@ class Generator:
         # once everything else is known: the auras against the ones not taken, then the tree swap once more, every
         # candidate measured afresh (v20)
         self.retune_buffs()
-        self.retune_tree(fresh=True)
+        self.fill_and_swap()  # v26: the accessory slots choose their market group, then the final tree swap (both paths tried)
         self.elapsed = time.time() - started
         self.recorder.finish(self.current, tie=self.tie)
         return self.current
+
+    # --- gear fill (v26) ---------------------------------------------------------------------------------------------
+    def fill_candidates(self):
+        """[(slot, group, move)] - every market group a fill slot could swap to, with the worn item's enchant kept."""
+        locked = set((self.profile or {}).get("gear", {})) | ({self.profile["slot"]} if self.profile else set())
+        avoid = (self.profile or {}).get("avoidLines")
+        out = []
+        for slot in FILL_SLOTS:
+            if slot in locked or slot in self.uniques:
+                continue
+            worn = self.worn(slot)
+            if not worn:
+                continue
+            enchants = [x[len("{enchant}"):] for x in worn.splitlines() if x.startswith("{enchant}")]
+            for group in GEAR_TEMPLATES["slots"][slot]:
+                raw = market_item(slot, group, avoid)
+                for line in enchants:  # the amulet's anoint moves with the slot
+                    raw = with_enchant(raw, line)
+                if raw != worn:
+                    out.append((slot, group, [{"type": "item_equip", "slot": slot, "raw": raw}]))
+        return out
+
+    def fill_gear(self):
+        """Greedy: the best single swap of any fill slot to another market group, until none improves the score.
+        Returns {slot: group} of the swaps made."""
+        self.step = "gear fill"
+        changed = {}
+        while True:
+            cands = self.fill_candidates()
+            if not cands:
+                return changed
+            found, _ = self.best([c[2] for c in cands], self.current)
+            if not found:
+                return changed
+            move, metrics, _ = found
+            slot, group, _ = cands[[c[2] for c in cands].index(move)]
+            changed[slot] = group
+            self.accept("gear fill", move, metrics, f"gear fill: {slot} -> {group}")
+
+    def fill_and_swap(self):
+        """The final tree swap without a gear change (path A) and after the gear fill (path B); the higher score is kept.
+        Both are deterministic, so the choice is too. Records self.gear_fill for the report."""
+        saved = (list(self.state), self.current, list(self.history), dict(self.tree_known))
+        self.retune_tree(fresh=True)
+        plain = (self.score(self.current), list(self.state), self.current, list(self.history))
+        self.state, self.current, self.history, self.tree_known = list(saved[0]), saved[1], list(saved[2]), dict(saved[3])
+        changed = self.fill_gear()
+        if not changed:
+            self.state, self.current, self.history = plain[1], plain[2], plain[3]
+            self.gear_fill = {"tried": self.fill_candidates() != [], "changed": {}, "kept": "plain", "score_plain": plain[0], "score_fill": None}
+            return
+        self.retune_tree(fresh=True)
+        fill = (self.score(self.current), list(self.state), self.current, list(self.history))
+        kept = "fill" if fill[0] > plain[0] + TIE else "plain"
+        attrs = lambda m, st: {a: round((m.get(a) or 0) - gear_attributes(st)[a]) for a in ("Str", "Dex", "Int")}  # from tree + base
+        self.gear_fill = {"tried": True, "changed": changed, "kept": kept, "score_plain": plain[0], "score_fill": fill[0],
+                          "tree_attributes_plain": attrs(plain[2], plain[1]), "tree_attributes_fill": attrs(fill[2], fill[1]),
+                          "dps_plain": self.dps(plain[2]), "dps_fill": self.dps(fill[2])}
+        if kept == "plain":
+            self.state, self.current, self.history = plain[1], plain[2], plain[3]
+        log(f"  [gear fill] {', '.join(f'{s} -> {g}' for s, g in changed.items())}: score {plain[0]:.3f} without, {fill[0]:.3f} with "
+            f"-> kept {kept}")
 
     # --- output ------------------------------------------------------------------------------------------------------
     def export(self):
@@ -1345,6 +1438,7 @@ class Generator:
             ("Weapons ranked without the attribute shortfall penalty (the tree buys the attributes later); the penalty is on "
              "from the first support." if weapon_penalty_deferred() else
              "POB_WEAPON_ATTRIBUTES=penalty: weapons ranked with the attribute shortfall penalty (v24's way)."),
+            self.gear_fill_note(),
             "Utility flasks (quality 20, no mods) count as always on; flask slot 1 is left for a life flask.",
             "A guard skill counts as up when hit; a golem's buff counts; warcries count averaged over their cooldown. "
             "Immortal Call and movement skills are not used.",
@@ -1361,6 +1455,20 @@ class Generator:
              "modifiers: other gear would carry them) but not its life. Check each unique's conditions in PoB."
              if self.max_uniques else "No unique items (--uniques N to try some)."),
         ])
+
+    def gear_fill_note(self):
+        g = getattr(self, "gear_fill", None)
+        if not g:
+            return "Gear fill (v26) did not run."
+        if not g["changed"]:
+            return ("Gear fill (v26): the accessory slots tried every market group of their slot; no swap scored higher, so the "
+                    "starting items stay." if g["tried"] else "Gear fill (v26): no accessory slot was free to swap (profile or uniques).")
+        swaps = ", ".join(f"{s} -> {grp}" for s, grp in g["changed"].items())
+        ta, tb = g["tree_attributes_plain"], g["tree_attributes_fill"]
+        return (f"Gear fill (v26): {swaps}; after the final tree swap the build scored {g['score_fill']:.3f} with the swaps and "
+                f"{g['score_plain']:.3f} without, so the {'swapped' if g['kept'] == 'fill' else 'original'} items are worn. "
+                f"Attributes from tree and base, without -> with: Str {ta['Str']} -> {tb['Str']}, Dex {ta['Dex']} -> {tb['Dex']}, "
+                f"Int {ta['Int']} -> {tb['Int']}.")
 
     def report(self, final):
         m = final
@@ -1435,7 +1543,8 @@ def main():
     if os.environ.get("POB_RESULT_JSON"):  # tools/benchmark.py reads the result from here
         with open(os.environ["POB_RESULT_JSON"], "w", encoding="utf-8") as f:
             json.dump({"metrics": m, "dps": g.dps(m), "score": g.score(m), "defence": g.defence(m), "penalty": g.penalty(m),
-                       "build": path, "report": report, "minutes": g.elapsed / 60, "generator": GENERATOR_VERSION, "tie": g.tie}, f)
+                       "build": path, "report": report, "minutes": g.elapsed / 60, "generator": GENERATOR_VERSION, "tie": g.tie,
+                       "gearFill": getattr(g, "gear_fill", None)}, f)
     log(f"\nDPS {g.dps(m):,.0f} · life {m.get('Life')} · EHP {m.get('TotalEHP'):,.0f} · {g.elapsed / 60:.1f} min")
     log(f"build:  {path}\nreport: {report}")
 

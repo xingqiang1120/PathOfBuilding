@@ -6900,6 +6900,1628 @@
       "text": "Rarity: RARE\nEntropy Band\nTopaz Ring\nItem Level: 85\nImplicits: 1\n+28% to Lightning Resistance\n+10 to Strength\n+30 to maximum Energy Shield\n+58 to maximum Life\n+24 to maximum Mana\nRegenerate 5.3 Mana per second\n+48% to Cold Resistance\n+29% to Chaos Resistance"
      }
     ]
+   },
+   "strength": {
+    "name": "Cataclysm Circle",
+    "base": "Two-Stone Ring",
+    "item_level": 83,
+    "quality": 0,
+    "mods": [
+     {
+      "type": "implicit",
+      "text": "+14% to Fire and Lightning Resistances"
+     },
+     {
+      "type": "explicit",
+      "text": "+51 to Strength"
+     },
+     {
+      "type": "explicit",
+      "text": "Adds 8 to 15 Physical Damage to Attacks"
+     },
+     {
+      "type": "explicit",
+      "text": "+73 to maximum Life"
+     },
+     {
+      "type": "explicit",
+      "text": "+67 to maximum Mana"
+     },
+     {
+      "type": "explicit",
+      "text": "+12% to all Elemental Resistances"
+     },
+     {
+      "type": "explicit",
+      "text": "+39% to Cold Resistance"
+     }
+    ],
+    "pseudo": {
+     "life": 98.5,
+     "strength": 51.0,
+     "ele_res": 103.0,
+     "chaos_res": 0,
+     "accuracy": 0,
+     "crit_multi": 0,
+     "dexterity": 0,
+     "intelligence": 0
+    },
+    "defence_shown": null,
+    "price_chaos": 10.0,
+    "rank": 5,
+    "of": 10,
+    "text": "Rarity: RARE\nCataclysm Circle\nTwo-Stone Ring\nItem Level: 83\nImplicits: 1\n+14% to Fire and Lightning Resistances\n+51 to Strength\nAdds 8 to 15 Physical Damage to Attacks\n+73 to maximum Life\n+67 to maximum Mana\n+12% to all Elemental Resistances\n+39% to Cold Resistance",
+    "thresholds": {
+     "pseudo_total_life": 90,
+     "pseudo_total_elemental_resistance": 80,
+     "pseudo_total_strength": 40
+    },
+    "key_mod": "strength",
+    "from": "2026-11-28-rC/ring.json",
+    "candidates": [
+     {
+      "name": "Kraken Spiral",
+      "base": "Two-Stone Ring",
+      "item_level": 84,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+16% to Cold and Lightning Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+43 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 4 to 7 Physical Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+28 to maximum Energy Shield"
+       },
+       {
+        "type": "explicit",
+        "text": "+98 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+38% to Fire Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+40% to Lightning Resistance"
+       }
+      ],
+      "pseudo": {
+       "life": 119.5,
+       "strength": 43.0,
+       "ele_res": 110.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 7.0,
+      "rank": 1,
+      "of": 10,
+      "text": "Rarity: RARE\nKraken Spiral\nTwo-Stone Ring\nItem Level: 84\nImplicits: 1\n+16% to Cold and Lightning Resistances\n+43 to Strength\nAdds 4 to 7 Physical Damage to Attacks\n+28 to maximum Energy Shield\n+98 to maximum Life\n+38% to Fire Resistance\n+40% to Lightning Resistance"
+     },
+     {
+      "name": "Victory Grasp",
+      "base": "Two-Stone Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+12% to Fire and Cold Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+55 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "+92 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+12% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+37% to Lightning Resistance"
+       }
+      ],
+      "pseudo": {
+       "life": 119.5,
+       "strength": 55.0,
+       "ele_res": 97.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 1.0,
+      "rank": 2,
+      "of": 10,
+      "text": "Rarity: RARE\nVictory Grasp\nTwo-Stone Ring\nItem Level: 85\nImplicits: 1\n+12% to Fire and Cold Resistances\n+55 to Strength\n+92 to maximum Life\n+12% to all Elemental Resistances\n+37% to Lightning Resistance"
+     },
+     {
+      "name": "Brood Twirl",
+      "base": "Cogwork Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "-1 Prefix Modifier allowed"
+       },
+       {
+        "type": "implicit",
+        "text": "+1 Suffix Modifier allowed"
+       },
+       {
+        "type": "implicit",
+        "text": "Implicit Modifiers Cannot Be Changed"
+       },
+       {
+        "type": "implicit",
+        "text": "25% increased Suffix Modifier magnitudes"
+       },
+       {
+        "type": "explicit",
+        "text": "+50 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "+77 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+58% to Cold Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+52% to Lightning Resistance"
+       },
+       {
+        "type": "crafted",
+        "text": "Channelling Skills have -3 to Total Mana Cost"
+       }
+      ],
+      "pseudo": {
+       "life": 102.0,
+       "strength": 50.0,
+       "ele_res": 110.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 1.0,
+      "rank": 3,
+      "of": 10,
+      "text": "Rarity: RARE\nBrood Twirl\nCogwork Ring\nItem Level: 85\nImplicits: 4\n-1 Prefix Modifier allowed\n+1 Suffix Modifier allowed\nImplicit Modifiers Cannot Be Changed\n25% increased Suffix Modifier magnitudes\n+50 to Strength\n+77 to maximum Life\n+58% to Cold Resistance\n+52% to Lightning Resistance\n{crafted}Channelling Skills have -3 to Total Mana Cost"
+     },
+     {
+      "name": "Spirit Band",
+      "base": "Two-Stone Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+13% to Fire and Lightning Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+53 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "+92 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+32% to Fire Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+26% to Lightning Resistance"
+       }
+      ],
+      "pseudo": {
+       "life": 118.5,
+       "strength": 53.0,
+       "ele_res": 84.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 4,
+      "of": 10,
+      "text": "Rarity: RARE\nSpirit Band\nTwo-Stone Ring\nItem Level: 85\nImplicits: 1\n+13% to Fire and Lightning Resistances\n+53 to Strength\n+92 to maximum Life\n+32% to Fire Resistance\n+26% to Lightning Resistance"
+     },
+     {
+      "name": "Cataclysm Circle",
+      "base": "Two-Stone Ring",
+      "item_level": 83,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+14% to Fire and Lightning Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+51 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 8 to 15 Physical Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+73 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+67 to maximum Mana"
+       },
+       {
+        "type": "explicit",
+        "text": "+12% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+39% to Cold Resistance"
+       }
+      ],
+      "pseudo": {
+       "life": 98.5,
+       "strength": 51.0,
+       "ele_res": 103.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 5,
+      "of": 10,
+      "text": "Rarity: RARE\nCataclysm Circle\nTwo-Stone Ring\nItem Level: 83\nImplicits: 1\n+14% to Fire and Lightning Resistances\n+51 to Strength\nAdds 8 to 15 Physical Damage to Attacks\n+73 to maximum Life\n+67 to maximum Mana\n+12% to all Elemental Resistances\n+39% to Cold Resistance"
+     },
+     {
+      "name": "Horror Hold",
+      "base": "Bone Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "Minions have +10% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+44 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 12 to 24 Cold Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+91 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+46% to Cold Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+46% to Lightning Resistance"
+       }
+      ],
+      "pseudo": {
+       "life": 113.0,
+       "strength": 44.0,
+       "ele_res": 92.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 4.0,
+      "rank": 6,
+      "of": 10,
+      "text": "Rarity: RARE\nHorror Hold\nBone Ring\nItem Level: 85\nImplicits: 1\nMinions have +10% to all Elemental Resistances\n+44 to Strength\nAdds 12 to 24 Cold Damage to Attacks\n+91 to maximum Life\n+46% to Cold Resistance\n+46% to Lightning Resistance"
+     },
+     {
+      "name": "Spirit Nail",
+      "base": "Sapphire Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+23% to Cold Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+41 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 12 to 27 Fire Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+39 to maximum Energy Shield"
+       },
+       {
+        "type": "explicit",
+        "text": "+75 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+42% to Fire Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+45% to Lightning Resistance"
+       }
+      ],
+      "pseudo": {
+       "life": 95.5,
+       "strength": 41.0,
+       "ele_res": 110.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 9.0,
+      "rank": 7,
+      "of": 10,
+      "text": "Rarity: RARE\nSpirit Nail\nSapphire Ring\nItem Level: 85\nImplicits: 1\n+23% to Cold Resistance\n+41 to Strength\nAdds 12 to 27 Fire Damage to Attacks\n+39 to maximum Energy Shield\n+75 to maximum Life\n+42% to Fire Resistance\n+45% to Lightning Resistance"
+     },
+     {
+      "name": "Chimeric Whorl",
+      "base": "Paua Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+22 to maximum Mana"
+       },
+       {
+        "type": "explicit",
+        "text": "+51 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 5 to 11 Physical Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+88 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+38% to Fire Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+44% to Cold Resistance"
+       },
+       {
+        "type": "crafted",
+        "text": "16% increased Damage"
+       }
+      ],
+      "pseudo": {
+       "life": 113.5,
+       "strength": 51.0,
+       "ele_res": 82.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 8,
+      "of": 10,
+      "text": "Rarity: RARE\nChimeric Whorl\nPaua Ring\nItem Level: 85\nImplicits: 1\n+22 to maximum Mana\n+51 to Strength\nAdds 5 to 11 Physical Damage to Attacks\n+88 to maximum Life\n+38% to Fire Resistance\n+44% to Cold Resistance\n{crafted}16% increased Damage"
+     },
+     {
+      "name": "Dragon Nail",
+      "base": "Paua Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+26 to maximum Mana"
+       },
+       {
+        "type": "explicit",
+        "text": "+46 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "+95 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+46% to Fire Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+36% to Cold Resistance"
+       }
+      ],
+      "pseudo": {
+       "life": 118.0,
+       "strength": 46.0,
+       "ele_res": 82.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 9,
+      "of": 10,
+      "text": "Rarity: RARE\nDragon Nail\nPaua Ring\nItem Level: 85\nImplicits: 1\n+26 to maximum Mana\n+46 to Strength\n+95 to maximum Life\n+46% to Fire Resistance\n+36% to Cold Resistance"
+     },
+     {
+      "name": "Cataclysm Nail",
+      "base": "Coral Ring",
+      "item_level": 87,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+20 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+49 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "+67 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+50 to maximum Mana"
+       },
+       {
+        "type": "explicit",
+        "text": "+12% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+44% to Cold Resistance"
+       }
+      ],
+      "pseudo": {
+       "life": 111.5,
+       "strength": 49.0,
+       "ele_res": 80.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 10,
+      "of": 10,
+      "text": "Rarity: RARE\nCataclysm Nail\nCoral Ring\nItem Level: 87\nImplicits: 1\n+20 to maximum Life\n+49 to Strength\n+67 to maximum Life\n+50 to maximum Mana\n+12% to all Elemental Resistances\n+44% to Cold Resistance"
+     }
+    ]
+   },
+   "dexterity": {
+    "name": "Soul Turn",
+    "base": "Two-Stone Ring",
+    "item_level": 85,
+    "quality": 0,
+    "mods": [
+     {
+      "type": "implicit",
+      "text": "+15% to Cold and Lightning Resistances"
+     },
+     {
+      "type": "explicit",
+      "text": "+45 to Dexterity"
+     },
+     {
+      "type": "explicit",
+      "text": "+140 to Evasion Rating"
+     },
+     {
+      "type": "explicit",
+      "text": "+109 to maximum Life"
+     },
+     {
+      "type": "explicit",
+      "text": "+46% to Lightning Resistance"
+     },
+     {
+      "type": "explicit",
+      "text": "Gain 93 Life per Enemy Killed"
+     }
+    ],
+    "pseudo": {
+     "dexterity": 45.0,
+     "life": 109.0,
+     "ele_res": 76.0,
+     "chaos_res": 0,
+     "accuracy": 0,
+     "crit_multi": 0,
+     "strength": 0,
+     "intelligence": 0
+    },
+    "defence_shown": null,
+    "price_chaos": 10.0,
+    "rank": 5,
+    "of": 10,
+    "text": "Rarity: RARE\nSoul Turn\nTwo-Stone Ring\nItem Level: 85\nImplicits: 1\n+15% to Cold and Lightning Resistances\n+45 to Dexterity\n+140 to Evasion Rating\n+109 to maximum Life\n+46% to Lightning Resistance\nGain 93 Life per Enemy Killed",
+    "thresholds": {
+     "pseudo_total_life": 85,
+     "pseudo_total_elemental_resistance": 75,
+     "pseudo_total_dexterity": 40
+    },
+    "key_mod": "dexterity",
+    "from": "2026-11-28-rC/ring.json",
+    "candidates": [
+     {
+      "name": "Horror Gyre",
+      "base": "Two-Stone Ring",
+      "item_level": 83,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+15% to Fire and Lightning Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+47 to Dexterity"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 7 to 12 Fire Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+104 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+16% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+34% to Fire Resistance"
+       }
+      ],
+      "pseudo": {
+       "dexterity": 47.0,
+       "life": 104.0,
+       "ele_res": 112.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 2.0,
+      "rank": 1,
+      "of": 10,
+      "text": "Rarity: RARE\nHorror Gyre\nTwo-Stone Ring\nItem Level: 83\nImplicits: 1\n+15% to Fire and Lightning Resistances\n+47 to Dexterity\nAdds 7 to 12 Fire Damage to Attacks\n+104 to maximum Life\n+16% to all Elemental Resistances\n+34% to Fire Resistance"
+     },
+     {
+      "name": "Phoenix Gyre",
+      "base": "Ruby Ring",
+      "item_level": 84,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+29% to Fire Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+50 to Dexterity"
+       },
+       {
+        "type": "explicit",
+        "text": "+27 to maximum Energy Shield"
+       },
+       {
+        "type": "explicit",
+        "text": "+86 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+61 to maximum Mana"
+       },
+       {
+        "type": "explicit",
+        "text": "+30% to Cold Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+45% to Lightning Resistance"
+       }
+      ],
+      "pseudo": {
+       "dexterity": 50.0,
+       "life": 86.0,
+       "ele_res": 104.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 2,
+      "of": 10,
+      "text": "Rarity: RARE\nPhoenix Gyre\nRuby Ring\nItem Level: 84\nImplicits: 1\n+29% to Fire Resistance\n+50 to Dexterity\n+27 to maximum Energy Shield\n+86 to maximum Life\n+61 to maximum Mana\n+30% to Cold Resistance\n+45% to Lightning Resistance"
+     },
+     {
+      "name": "Armageddon Nail",
+      "base": "Topaz Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+30% to Lightning Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+48 to Dexterity"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 5 to 12 Physical Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+106 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+51 to maximum Mana"
+       },
+       {
+        "type": "explicit",
+        "text": "+48% to Fire Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "Gain 109 Life per Enemy Killed"
+       }
+      ],
+      "pseudo": {
+       "dexterity": 48.0,
+       "life": 106.0,
+       "ele_res": 78.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 3,
+      "of": 10,
+      "text": "Rarity: RARE\nArmageddon Nail\nTopaz Ring\nItem Level: 85\nImplicits: 1\n+30% to Lightning Resistance\n+48 to Dexterity\nAdds 5 to 12 Physical Damage to Attacks\n+106 to maximum Life\n+51 to maximum Mana\n+48% to Fire Resistance\nGain 109 Life per Enemy Killed"
+     },
+     {
+      "name": "Corpse Nail",
+      "base": "Two-Stone Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+14% to Fire and Cold Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+47 to Dexterity"
+       },
+       {
+        "type": "explicit",
+        "text": "13% increased Cast Speed"
+       },
+       {
+        "type": "explicit",
+        "text": "+109 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+47% to Lightning Resistance"
+       }
+      ],
+      "pseudo": {
+       "dexterity": 47.0,
+       "life": 109.0,
+       "ele_res": 75.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 5.0,
+      "rank": 4,
+      "of": 10,
+      "text": "Rarity: RARE\nCorpse Nail\nTwo-Stone Ring\nItem Level: 85\nImplicits: 1\n+14% to Fire and Cold Resistances\n+47 to Dexterity\n13% increased Cast Speed\n+109 to maximum Life\n+47% to Lightning Resistance"
+     },
+     {
+      "name": "Soul Turn",
+      "base": "Two-Stone Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+15% to Cold and Lightning Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+45 to Dexterity"
+       },
+       {
+        "type": "explicit",
+        "text": "+140 to Evasion Rating"
+       },
+       {
+        "type": "explicit",
+        "text": "+109 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+46% to Lightning Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "Gain 93 Life per Enemy Killed"
+       }
+      ],
+      "pseudo": {
+       "dexterity": 45.0,
+       "life": 109.0,
+       "ele_res": 76.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 5,
+      "of": 10,
+      "text": "Rarity: RARE\nSoul Turn\nTwo-Stone Ring\nItem Level: 85\nImplicits: 1\n+15% to Cold and Lightning Resistances\n+45 to Dexterity\n+140 to Evasion Rating\n+109 to maximum Life\n+46% to Lightning Resistance\nGain 93 Life per Enemy Killed"
+     },
+     {
+      "name": "Eagle Spiral",
+      "base": "Two-Stone Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+15% to Cold and Lightning Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+41 to Dexterity"
+       },
+       {
+        "type": "explicit",
+        "text": "+105 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+48% to Lightning Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "Gain 40 Mana per Enemy Killed"
+       }
+      ],
+      "pseudo": {
+       "dexterity": 41.0,
+       "life": 105.0,
+       "ele_res": 78.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 6,
+      "of": 10,
+      "text": "Rarity: RARE\nEagle Spiral\nTwo-Stone Ring\nItem Level: 85\nImplicits: 1\n+15% to Cold and Lightning Resistances\n+41 to Dexterity\n+105 to maximum Life\n+48% to Lightning Resistance\nGain 40 Mana per Enemy Killed"
+     },
+     {
+      "name": "Wrath Grasp",
+      "base": "Two-Stone Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+15% to Fire and Cold Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+42 to Dexterity"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 12 to 24 Fire Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+33 to maximum Energy Shield"
+       },
+       {
+        "type": "explicit",
+        "text": "+105 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+47% to Fire Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "Gain 50 Mana per Enemy Killed"
+       }
+      ],
+      "pseudo": {
+       "dexterity": 42.0,
+       "life": 105.0,
+       "ele_res": 77.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 7,
+      "of": 10,
+      "text": "Rarity: RARE\nWrath Grasp\nTwo-Stone Ring\nItem Level: 85\nImplicits: 1\n+15% to Fire and Cold Resistances\n+42 to Dexterity\nAdds 12 to 24 Fire Damage to Attacks\n+33 to maximum Energy Shield\n+105 to maximum Life\n+47% to Fire Resistance\nGain 50 Mana per Enemy Killed"
+     },
+     {
+      "name": "Storm Knot",
+      "base": "Sapphire Ring",
+      "item_level": 84,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+30% to Cold Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+53 to Dexterity"
+       },
+       {
+        "type": "explicit",
+        "text": "+94 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+69 to maximum Mana"
+       },
+       {
+        "type": "explicit",
+        "text": "+46% to Lightning Resistance"
+       }
+      ],
+      "pseudo": {
+       "dexterity": 53.0,
+       "life": 94.0,
+       "ele_res": 76.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 8,
+      "of": 10,
+      "text": "Rarity: RARE\nStorm Knot\nSapphire Ring\nItem Level: 84\nImplicits: 1\n+30% to Cold Resistance\n+53 to Dexterity\n+94 to maximum Life\n+69 to maximum Mana\n+46% to Lightning Resistance"
+     },
+     {
+      "name": "Beast Turn",
+      "base": "Two-Stone Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+16% to Cold and Lightning Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+46 to Dexterity"
+       },
+       {
+        "type": "explicit",
+        "text": "+162 to Evasion Rating"
+       },
+       {
+        "type": "explicit",
+        "text": "+37 to maximum Energy Shield"
+       },
+       {
+        "type": "explicit",
+        "text": "+93 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "68% increased Mana Regeneration Rate"
+       },
+       {
+        "type": "explicit",
+        "text": "+47% to Lightning Resistance"
+       }
+      ],
+      "pseudo": {
+       "dexterity": 46.0,
+       "life": 93.0,
+       "ele_res": 79.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 9,
+      "of": 10,
+      "text": "Rarity: RARE\nBeast Turn\nTwo-Stone Ring\nItem Level: 85\nImplicits: 1\n+16% to Cold and Lightning Resistances\n+46 to Dexterity\n+162 to Evasion Rating\n+37 to maximum Energy Shield\n+93 to maximum Life\n68% increased Mana Regeneration Rate\n+47% to Lightning Resistance"
+     },
+     {
+      "name": "Ghoul Turn",
+      "base": "Two-Stone Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+14% to Fire and Lightning Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+42 to Dexterity"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 7 to 15 Physical Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 6 to 14 Cold Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+100 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+47% to Cold Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "0.29% of Physical Attack Damage Leeched as Life"
+       }
+      ],
+      "pseudo": {
+       "dexterity": 42.0,
+       "life": 100.0,
+       "ele_res": 75.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 5.0,
+      "rank": 10,
+      "of": 10,
+      "text": "Rarity: RARE\nGhoul Turn\nTwo-Stone Ring\nItem Level: 85\nImplicits: 1\n+14% to Fire and Lightning Resistances\n+42 to Dexterity\nAdds 7 to 15 Physical Damage to Attacks\nAdds 6 to 14 Cold Damage to Attacks\n+100 to maximum Life\n+47% to Cold Resistance\n0.29% of Physical Attack Damage Leeched as Life"
+     }
+    ]
+   },
+   "intelligence": {
+    "name": "Vortex Finger",
+    "base": "Iolite Ring",
+    "item_level": 85,
+    "quality": 0,
+    "mods": [
+     {
+      "type": "implicit",
+      "text": "23% increased Chaos Damage"
+     },
+     {
+      "type": "explicit",
+      "text": "+47 to Intelligence"
+     },
+     {
+      "type": "explicit",
+      "text": "Adds 4 to 9 Physical Damage to Attacks"
+     },
+     {
+      "type": "explicit",
+      "text": "+104 to maximum Life"
+     },
+     {
+      "type": "explicit",
+      "text": "+16% to all Elemental Resistances"
+     },
+     {
+      "type": "explicit",
+      "text": "+40% to Fire Resistance"
+     }
+    ],
+    "pseudo": {
+     "intelligence": 47.0,
+     "life": 104.0,
+     "ele_res": 88.0,
+     "chaos_res": 0,
+     "accuracy": 0,
+     "crit_multi": 0,
+     "strength": 0,
+     "dexterity": 0
+    },
+    "defence_shown": null,
+    "price_chaos": 5.0,
+    "rank": 5,
+    "of": 10,
+    "text": "Rarity: RARE\nVortex Finger\nIolite Ring\nItem Level: 85\nImplicits: 1\n23% increased Chaos Damage\n+47 to Intelligence\nAdds 4 to 9 Physical Damage to Attacks\n+104 to maximum Life\n+16% to all Elemental Resistances\n+40% to Fire Resistance",
+    "thresholds": {
+     "pseudo_total_life": 90,
+     "pseudo_total_elemental_resistance": 80,
+     "pseudo_total_intelligence": 40
+    },
+    "key_mod": "intelligence",
+    "from": "2026-11-28-rC/ring.json",
+    "candidates": [
+     {
+      "name": "Chimeric Circle",
+      "base": "Two-Stone Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+14% to Fire and Lightning Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+49 to Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 10 to 24 Cold Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 2 to 34 Lightning Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+99 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+43% to Fire Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+39% to Lightning Resistance"
+       }
+      ],
+      "pseudo": {
+       "intelligence": 49.0,
+       "life": 99.0,
+       "ele_res": 110.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "dexterity": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 1,
+      "of": 10,
+      "text": "Rarity: RARE\nChimeric Circle\nTwo-Stone Ring\nItem Level: 85\nImplicits: 1\n+14% to Fire and Lightning Resistances\n+49 to Intelligence\nAdds 10 to 24 Cold Damage to Attacks\nAdds 2 to 34 Lightning Damage to Attacks\n+99 to maximum Life\n+43% to Fire Resistance\n+39% to Lightning Resistance"
+     },
+     {
+      "name": "Brood Band",
+      "base": "Amethyst Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+19% to Chaos Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+52 to Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "+104 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+41% to Fire Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+44% to Lightning Resistance"
+       }
+      ],
+      "pseudo": {
+       "intelligence": 52.0,
+       "life": 104.0,
+       "ele_res": 85.0,
+       "chaos_res": 19.0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "dexterity": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 2,
+      "of": 10,
+      "text": "Rarity: RARE\nBrood Band\nAmethyst Ring\nItem Level: 85\nImplicits: 1\n+19% to Chaos Resistance\n+52 to Intelligence\n+104 to maximum Life\n+41% to Fire Resistance\n+44% to Lightning Resistance"
+     },
+     {
+      "name": "Soul Whorl",
+      "base": "Iron Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+15% to Global Critical Strike Multiplier"
+       },
+       {
+        "type": "explicit",
+        "text": "+55 to Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "+102 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+76 to maximum Mana"
+       },
+       {
+        "type": "explicit",
+        "text": "+12% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+47% to Cold Resistance"
+       }
+      ],
+      "pseudo": {
+       "intelligence": 55.0,
+       "life": 102.0,
+       "ele_res": 83.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 15.0,
+       "strength": 0,
+       "dexterity": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 1.0,
+      "rank": 3,
+      "of": 10,
+      "text": "Rarity: RARE\nSoul Whorl\nIron Ring\nItem Level: 85\nImplicits: 1\n+15% to Global Critical Strike Multiplier\n+55 to Intelligence\n+102 to maximum Life\n+76 to maximum Mana\n+12% to all Elemental Resistances\n+47% to Cold Resistance"
+     },
+     {
+      "name": "Gale Coil",
+      "base": "Coral Ring",
+      "item_level": 84,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+20 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+54 to Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "+85 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+14% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+39% to Lightning Resistance"
+       }
+      ],
+      "pseudo": {
+       "intelligence": 54.0,
+       "life": 105.0,
+       "ele_res": 81.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "dexterity": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 4,
+      "of": 10,
+      "text": "Rarity: RARE\nGale Coil\nCoral Ring\nItem Level: 84\nImplicits: 1\n+20 to maximum Life\n+54 to Intelligence\n+85 to maximum Life\n+14% to all Elemental Resistances\n+39% to Lightning Resistance"
+     },
+     {
+      "name": "Vortex Finger",
+      "base": "Iolite Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "23% increased Chaos Damage"
+       },
+       {
+        "type": "explicit",
+        "text": "+47 to Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 4 to 9 Physical Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+104 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+16% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+40% to Fire Resistance"
+       }
+      ],
+      "pseudo": {
+       "intelligence": 47.0,
+       "life": 104.0,
+       "ele_res": 88.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "dexterity": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 5.0,
+      "rank": 5,
+      "of": 10,
+      "text": "Rarity: RARE\nVortex Finger\nIolite Ring\nItem Level: 85\nImplicits: 1\n23% increased Chaos Damage\n+47 to Intelligence\nAdds 4 to 9 Physical Damage to Attacks\n+104 to maximum Life\n+16% to all Elemental Resistances\n+40% to Fire Resistance"
+     },
+     {
+      "name": "Cataclysm Coil",
+      "base": "Enthalpic Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+2% to maximum Fire Resistance"
+       },
+       {
+        "type": "implicit",
+        "text": "Cannot roll Modifiers of Non-Fire Damage Types"
+       },
+       {
+        "type": "explicit",
+        "text": "+46 to Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "+107 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+67 to maximum Mana"
+       },
+       {
+        "type": "explicit",
+        "text": "+13% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+46% to Fire Resistance"
+       }
+      ],
+      "pseudo": {
+       "intelligence": 46.0,
+       "life": 107.0,
+       "ele_res": 85.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "dexterity": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 6,
+      "of": 10,
+      "text": "Rarity: RARE\nCataclysm Coil\nEnthalpic Ring\nItem Level: 85\nImplicits: 2\n+2% to maximum Fire Resistance\nCannot roll Modifiers of Non-Fire Damage Types\n+46 to Intelligence\n+107 to maximum Life\n+67 to maximum Mana\n+13% to all Elemental Resistances\n+46% to Fire Resistance"
+     },
+     {
+      "name": "Rune Whorl",
+      "base": "Bone Ring",
+      "item_level": 83,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "Minions have +13% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+45 to Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "+110 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+73 to maximum Mana"
+       },
+       {
+        "type": "explicit",
+        "text": "+20% to Item Rarity"
+       },
+       {
+        "type": "explicit",
+        "text": "+16% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+35% to Cold Resistance"
+       }
+      ],
+      "pseudo": {
+       "intelligence": 45.0,
+       "life": 110.0,
+       "ele_res": 83.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "dexterity": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 7,
+      "of": 10,
+      "text": "Rarity: RARE\nRune Whorl\nBone Ring\nItem Level: 83\nImplicits: 1\nMinions have +13% to all Elemental Resistances\n+45 to Intelligence\n+110 to maximum Life\n+73 to maximum Mana\n+20% to Item Rarity\n+16% to all Elemental Resistances\n+35% to Cold Resistance"
+     },
+     {
+      "name": "Blight Coil",
+      "base": "Two-Stone Ring",
+      "item_level": 82,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+16% to Cold and Lightning Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+42 to Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 1 to 5 Lightning Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+90 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+59 to maximum Mana"
+       },
+       {
+        "type": "explicit",
+        "text": "+9% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+40% to Cold Resistance"
+       }
+      ],
+      "pseudo": {
+       "intelligence": 42.0,
+       "life": 90.0,
+       "ele_res": 99.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "dexterity": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 8,
+      "of": 10,
+      "text": "Rarity: RARE\nBlight Coil\nTwo-Stone Ring\nItem Level: 82\nImplicits: 1\n+16% to Cold and Lightning Resistances\n+42 to Intelligence\nAdds 1 to 5 Lightning Damage to Attacks\n+90 to maximum Life\n+59 to maximum Mana\n+9% to all Elemental Resistances\n+40% to Cold Resistance"
+     },
+     {
+      "name": "Armageddon Eye",
+      "base": "Diamond Ring",
+      "item_level": 76,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "29% increased Global Critical Strike Chance"
+       },
+       {
+        "type": "explicit",
+        "text": "+42 to Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 9 to 16 Fire Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+99 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+15% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+37% to Fire Resistance"
+       },
+       {
+        "type": "crafted",
+        "text": "21% increased Elemental Damage with Attack Skills"
+       }
+      ],
+      "pseudo": {
+       "intelligence": 42.0,
+       "ele_res": 82.0,
+       "life": 99.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "dexterity": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 9,
+      "of": 10,
+      "text": "Rarity: RARE\nArmageddon Eye\nDiamond Ring\nItem Level: 76\nImplicits: 1\n29% increased Global Critical Strike Chance\n+42 to Intelligence\nAdds 9 to 16 Fire Damage to Attacks\n+99 to maximum Life\n+15% to all Elemental Resistances\n+37% to Fire Resistance\n{crafted}21% increased Elemental Damage with Attack Skills"
+     },
+     {
+      "name": "Brimstone Knuckle",
+      "base": "Paua Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+26 to maximum Mana"
+       },
+       {
+        "type": "explicit",
+        "text": "+41 to Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 9 to 15 Physical Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+91 to Evasion Rating"
+       },
+       {
+        "type": "explicit",
+        "text": "+93 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+13% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+42% to Fire Resistance"
+       }
+      ],
+      "pseudo": {
+       "intelligence": 41.0,
+       "life": 93.0,
+       "ele_res": 81.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "dexterity": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 10,
+      "of": 10,
+      "text": "Rarity: RARE\nBrimstone Knuckle\nPaua Ring\nItem Level: 85\nImplicits: 1\n+26 to maximum Mana\n+41 to Intelligence\nAdds 9 to 15 Physical Damage to Attacks\n+91 to Evasion Rating\n+93 to maximum Life\n+13% to all Elemental Resistances\n+42% to Fire Resistance"
+     }
+    ]
    }
   },
   "Ring 2": {
@@ -7916,6 +9538,1624 @@
       "text": "Rarity: RARE\nEntropy Band\nTopaz Ring\nItem Level: 85\nImplicits: 1\n+28% to Lightning Resistance\n+10 to Strength\n+30 to maximum Energy Shield\n+58 to maximum Life\n+24 to maximum Mana\nRegenerate 5.3 Mana per second\n+48% to Cold Resistance\n+29% to Chaos Resistance"
      }
     ]
+   },
+   "strength": {
+    "name": "Horror Hold",
+    "base": "Bone Ring",
+    "item_level": 85,
+    "quality": 0,
+    "mods": [
+     {
+      "type": "implicit",
+      "text": "Minions have +10% to all Elemental Resistances"
+     },
+     {
+      "type": "explicit",
+      "text": "+44 to Strength"
+     },
+     {
+      "type": "explicit",
+      "text": "Adds 12 to 24 Cold Damage to Attacks"
+     },
+     {
+      "type": "explicit",
+      "text": "+91 to maximum Life"
+     },
+     {
+      "type": "explicit",
+      "text": "+46% to Cold Resistance"
+     },
+     {
+      "type": "explicit",
+      "text": "+46% to Lightning Resistance"
+     }
+    ],
+    "pseudo": {
+     "life": 113.0,
+     "strength": 44.0,
+     "ele_res": 92.0,
+     "chaos_res": 0,
+     "accuracy": 0,
+     "crit_multi": 0,
+     "dexterity": 0,
+     "intelligence": 0
+    },
+    "defence_shown": null,
+    "price_chaos": 4.0,
+    "rank": 6,
+    "of": 10,
+    "text": "Rarity: RARE\nHorror Hold\nBone Ring\nItem Level: 85\nImplicits: 1\nMinions have +10% to all Elemental Resistances\n+44 to Strength\nAdds 12 to 24 Cold Damage to Attacks\n+91 to maximum Life\n+46% to Cold Resistance\n+46% to Lightning Resistance",
+    "thresholds": {
+     "pseudo_total_life": 90,
+     "pseudo_total_elemental_resistance": 80,
+     "pseudo_total_strength": 40
+    },
+    "key_mod": "strength",
+    "from": "2026-11-28-rC/ring.json",
+    "candidates": [
+     {
+      "name": "Kraken Spiral",
+      "base": "Two-Stone Ring",
+      "item_level": 84,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+16% to Cold and Lightning Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+43 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 4 to 7 Physical Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+28 to maximum Energy Shield"
+       },
+       {
+        "type": "explicit",
+        "text": "+98 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+38% to Fire Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+40% to Lightning Resistance"
+       }
+      ],
+      "pseudo": {
+       "life": 119.5,
+       "strength": 43.0,
+       "ele_res": 110.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 7.0,
+      "rank": 1,
+      "of": 10,
+      "text": "Rarity: RARE\nKraken Spiral\nTwo-Stone Ring\nItem Level: 84\nImplicits: 1\n+16% to Cold and Lightning Resistances\n+43 to Strength\nAdds 4 to 7 Physical Damage to Attacks\n+28 to maximum Energy Shield\n+98 to maximum Life\n+38% to Fire Resistance\n+40% to Lightning Resistance"
+     },
+     {
+      "name": "Victory Grasp",
+      "base": "Two-Stone Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+12% to Fire and Cold Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+55 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "+92 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+12% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+37% to Lightning Resistance"
+       }
+      ],
+      "pseudo": {
+       "life": 119.5,
+       "strength": 55.0,
+       "ele_res": 97.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 1.0,
+      "rank": 2,
+      "of": 10,
+      "text": "Rarity: RARE\nVictory Grasp\nTwo-Stone Ring\nItem Level: 85\nImplicits: 1\n+12% to Fire and Cold Resistances\n+55 to Strength\n+92 to maximum Life\n+12% to all Elemental Resistances\n+37% to Lightning Resistance"
+     },
+     {
+      "name": "Brood Twirl",
+      "base": "Cogwork Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "-1 Prefix Modifier allowed"
+       },
+       {
+        "type": "implicit",
+        "text": "+1 Suffix Modifier allowed"
+       },
+       {
+        "type": "implicit",
+        "text": "Implicit Modifiers Cannot Be Changed"
+       },
+       {
+        "type": "implicit",
+        "text": "25% increased Suffix Modifier magnitudes"
+       },
+       {
+        "type": "explicit",
+        "text": "+50 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "+77 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+58% to Cold Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+52% to Lightning Resistance"
+       },
+       {
+        "type": "crafted",
+        "text": "Channelling Skills have -3 to Total Mana Cost"
+       }
+      ],
+      "pseudo": {
+       "life": 102.0,
+       "strength": 50.0,
+       "ele_res": 110.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 1.0,
+      "rank": 3,
+      "of": 10,
+      "text": "Rarity: RARE\nBrood Twirl\nCogwork Ring\nItem Level: 85\nImplicits: 4\n-1 Prefix Modifier allowed\n+1 Suffix Modifier allowed\nImplicit Modifiers Cannot Be Changed\n25% increased Suffix Modifier magnitudes\n+50 to Strength\n+77 to maximum Life\n+58% to Cold Resistance\n+52% to Lightning Resistance\n{crafted}Channelling Skills have -3 to Total Mana Cost"
+     },
+     {
+      "name": "Spirit Band",
+      "base": "Two-Stone Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+13% to Fire and Lightning Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+53 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "+92 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+32% to Fire Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+26% to Lightning Resistance"
+       }
+      ],
+      "pseudo": {
+       "life": 118.5,
+       "strength": 53.0,
+       "ele_res": 84.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 4,
+      "of": 10,
+      "text": "Rarity: RARE\nSpirit Band\nTwo-Stone Ring\nItem Level: 85\nImplicits: 1\n+13% to Fire and Lightning Resistances\n+53 to Strength\n+92 to maximum Life\n+32% to Fire Resistance\n+26% to Lightning Resistance"
+     },
+     {
+      "name": "Cataclysm Circle",
+      "base": "Two-Stone Ring",
+      "item_level": 83,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+14% to Fire and Lightning Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+51 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 8 to 15 Physical Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+73 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+67 to maximum Mana"
+       },
+       {
+        "type": "explicit",
+        "text": "+12% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+39% to Cold Resistance"
+       }
+      ],
+      "pseudo": {
+       "life": 98.5,
+       "strength": 51.0,
+       "ele_res": 103.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 5,
+      "of": 10,
+      "text": "Rarity: RARE\nCataclysm Circle\nTwo-Stone Ring\nItem Level: 83\nImplicits: 1\n+14% to Fire and Lightning Resistances\n+51 to Strength\nAdds 8 to 15 Physical Damage to Attacks\n+73 to maximum Life\n+67 to maximum Mana\n+12% to all Elemental Resistances\n+39% to Cold Resistance"
+     },
+     {
+      "name": "Horror Hold",
+      "base": "Bone Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "Minions have +10% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+44 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 12 to 24 Cold Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+91 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+46% to Cold Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+46% to Lightning Resistance"
+       }
+      ],
+      "pseudo": {
+       "life": 113.0,
+       "strength": 44.0,
+       "ele_res": 92.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 4.0,
+      "rank": 6,
+      "of": 10,
+      "text": "Rarity: RARE\nHorror Hold\nBone Ring\nItem Level: 85\nImplicits: 1\nMinions have +10% to all Elemental Resistances\n+44 to Strength\nAdds 12 to 24 Cold Damage to Attacks\n+91 to maximum Life\n+46% to Cold Resistance\n+46% to Lightning Resistance"
+     },
+     {
+      "name": "Spirit Nail",
+      "base": "Sapphire Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+23% to Cold Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+41 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 12 to 27 Fire Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+39 to maximum Energy Shield"
+       },
+       {
+        "type": "explicit",
+        "text": "+75 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+42% to Fire Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+45% to Lightning Resistance"
+       }
+      ],
+      "pseudo": {
+       "life": 95.5,
+       "strength": 41.0,
+       "ele_res": 110.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 9.0,
+      "rank": 7,
+      "of": 10,
+      "text": "Rarity: RARE\nSpirit Nail\nSapphire Ring\nItem Level: 85\nImplicits: 1\n+23% to Cold Resistance\n+41 to Strength\nAdds 12 to 27 Fire Damage to Attacks\n+39 to maximum Energy Shield\n+75 to maximum Life\n+42% to Fire Resistance\n+45% to Lightning Resistance"
+     },
+     {
+      "name": "Chimeric Whorl",
+      "base": "Paua Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+22 to maximum Mana"
+       },
+       {
+        "type": "explicit",
+        "text": "+51 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 5 to 11 Physical Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+88 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+38% to Fire Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+44% to Cold Resistance"
+       },
+       {
+        "type": "crafted",
+        "text": "16% increased Damage"
+       }
+      ],
+      "pseudo": {
+       "life": 113.5,
+       "strength": 51.0,
+       "ele_res": 82.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 8,
+      "of": 10,
+      "text": "Rarity: RARE\nChimeric Whorl\nPaua Ring\nItem Level: 85\nImplicits: 1\n+22 to maximum Mana\n+51 to Strength\nAdds 5 to 11 Physical Damage to Attacks\n+88 to maximum Life\n+38% to Fire Resistance\n+44% to Cold Resistance\n{crafted}16% increased Damage"
+     },
+     {
+      "name": "Dragon Nail",
+      "base": "Paua Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+26 to maximum Mana"
+       },
+       {
+        "type": "explicit",
+        "text": "+46 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "+95 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+46% to Fire Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+36% to Cold Resistance"
+       }
+      ],
+      "pseudo": {
+       "life": 118.0,
+       "strength": 46.0,
+       "ele_res": 82.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 9,
+      "of": 10,
+      "text": "Rarity: RARE\nDragon Nail\nPaua Ring\nItem Level: 85\nImplicits: 1\n+26 to maximum Mana\n+46 to Strength\n+95 to maximum Life\n+46% to Fire Resistance\n+36% to Cold Resistance"
+     },
+     {
+      "name": "Cataclysm Nail",
+      "base": "Coral Ring",
+      "item_level": 87,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+20 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+49 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "+67 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+50 to maximum Mana"
+       },
+       {
+        "type": "explicit",
+        "text": "+12% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+44% to Cold Resistance"
+       }
+      ],
+      "pseudo": {
+       "life": 111.5,
+       "strength": 49.0,
+       "ele_res": 80.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 10,
+      "of": 10,
+      "text": "Rarity: RARE\nCataclysm Nail\nCoral Ring\nItem Level: 87\nImplicits: 1\n+20 to maximum Life\n+49 to Strength\n+67 to maximum Life\n+50 to maximum Mana\n+12% to all Elemental Resistances\n+44% to Cold Resistance"
+     }
+    ]
+   },
+   "dexterity": {
+    "name": "Eagle Spiral",
+    "base": "Two-Stone Ring",
+    "item_level": 85,
+    "quality": 0,
+    "mods": [
+     {
+      "type": "implicit",
+      "text": "+15% to Cold and Lightning Resistances"
+     },
+     {
+      "type": "explicit",
+      "text": "+41 to Dexterity"
+     },
+     {
+      "type": "explicit",
+      "text": "+105 to maximum Life"
+     },
+     {
+      "type": "explicit",
+      "text": "+48% to Lightning Resistance"
+     },
+     {
+      "type": "explicit",
+      "text": "Gain 40 Mana per Enemy Killed"
+     }
+    ],
+    "pseudo": {
+     "dexterity": 41.0,
+     "life": 105.0,
+     "ele_res": 78.0,
+     "chaos_res": 0,
+     "accuracy": 0,
+     "crit_multi": 0,
+     "strength": 0,
+     "intelligence": 0
+    },
+    "defence_shown": null,
+    "price_chaos": 10.0,
+    "rank": 6,
+    "of": 10,
+    "text": "Rarity: RARE\nEagle Spiral\nTwo-Stone Ring\nItem Level: 85\nImplicits: 1\n+15% to Cold and Lightning Resistances\n+41 to Dexterity\n+105 to maximum Life\n+48% to Lightning Resistance\nGain 40 Mana per Enemy Killed",
+    "thresholds": {
+     "pseudo_total_life": 85,
+     "pseudo_total_elemental_resistance": 75,
+     "pseudo_total_dexterity": 40
+    },
+    "key_mod": "dexterity",
+    "from": "2026-11-28-rC/ring.json",
+    "candidates": [
+     {
+      "name": "Horror Gyre",
+      "base": "Two-Stone Ring",
+      "item_level": 83,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+15% to Fire and Lightning Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+47 to Dexterity"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 7 to 12 Fire Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+104 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+16% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+34% to Fire Resistance"
+       }
+      ],
+      "pseudo": {
+       "dexterity": 47.0,
+       "life": 104.0,
+       "ele_res": 112.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 2.0,
+      "rank": 1,
+      "of": 10,
+      "text": "Rarity: RARE\nHorror Gyre\nTwo-Stone Ring\nItem Level: 83\nImplicits: 1\n+15% to Fire and Lightning Resistances\n+47 to Dexterity\nAdds 7 to 12 Fire Damage to Attacks\n+104 to maximum Life\n+16% to all Elemental Resistances\n+34% to Fire Resistance"
+     },
+     {
+      "name": "Phoenix Gyre",
+      "base": "Ruby Ring",
+      "item_level": 84,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+29% to Fire Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+50 to Dexterity"
+       },
+       {
+        "type": "explicit",
+        "text": "+27 to maximum Energy Shield"
+       },
+       {
+        "type": "explicit",
+        "text": "+86 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+61 to maximum Mana"
+       },
+       {
+        "type": "explicit",
+        "text": "+30% to Cold Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+45% to Lightning Resistance"
+       }
+      ],
+      "pseudo": {
+       "dexterity": 50.0,
+       "life": 86.0,
+       "ele_res": 104.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 2,
+      "of": 10,
+      "text": "Rarity: RARE\nPhoenix Gyre\nRuby Ring\nItem Level: 84\nImplicits: 1\n+29% to Fire Resistance\n+50 to Dexterity\n+27 to maximum Energy Shield\n+86 to maximum Life\n+61 to maximum Mana\n+30% to Cold Resistance\n+45% to Lightning Resistance"
+     },
+     {
+      "name": "Armageddon Nail",
+      "base": "Topaz Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+30% to Lightning Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+48 to Dexterity"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 5 to 12 Physical Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+106 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+51 to maximum Mana"
+       },
+       {
+        "type": "explicit",
+        "text": "+48% to Fire Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "Gain 109 Life per Enemy Killed"
+       }
+      ],
+      "pseudo": {
+       "dexterity": 48.0,
+       "life": 106.0,
+       "ele_res": 78.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 3,
+      "of": 10,
+      "text": "Rarity: RARE\nArmageddon Nail\nTopaz Ring\nItem Level: 85\nImplicits: 1\n+30% to Lightning Resistance\n+48 to Dexterity\nAdds 5 to 12 Physical Damage to Attacks\n+106 to maximum Life\n+51 to maximum Mana\n+48% to Fire Resistance\nGain 109 Life per Enemy Killed"
+     },
+     {
+      "name": "Corpse Nail",
+      "base": "Two-Stone Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+14% to Fire and Cold Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+47 to Dexterity"
+       },
+       {
+        "type": "explicit",
+        "text": "13% increased Cast Speed"
+       },
+       {
+        "type": "explicit",
+        "text": "+109 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+47% to Lightning Resistance"
+       }
+      ],
+      "pseudo": {
+       "dexterity": 47.0,
+       "life": 109.0,
+       "ele_res": 75.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 5.0,
+      "rank": 4,
+      "of": 10,
+      "text": "Rarity: RARE\nCorpse Nail\nTwo-Stone Ring\nItem Level: 85\nImplicits: 1\n+14% to Fire and Cold Resistances\n+47 to Dexterity\n13% increased Cast Speed\n+109 to maximum Life\n+47% to Lightning Resistance"
+     },
+     {
+      "name": "Soul Turn",
+      "base": "Two-Stone Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+15% to Cold and Lightning Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+45 to Dexterity"
+       },
+       {
+        "type": "explicit",
+        "text": "+140 to Evasion Rating"
+       },
+       {
+        "type": "explicit",
+        "text": "+109 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+46% to Lightning Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "Gain 93 Life per Enemy Killed"
+       }
+      ],
+      "pseudo": {
+       "dexterity": 45.0,
+       "life": 109.0,
+       "ele_res": 76.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 5,
+      "of": 10,
+      "text": "Rarity: RARE\nSoul Turn\nTwo-Stone Ring\nItem Level: 85\nImplicits: 1\n+15% to Cold and Lightning Resistances\n+45 to Dexterity\n+140 to Evasion Rating\n+109 to maximum Life\n+46% to Lightning Resistance\nGain 93 Life per Enemy Killed"
+     },
+     {
+      "name": "Eagle Spiral",
+      "base": "Two-Stone Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+15% to Cold and Lightning Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+41 to Dexterity"
+       },
+       {
+        "type": "explicit",
+        "text": "+105 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+48% to Lightning Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "Gain 40 Mana per Enemy Killed"
+       }
+      ],
+      "pseudo": {
+       "dexterity": 41.0,
+       "life": 105.0,
+       "ele_res": 78.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 6,
+      "of": 10,
+      "text": "Rarity: RARE\nEagle Spiral\nTwo-Stone Ring\nItem Level: 85\nImplicits: 1\n+15% to Cold and Lightning Resistances\n+41 to Dexterity\n+105 to maximum Life\n+48% to Lightning Resistance\nGain 40 Mana per Enemy Killed"
+     },
+     {
+      "name": "Wrath Grasp",
+      "base": "Two-Stone Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+15% to Fire and Cold Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+42 to Dexterity"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 12 to 24 Fire Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+33 to maximum Energy Shield"
+       },
+       {
+        "type": "explicit",
+        "text": "+105 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+47% to Fire Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "Gain 50 Mana per Enemy Killed"
+       }
+      ],
+      "pseudo": {
+       "dexterity": 42.0,
+       "life": 105.0,
+       "ele_res": 77.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 7,
+      "of": 10,
+      "text": "Rarity: RARE\nWrath Grasp\nTwo-Stone Ring\nItem Level: 85\nImplicits: 1\n+15% to Fire and Cold Resistances\n+42 to Dexterity\nAdds 12 to 24 Fire Damage to Attacks\n+33 to maximum Energy Shield\n+105 to maximum Life\n+47% to Fire Resistance\nGain 50 Mana per Enemy Killed"
+     },
+     {
+      "name": "Storm Knot",
+      "base": "Sapphire Ring",
+      "item_level": 84,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+30% to Cold Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+53 to Dexterity"
+       },
+       {
+        "type": "explicit",
+        "text": "+94 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+69 to maximum Mana"
+       },
+       {
+        "type": "explicit",
+        "text": "+46% to Lightning Resistance"
+       }
+      ],
+      "pseudo": {
+       "dexterity": 53.0,
+       "life": 94.0,
+       "ele_res": 76.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 8,
+      "of": 10,
+      "text": "Rarity: RARE\nStorm Knot\nSapphire Ring\nItem Level: 84\nImplicits: 1\n+30% to Cold Resistance\n+53 to Dexterity\n+94 to maximum Life\n+69 to maximum Mana\n+46% to Lightning Resistance"
+     },
+     {
+      "name": "Beast Turn",
+      "base": "Two-Stone Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+16% to Cold and Lightning Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+46 to Dexterity"
+       },
+       {
+        "type": "explicit",
+        "text": "+162 to Evasion Rating"
+       },
+       {
+        "type": "explicit",
+        "text": "+37 to maximum Energy Shield"
+       },
+       {
+        "type": "explicit",
+        "text": "+93 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "68% increased Mana Regeneration Rate"
+       },
+       {
+        "type": "explicit",
+        "text": "+47% to Lightning Resistance"
+       }
+      ],
+      "pseudo": {
+       "dexterity": 46.0,
+       "life": 93.0,
+       "ele_res": 79.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 9,
+      "of": 10,
+      "text": "Rarity: RARE\nBeast Turn\nTwo-Stone Ring\nItem Level: 85\nImplicits: 1\n+16% to Cold and Lightning Resistances\n+46 to Dexterity\n+162 to Evasion Rating\n+37 to maximum Energy Shield\n+93 to maximum Life\n68% increased Mana Regeneration Rate\n+47% to Lightning Resistance"
+     },
+     {
+      "name": "Ghoul Turn",
+      "base": "Two-Stone Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+14% to Fire and Lightning Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+42 to Dexterity"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 7 to 15 Physical Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 6 to 14 Cold Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+100 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+47% to Cold Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "0.29% of Physical Attack Damage Leeched as Life"
+       }
+      ],
+      "pseudo": {
+       "dexterity": 42.0,
+       "life": 100.0,
+       "ele_res": 75.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 5.0,
+      "rank": 10,
+      "of": 10,
+      "text": "Rarity: RARE\nGhoul Turn\nTwo-Stone Ring\nItem Level: 85\nImplicits: 1\n+14% to Fire and Lightning Resistances\n+42 to Dexterity\nAdds 7 to 15 Physical Damage to Attacks\nAdds 6 to 14 Cold Damage to Attacks\n+100 to maximum Life\n+47% to Cold Resistance\n0.29% of Physical Attack Damage Leeched as Life"
+     }
+    ]
+   },
+   "intelligence": {
+    "name": "Cataclysm Coil",
+    "base": "Enthalpic Ring",
+    "item_level": 85,
+    "quality": 0,
+    "mods": [
+     {
+      "type": "implicit",
+      "text": "+2% to maximum Fire Resistance"
+     },
+     {
+      "type": "implicit",
+      "text": "Cannot roll Modifiers of Non-Fire Damage Types"
+     },
+     {
+      "type": "explicit",
+      "text": "+46 to Intelligence"
+     },
+     {
+      "type": "explicit",
+      "text": "+107 to maximum Life"
+     },
+     {
+      "type": "explicit",
+      "text": "+67 to maximum Mana"
+     },
+     {
+      "type": "explicit",
+      "text": "+13% to all Elemental Resistances"
+     },
+     {
+      "type": "explicit",
+      "text": "+46% to Fire Resistance"
+     }
+    ],
+    "pseudo": {
+     "intelligence": 46.0,
+     "life": 107.0,
+     "ele_res": 85.0,
+     "chaos_res": 0,
+     "accuracy": 0,
+     "crit_multi": 0,
+     "strength": 0,
+     "dexterity": 0
+    },
+    "defence_shown": null,
+    "price_chaos": 10.0,
+    "rank": 6,
+    "of": 10,
+    "text": "Rarity: RARE\nCataclysm Coil\nEnthalpic Ring\nItem Level: 85\nImplicits: 2\n+2% to maximum Fire Resistance\nCannot roll Modifiers of Non-Fire Damage Types\n+46 to Intelligence\n+107 to maximum Life\n+67 to maximum Mana\n+13% to all Elemental Resistances\n+46% to Fire Resistance",
+    "thresholds": {
+     "pseudo_total_life": 90,
+     "pseudo_total_elemental_resistance": 80,
+     "pseudo_total_intelligence": 40
+    },
+    "key_mod": "intelligence",
+    "from": "2026-11-28-rC/ring.json",
+    "candidates": [
+     {
+      "name": "Chimeric Circle",
+      "base": "Two-Stone Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+14% to Fire and Lightning Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+49 to Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 10 to 24 Cold Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 2 to 34 Lightning Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+99 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+43% to Fire Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+39% to Lightning Resistance"
+       }
+      ],
+      "pseudo": {
+       "intelligence": 49.0,
+       "life": 99.0,
+       "ele_res": 110.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "dexterity": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 1,
+      "of": 10,
+      "text": "Rarity: RARE\nChimeric Circle\nTwo-Stone Ring\nItem Level: 85\nImplicits: 1\n+14% to Fire and Lightning Resistances\n+49 to Intelligence\nAdds 10 to 24 Cold Damage to Attacks\nAdds 2 to 34 Lightning Damage to Attacks\n+99 to maximum Life\n+43% to Fire Resistance\n+39% to Lightning Resistance"
+     },
+     {
+      "name": "Brood Band",
+      "base": "Amethyst Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+19% to Chaos Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+52 to Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "+104 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+41% to Fire Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+44% to Lightning Resistance"
+       }
+      ],
+      "pseudo": {
+       "intelligence": 52.0,
+       "life": 104.0,
+       "ele_res": 85.0,
+       "chaos_res": 19.0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "dexterity": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 2,
+      "of": 10,
+      "text": "Rarity: RARE\nBrood Band\nAmethyst Ring\nItem Level: 85\nImplicits: 1\n+19% to Chaos Resistance\n+52 to Intelligence\n+104 to maximum Life\n+41% to Fire Resistance\n+44% to Lightning Resistance"
+     },
+     {
+      "name": "Soul Whorl",
+      "base": "Iron Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+15% to Global Critical Strike Multiplier"
+       },
+       {
+        "type": "explicit",
+        "text": "+55 to Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "+102 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+76 to maximum Mana"
+       },
+       {
+        "type": "explicit",
+        "text": "+12% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+47% to Cold Resistance"
+       }
+      ],
+      "pseudo": {
+       "intelligence": 55.0,
+       "life": 102.0,
+       "ele_res": 83.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 15.0,
+       "strength": 0,
+       "dexterity": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 1.0,
+      "rank": 3,
+      "of": 10,
+      "text": "Rarity: RARE\nSoul Whorl\nIron Ring\nItem Level: 85\nImplicits: 1\n+15% to Global Critical Strike Multiplier\n+55 to Intelligence\n+102 to maximum Life\n+76 to maximum Mana\n+12% to all Elemental Resistances\n+47% to Cold Resistance"
+     },
+     {
+      "name": "Gale Coil",
+      "base": "Coral Ring",
+      "item_level": 84,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+20 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+54 to Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "+85 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+14% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+39% to Lightning Resistance"
+       }
+      ],
+      "pseudo": {
+       "intelligence": 54.0,
+       "life": 105.0,
+       "ele_res": 81.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "dexterity": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 4,
+      "of": 10,
+      "text": "Rarity: RARE\nGale Coil\nCoral Ring\nItem Level: 84\nImplicits: 1\n+20 to maximum Life\n+54 to Intelligence\n+85 to maximum Life\n+14% to all Elemental Resistances\n+39% to Lightning Resistance"
+     },
+     {
+      "name": "Vortex Finger",
+      "base": "Iolite Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "23% increased Chaos Damage"
+       },
+       {
+        "type": "explicit",
+        "text": "+47 to Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 4 to 9 Physical Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+104 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+16% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+40% to Fire Resistance"
+       }
+      ],
+      "pseudo": {
+       "intelligence": 47.0,
+       "life": 104.0,
+       "ele_res": 88.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "dexterity": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 5.0,
+      "rank": 5,
+      "of": 10,
+      "text": "Rarity: RARE\nVortex Finger\nIolite Ring\nItem Level: 85\nImplicits: 1\n23% increased Chaos Damage\n+47 to Intelligence\nAdds 4 to 9 Physical Damage to Attacks\n+104 to maximum Life\n+16% to all Elemental Resistances\n+40% to Fire Resistance"
+     },
+     {
+      "name": "Cataclysm Coil",
+      "base": "Enthalpic Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+2% to maximum Fire Resistance"
+       },
+       {
+        "type": "implicit",
+        "text": "Cannot roll Modifiers of Non-Fire Damage Types"
+       },
+       {
+        "type": "explicit",
+        "text": "+46 to Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "+107 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+67 to maximum Mana"
+       },
+       {
+        "type": "explicit",
+        "text": "+13% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+46% to Fire Resistance"
+       }
+      ],
+      "pseudo": {
+       "intelligence": 46.0,
+       "life": 107.0,
+       "ele_res": 85.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "dexterity": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 6,
+      "of": 10,
+      "text": "Rarity: RARE\nCataclysm Coil\nEnthalpic Ring\nItem Level: 85\nImplicits: 2\n+2% to maximum Fire Resistance\nCannot roll Modifiers of Non-Fire Damage Types\n+46 to Intelligence\n+107 to maximum Life\n+67 to maximum Mana\n+13% to all Elemental Resistances\n+46% to Fire Resistance"
+     },
+     {
+      "name": "Rune Whorl",
+      "base": "Bone Ring",
+      "item_level": 83,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "Minions have +13% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+45 to Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "+110 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+73 to maximum Mana"
+       },
+       {
+        "type": "explicit",
+        "text": "+20% to Item Rarity"
+       },
+       {
+        "type": "explicit",
+        "text": "+16% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+35% to Cold Resistance"
+       }
+      ],
+      "pseudo": {
+       "intelligence": 45.0,
+       "life": 110.0,
+       "ele_res": 83.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "dexterity": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 7,
+      "of": 10,
+      "text": "Rarity: RARE\nRune Whorl\nBone Ring\nItem Level: 83\nImplicits: 1\nMinions have +13% to all Elemental Resistances\n+45 to Intelligence\n+110 to maximum Life\n+73 to maximum Mana\n+20% to Item Rarity\n+16% to all Elemental Resistances\n+35% to Cold Resistance"
+     },
+     {
+      "name": "Blight Coil",
+      "base": "Two-Stone Ring",
+      "item_level": 82,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+16% to Cold and Lightning Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+42 to Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 1 to 5 Lightning Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+90 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+59 to maximum Mana"
+       },
+       {
+        "type": "explicit",
+        "text": "+9% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+40% to Cold Resistance"
+       }
+      ],
+      "pseudo": {
+       "intelligence": 42.0,
+       "life": 90.0,
+       "ele_res": 99.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "dexterity": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 8,
+      "of": 10,
+      "text": "Rarity: RARE\nBlight Coil\nTwo-Stone Ring\nItem Level: 82\nImplicits: 1\n+16% to Cold and Lightning Resistances\n+42 to Intelligence\nAdds 1 to 5 Lightning Damage to Attacks\n+90 to maximum Life\n+59 to maximum Mana\n+9% to all Elemental Resistances\n+40% to Cold Resistance"
+     },
+     {
+      "name": "Armageddon Eye",
+      "base": "Diamond Ring",
+      "item_level": 76,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "29% increased Global Critical Strike Chance"
+       },
+       {
+        "type": "explicit",
+        "text": "+42 to Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 9 to 16 Fire Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+99 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+15% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+37% to Fire Resistance"
+       },
+       {
+        "type": "crafted",
+        "text": "21% increased Elemental Damage with Attack Skills"
+       }
+      ],
+      "pseudo": {
+       "intelligence": 42.0,
+       "ele_res": 82.0,
+       "life": 99.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "dexterity": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 9,
+      "of": 10,
+      "text": "Rarity: RARE\nArmageddon Eye\nDiamond Ring\nItem Level: 76\nImplicits: 1\n29% increased Global Critical Strike Chance\n+42 to Intelligence\nAdds 9 to 16 Fire Damage to Attacks\n+99 to maximum Life\n+15% to all Elemental Resistances\n+37% to Fire Resistance\n{crafted}21% increased Elemental Damage with Attack Skills"
+     },
+     {
+      "name": "Brimstone Knuckle",
+      "base": "Paua Ring",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+26 to maximum Mana"
+       },
+       {
+        "type": "explicit",
+        "text": "+41 to Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 9 to 15 Physical Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+91 to Evasion Rating"
+       },
+       {
+        "type": "explicit",
+        "text": "+93 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+13% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+42% to Fire Resistance"
+       }
+      ],
+      "pseudo": {
+       "intelligence": 41.0,
+       "life": 93.0,
+       "ele_res": 81.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "dexterity": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 10,
+      "of": 10,
+      "text": "Rarity: RARE\nBrimstone Knuckle\nPaua Ring\nItem Level: 85\nImplicits: 1\n+26 to maximum Mana\n+41 to Intelligence\nAdds 9 to 15 Physical Damage to Attacks\n+91 to Evasion Rating\n+93 to maximum Life\n+13% to all Elemental Resistances\n+42% to Fire Resistance"
+     }
+    ]
    }
   },
   "Amulet": {
@@ -8927,6 +12167,1573 @@
       "text": "Rarity: RARE\nBehemoth Noose\nGold Amulet\nItem Level: 77\nImplicits: 1\n+20% to Item Rarity\n+38% to Global Critical Strike Multiplier\n15% increased maximum Energy Shield\n+101 to maximum Life\n+45% to Cold Resistance\n{crafted}+25% to Fire Resistance"
      }
     ]
+   },
+   "strength": {
+    "name": "Dusk Collar",
+    "base": "Agate Amulet",
+    "item_level": 85,
+    "quality": 0,
+    "mods": [
+     {
+      "type": "implicit",
+      "text": "+18 to Strength and Intelligence"
+     },
+     {
+      "type": "explicit",
+      "text": "+40 to Strength"
+     },
+     {
+      "type": "explicit",
+      "text": "+87 to maximum Life"
+     },
+     {
+      "type": "explicit",
+      "text": "+59 to maximum Mana"
+     },
+     {
+      "type": "explicit",
+      "text": "+16% to all Elemental Resistances"
+     },
+     {
+      "type": "explicit",
+      "text": "+47% to Lightning Resistance"
+     }
+    ],
+    "pseudo": {
+     "life": 116.0,
+     "strength": 58.0,
+     "ele_res": 95.0,
+     "chaos_res": 0,
+     "accuracy": 0,
+     "crit_multi": 0,
+     "dexterity": 0,
+     "intelligence": 0
+    },
+    "defence_shown": null,
+    "price_chaos": 5.0,
+    "rank": 5,
+    "of": 10,
+    "text": "Rarity: RARE\nDusk Collar\nAgate Amulet\nItem Level: 85\nImplicits: 1\n+18 to Strength and Intelligence\n+40 to Strength\n+87 to maximum Life\n+59 to maximum Mana\n+16% to all Elemental Resistances\n+47% to Lightning Resistance",
+    "thresholds": {
+     "pseudo_total_life": 90,
+     "pseudo_total_elemental_resistance": 80,
+     "pseudo_total_strength": 40
+    },
+    "key_mod": "strength",
+    "from": "2026-11-28-rC/amulet.json",
+    "candidates": [
+     {
+      "name": "Pain Choker",
+      "base": "Onyx Amulet",
+      "item_level": 86,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+16 to all Attributes"
+       },
+       {
+        "type": "explicit",
+        "text": "+48 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 19 to 33 Cold Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+126 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+11% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+48% to Lightning Resistance"
+       }
+      ],
+      "pseudo": {
+       "life": 158.0,
+       "strength": 64.0,
+       "ele_res": 81.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 5.0,
+      "rank": 1,
+      "of": 10,
+      "text": "Rarity: RARE\nPain Choker\nOnyx Amulet\nItem Level: 86\nImplicits: 1\n+16 to all Attributes\n+48 to Strength\nAdds 19 to 33 Cold Damage to Attacks\n+126 to maximum Life\n+11% to all Elemental Resistances\n+48% to Lightning Resistance"
+     },
+     {
+      "name": "Spirit Idol",
+      "base": "Amber Amulet",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+30 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "+32 to all Attributes"
+       },
+       {
+        "type": "explicit",
+        "text": "+113 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+28% to Item Rarity"
+       },
+       {
+        "type": "explicit",
+        "text": "+16% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+44% to Cold Resistance"
+       }
+      ],
+      "pseudo": {
+       "life": 144.0,
+       "strength": 62.0,
+       "ele_res": 92.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 5.0,
+      "rank": 2,
+      "of": 10,
+      "text": "Rarity: RARE\nSpirit Idol\nAmber Amulet\nItem Level: 85\nImplicits: 1\n+30 to Strength\n+32 to all Attributes\n+113 to maximum Life\n+28% to Item Rarity\n+16% to all Elemental Resistances\n+44% to Cold Resistance"
+     },
+     {
+      "name": "Beast Idol",
+      "base": "Agate Amulet",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+21 to Strength and Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "+44 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 1 to 2 Physical Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+22 to maximum Energy Shield"
+       },
+       {
+        "type": "explicit",
+        "text": "+108 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+32% to Cold Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+48% to Lightning Resistance"
+       }
+      ],
+      "pseudo": {
+       "life": 140.5,
+       "strength": 65.0,
+       "ele_res": 80.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 8.0,
+      "rank": 3,
+      "of": 10,
+      "text": "Rarity: RARE\nBeast Idol\nAgate Amulet\nItem Level: 85\nImplicits: 1\n+21 to Strength and Intelligence\n+44 to Strength\nAdds 1 to 2 Physical Damage to Attacks\n+22 to maximum Energy Shield\n+108 to maximum Life\n+32% to Cold Resistance\n+48% to Lightning Resistance"
+     },
+     {
+      "name": "Gale Clasp",
+      "base": "Amber Amulet",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+26 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "+22 to all Attributes"
+       },
+       {
+        "type": "explicit",
+        "text": "27% increased Evasion Rating"
+       },
+       {
+        "type": "explicit",
+        "text": "+122 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+45% to Cold Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+35% to Lightning Resistance"
+       },
+       {
+        "type": "crafted",
+        "text": "Non-Channelling Skills have -6 to Total Mana Cost"
+       }
+      ],
+      "pseudo": {
+       "life": 146.0,
+       "strength": 48.0,
+       "ele_res": 80.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 5.0,
+      "rank": 4,
+      "of": 10,
+      "text": "Rarity: RARE\nGale Clasp\nAmber Amulet\nItem Level: 85\nImplicits: 1\n+26 to Strength\n+22 to all Attributes\n27% increased Evasion Rating\n+122 to maximum Life\n+45% to Cold Resistance\n+35% to Lightning Resistance\n{crafted}Non-Channelling Skills have -6 to Total Mana Cost"
+     },
+     {
+      "name": "Dusk Collar",
+      "base": "Agate Amulet",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+18 to Strength and Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "+40 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "+87 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+59 to maximum Mana"
+       },
+       {
+        "type": "explicit",
+        "text": "+16% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+47% to Lightning Resistance"
+       }
+      ],
+      "pseudo": {
+       "life": 116.0,
+       "strength": 58.0,
+       "ele_res": 95.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 5.0,
+      "rank": 5,
+      "of": 10,
+      "text": "Rarity: RARE\nDusk Collar\nAgate Amulet\nItem Level: 85\nImplicits: 1\n+18 to Strength and Intelligence\n+40 to Strength\n+87 to maximum Life\n+59 to maximum Mana\n+16% to all Elemental Resistances\n+47% to Lightning Resistance"
+     },
+     {
+      "name": "Doom Collar",
+      "base": "Paua Amulet",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "27% increased Mana Regeneration Rate"
+       },
+       {
+        "type": "explicit",
+        "text": "+51 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "+103 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+76 to maximum Mana"
+       },
+       {
+        "type": "explicit",
+        "text": "+42% to Fire Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+45% to Lightning Resistance"
+       },
+       {
+        "type": "crafted",
+        "text": "Adds 14 to 28 Fire Damage to Attacks"
+       }
+      ],
+      "pseudo": {
+       "life": 128.5,
+       "strength": 51.0,
+       "ele_res": 87.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 5.0,
+      "rank": 6,
+      "of": 10,
+      "text": "Rarity: RARE\nDoom Collar\nPaua Amulet\nItem Level: 85\nImplicits: 1\n27% increased Mana Regeneration Rate\n+51 to Strength\n+103 to maximum Life\n+76 to maximum Mana\n+42% to Fire Resistance\n+45% to Lightning Resistance\n{crafted}Adds 14 to 28 Fire Damage to Attacks"
+     },
+     {
+      "name": "Soul Rosary",
+      "base": "Citrine Amulet",
+      "item_level": 83,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+20 to Strength and Dexterity"
+       },
+       {
+        "type": "explicit",
+        "text": "+40 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "+93 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+14% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+41% to Fire Resistance"
+       }
+      ],
+      "pseudo": {
+       "life": 123.0,
+       "strength": 60.0,
+       "ele_res": 83.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 5.0,
+      "rank": 7,
+      "of": 10,
+      "text": "Rarity: RARE\nSoul Rosary\nCitrine Amulet\nItem Level: 83\nImplicits: 1\n+20 to Strength and Dexterity\n+40 to Strength\n+93 to maximum Life\n+14% to all Elemental Resistances\n+41% to Fire Resistance"
+     },
+     {
+      "name": "Dire Torc",
+      "base": "Citrine Amulet",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+23 to Strength and Dexterity"
+       },
+       {
+        "type": "explicit",
+        "text": "+51 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 8 to 17 Physical Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+73 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+23% to Item Rarity"
+       },
+       {
+        "type": "explicit",
+        "text": "+35% to Fire Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+46% to Cold Resistance"
+       }
+      ],
+      "pseudo": {
+       "life": 110.0,
+       "strength": 74.0,
+       "ele_res": 81.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 5.0,
+      "rank": 8,
+      "of": 10,
+      "text": "Rarity: RARE\nDire Torc\nCitrine Amulet\nItem Level: 85\nImplicits: 1\n+23 to Strength and Dexterity\n+51 to Strength\nAdds 8 to 17 Physical Damage to Attacks\n+73 to maximum Life\n+23% to Item Rarity\n+35% to Fire Resistance\n+46% to Cold Resistance"
+     },
+     {
+      "name": "Eagle Pendant",
+      "base": "Jade Amulet",
+      "item_level": 86,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+27 to Dexterity"
+       },
+       {
+        "type": "explicit",
+        "text": "+42 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "+18 to maximum Energy Shield"
+       },
+       {
+        "type": "explicit",
+        "text": "+98 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+49 to maximum Mana"
+       },
+       {
+        "type": "explicit",
+        "text": "+18% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+48% to Fire Resistance"
+       }
+      ],
+      "pseudo": {
+       "life": 119.0,
+       "strength": 42.0,
+       "ele_res": 102.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 2.0,
+      "rank": 9,
+      "of": 10,
+      "text": "Rarity: RARE\nEagle Pendant\nJade Amulet\nItem Level: 86\nImplicits: 1\n+27 to Dexterity\n+42 to Strength\n+18 to maximum Energy Shield\n+98 to maximum Life\n+49 to maximum Mana\n+18% to all Elemental Resistances\n+48% to Fire Resistance"
+     },
+     {
+      "name": "Torment Torc",
+      "base": "Amber Amulet",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+25 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "+43 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "31% increased Armour"
+       },
+       {
+        "type": "explicit",
+        "text": "+25 to maximum Energy Shield"
+       },
+       {
+        "type": "explicit",
+        "text": "+78 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+11% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+48% to Cold Resistance"
+       }
+      ],
+      "pseudo": {
+       "life": 112.0,
+       "strength": 68.0,
+       "ele_res": 81.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 6.0,
+      "rank": 10,
+      "of": 10,
+      "text": "Rarity: RARE\nTorment Torc\nAmber Amulet\nItem Level: 85\nImplicits: 1\n+25 to Strength\n+43 to Strength\n31% increased Armour\n+25 to maximum Energy Shield\n+78 to maximum Life\n+11% to all Elemental Resistances\n+48% to Cold Resistance"
+     }
+    ]
+   },
+   "dexterity": {
+    "name": "Demon Scarab",
+    "base": "Paua Amulet",
+    "item_level": 85,
+    "quality": 0,
+    "mods": [
+     {
+      "type": "implicit",
+      "text": "23% increased Mana Regeneration Rate"
+     },
+     {
+      "type": "explicit",
+      "text": "+41 to Dexterity"
+     },
+     {
+      "type": "explicit",
+      "text": "Adds 24 to 42 Fire Damage to Attacks"
+     },
+     {
+      "type": "explicit",
+      "text": "+109 to maximum Life"
+     },
+     {
+      "type": "explicit",
+      "text": "+17% to all Elemental Resistances"
+     },
+     {
+      "type": "explicit",
+      "text": "+45% to Cold Resistance"
+     }
+    ],
+    "pseudo": {
+     "dexterity": 41.0,
+     "life": 109.0,
+     "ele_res": 96.0,
+     "chaos_res": 0,
+     "accuracy": 0,
+     "crit_multi": 0,
+     "strength": 0,
+     "intelligence": 0
+    },
+    "defence_shown": null,
+    "price_chaos": 5.0,
+    "rank": 5,
+    "of": 9,
+    "text": "Rarity: RARE\nDemon Scarab\nPaua Amulet\nItem Level: 85\nImplicits: 1\n23% increased Mana Regeneration Rate\n+41 to Dexterity\nAdds 24 to 42 Fire Damage to Attacks\n+109 to maximum Life\n+17% to all Elemental Resistances\n+45% to Cold Resistance",
+    "thresholds": {
+     "pseudo_total_life": 90,
+     "pseudo_total_elemental_resistance": 80,
+     "pseudo_total_dexterity": 40
+    },
+    "key_mod": "dexterity",
+    "from": "2026-11-28-rC/amulet.json",
+    "candidates": [
+     {
+      "name": "Loath Rosary",
+      "base": "Onyx Amulet",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+12 to all Attributes"
+       },
+       {
+        "type": "explicit",
+        "text": "+52 to Dexterity"
+       },
+       {
+        "type": "explicit",
+        "text": "24% increased Spell Damage"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 14 to 26 Fire Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+122 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+17% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+45% to Fire Resistance"
+       }
+      ],
+      "pseudo": {
+       "ele_res": 96.0,
+       "dexterity": 64.0,
+       "life": 128.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 1.0,
+      "rank": 1,
+      "of": 9,
+      "text": "Rarity: RARE\nLoath Rosary\nOnyx Amulet\nItem Level: 85\nImplicits: 1\n+12 to all Attributes\n+52 to Dexterity\n24% increased Spell Damage\nAdds 14 to 26 Fire Damage to Attacks\n+122 to maximum Life\n+17% to all Elemental Resistances\n+45% to Fire Resistance"
+     },
+     {
+      "name": "Behemoth Beads",
+      "base": "Citrine Amulet",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+22 to Strength and Dexterity"
+       },
+       {
+        "type": "explicit",
+        "text": "+25 to all Attributes"
+       },
+       {
+        "type": "explicit",
+        "text": "25% increased Evasion Rating"
+       },
+       {
+        "type": "explicit",
+        "text": "15% increased maximum Energy Shield"
+       },
+       {
+        "type": "explicit",
+        "text": "+106 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+18% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+34% to Cold Resistance"
+       }
+      ],
+      "pseudo": {
+       "dexterity": 47.0,
+       "life": 129.5,
+       "ele_res": 88.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 2,
+      "of": 9,
+      "text": "Rarity: RARE\nBehemoth Beads\nCitrine Amulet\nItem Level: 85\nImplicits: 1\n+22 to Strength and Dexterity\n+25 to all Attributes\n25% increased Evasion Rating\n15% increased maximum Energy Shield\n+106 to maximum Life\n+18% to all Elemental Resistances\n+34% to Cold Resistance"
+     },
+     {
+      "name": "Gale Heart",
+      "base": "Agate Amulet",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+18 to Strength and Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "+40 to Dexterity"
+       },
+       {
+        "type": "explicit",
+        "text": "+117 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+42% to Fire Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+45% to Cold Resistance"
+       }
+      ],
+      "pseudo": {
+       "dexterity": 40.0,
+       "life": 126.0,
+       "ele_res": 87.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 3,
+      "of": 9,
+      "text": "Rarity: RARE\nGale Heart\nAgate Amulet\nItem Level: 85\nImplicits: 1\n+18 to Strength and Intelligence\n+40 to Dexterity\n+117 to maximum Life\n+42% to Fire Resistance\n+45% to Cold Resistance"
+     },
+     {
+      "name": "Rapture Heart",
+      "base": "Citrine Amulet",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+24 to Strength and Dexterity"
+       },
+       {
+        "type": "explicit",
+        "text": "+17 to Dexterity"
+       },
+       {
+        "type": "explicit",
+        "text": "+114 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+13% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+46% to Fire Resistance"
+       }
+      ],
+      "pseudo": {
+       "dexterity": 41.0,
+       "life": 126.0,
+       "ele_res": 85.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 8.0,
+      "rank": 4,
+      "of": 9,
+      "text": "Rarity: RARE\nRapture Heart\nCitrine Amulet\nItem Level: 85\nImplicits: 1\n+24 to Strength and Dexterity\n+17 to Dexterity\n+114 to maximum Life\n+13% to all Elemental Resistances\n+46% to Fire Resistance"
+     },
+     {
+      "name": "Demon Scarab",
+      "base": "Paua Amulet",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "23% increased Mana Regeneration Rate"
+       },
+       {
+        "type": "explicit",
+        "text": "+41 to Dexterity"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 24 to 42 Fire Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+109 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+17% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+45% to Cold Resistance"
+       }
+      ],
+      "pseudo": {
+       "dexterity": 41.0,
+       "life": 109.0,
+       "ele_res": 96.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 5.0,
+      "rank": 5,
+      "of": 9,
+      "text": "Rarity: RARE\nDemon Scarab\nPaua Amulet\nItem Level: 85\nImplicits: 1\n23% increased Mana Regeneration Rate\n+41 to Dexterity\nAdds 24 to 42 Fire Damage to Attacks\n+109 to maximum Life\n+17% to all Elemental Resistances\n+45% to Cold Resistance"
+     },
+     {
+      "name": "Blood Heart",
+      "base": "Amber Amulet",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+22 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "+55 to Dexterity"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 22 to 45 Fire Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+85 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+77 to maximum Mana"
+       },
+       {
+        "type": "explicit",
+        "text": "+42% to Fire Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+47% to Cold Resistance"
+       }
+      ],
+      "pseudo": {
+       "dexterity": 55.0,
+       "life": 96.0,
+       "ele_res": 89.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 6,
+      "of": 9,
+      "text": "Rarity: RARE\nBlood Heart\nAmber Amulet\nItem Level: 85\nImplicits: 1\n+22 to Strength\n+55 to Dexterity\nAdds 22 to 45 Fire Damage to Attacks\n+85 to maximum Life\n+77 to maximum Mana\n+42% to Fire Resistance\n+47% to Cold Resistance"
+     },
+     {
+      "name": "Kraken Scarab",
+      "base": "Amber Amulet",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "enchant",
+        "text": "Allocates Skittering Runes"
+       },
+       {
+        "type": "implicit",
+        "text": "+30 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "+53 to Dexterity"
+       },
+       {
+        "type": "explicit",
+        "text": "+84 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+47% to Fire Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+33% to Lightning Resistance"
+       },
+       {
+        "type": "crafted",
+        "text": "15% increased maximum Energy Shield"
+       }
+      ],
+      "pseudo": {
+       "dexterity": 53.0,
+       "life": 99.0,
+       "ele_res": 80.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 7,
+      "of": 9,
+      "text": "Rarity: RARE\nKraken Scarab\nAmber Amulet\nItem Level: 85\nImplicits: 2\n{enchant}Allocates Skittering Runes\n+30 to Strength\n+53 to Dexterity\n+84 to maximum Life\n+47% to Fire Resistance\n+33% to Lightning Resistance\n{crafted}15% increased maximum Energy Shield"
+     },
+     {
+      "name": "Oblivion Pendant",
+      "base": "Gold Amulet",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+20% to Item Rarity"
+       },
+       {
+        "type": "explicit",
+        "text": "+47 to Dexterity"
+       },
+       {
+        "type": "explicit",
+        "text": "+91 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+46% to Fire Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+46% to Lightning Resistance"
+       }
+      ],
+      "pseudo": {
+       "dexterity": 47.0,
+       "life": 91.0,
+       "ele_res": 92.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 7.0,
+      "rank": 8,
+      "of": 9,
+      "text": "Rarity: RARE\nOblivion Pendant\nGold Amulet\nItem Level: 85\nImplicits: 1\n+20% to Item Rarity\n+47 to Dexterity\n+91 to maximum Life\n+46% to Fire Resistance\n+46% to Lightning Resistance"
+     },
+     {
+      "name": "Viper Pendant",
+      "base": "Agate Amulet",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+20 to Strength and Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "+41 to Dexterity"
+       },
+       {
+        "type": "explicit",
+        "text": "+85 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+26% to Item Rarity"
+       },
+       {
+        "type": "explicit",
+        "text": "+14% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+44% to Cold Resistance"
+       }
+      ],
+      "pseudo": {
+       "dexterity": 41.0,
+       "life": 95.0,
+       "ele_res": 86.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 5.0,
+      "rank": 9,
+      "of": 9,
+      "text": "Rarity: RARE\nViper Pendant\nAgate Amulet\nItem Level: 85\nImplicits: 1\n+20 to Strength and Intelligence\n+41 to Dexterity\n+85 to maximum Life\n+26% to Item Rarity\n+14% to all Elemental Resistances\n+44% to Cold Resistance"
+     }
+    ]
+   },
+   "intelligence": {
+    "name": "Morbid Locket",
+    "base": "Agate Amulet",
+    "item_level": 83,
+    "quality": 0,
+    "mods": [
+     {
+      "type": "implicit",
+      "text": "+24 to Strength and Intelligence"
+     },
+     {
+      "type": "explicit",
+      "text": "+33 to Intelligence"
+     },
+     {
+      "type": "explicit",
+      "text": "Adds 7 to 13 Physical Damage to Attacks"
+     },
+     {
+      "type": "explicit",
+      "text": "21% increased maximum Energy Shield"
+     },
+     {
+      "type": "explicit",
+      "text": "+115 to maximum Life"
+     },
+     {
+      "type": "explicit",
+      "text": "+43% to Lightning Resistance"
+     },
+     {
+      "type": "crafted",
+      "text": "+28% to Fire Resistance"
+     }
+    ],
+    "pseudo": {
+     "intelligence": 57.0,
+     "life": 127.0,
+     "ele_res": 71.0,
+     "chaos_res": 0,
+     "accuracy": 0,
+     "crit_multi": 0,
+     "strength": 0,
+     "dexterity": 0
+    },
+    "defence_shown": null,
+    "price_chaos": 10.0,
+    "rank": 5,
+    "of": 10,
+    "text": "Rarity: RARE\nMorbid Locket\nAgate Amulet\nItem Level: 83\nImplicits: 1\n+24 to Strength and Intelligence\n+33 to Intelligence\nAdds 7 to 13 Physical Damage to Attacks\n21% increased maximum Energy Shield\n+115 to maximum Life\n+43% to Lightning Resistance\n{crafted}+28% to Fire Resistance",
+    "thresholds": {
+     "pseudo_total_life": 80,
+     "pseudo_total_elemental_resistance": 70,
+     "pseudo_total_intelligence": 40
+    },
+    "key_mod": "intelligence",
+    "from": "2026-11-28-rC/amulet.json",
+    "candidates": [
+     {
+      "name": "Honour Pendant",
+      "base": "Agate Amulet",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+19 to Strength and Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "+52 to Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 5 to 47 Lightning Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+129 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+15% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+48% to Lightning Resistance"
+       }
+      ],
+      "pseudo": {
+       "intelligence": 71.0,
+       "life": 138.5,
+       "ele_res": 93.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "dexterity": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 1,
+      "of": 10,
+      "text": "Rarity: RARE\nHonour Pendant\nAgate Amulet\nItem Level: 85\nImplicits: 1\n+19 to Strength and Intelligence\n+52 to Intelligence\nAdds 5 to 47 Lightning Damage to Attacks\n+129 to maximum Life\n+15% to all Elemental Resistances\n+48% to Lightning Resistance"
+     },
+     {
+      "name": "Agony Torc",
+      "base": "Gold Amulet",
+      "item_level": 75,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+20% to Item Rarity"
+       },
+       {
+        "type": "explicit",
+        "text": "+50 to Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "28% increased Armour"
+       },
+       {
+        "type": "explicit",
+        "text": "+122 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+58 to maximum Mana"
+       },
+       {
+        "type": "explicit",
+        "text": "+45% to Fire Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+44% to Cold Resistance"
+       }
+      ],
+      "pseudo": {
+       "intelligence": 50.0,
+       "life": 122.0,
+       "ele_res": 89.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "dexterity": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 2,
+      "of": 10,
+      "text": "Rarity: RARE\nAgony Torc\nGold Amulet\nItem Level: 75\nImplicits: 1\n+20% to Item Rarity\n+50 to Intelligence\n28% increased Armour\n+122 to maximum Life\n+58 to maximum Mana\n+45% to Fire Resistance\n+44% to Cold Resistance"
+     },
+     {
+      "name": "Cataclysm Braid",
+      "base": "Onyx Amulet",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+15 to all Attributes"
+       },
+       {
+        "type": "explicit",
+        "text": "+44 to Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "+113 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+14% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+35% to Cold Resistance"
+       }
+      ],
+      "pseudo": {
+       "intelligence": 59.0,
+       "life": 120.5,
+       "ele_res": 77.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "dexterity": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 3,
+      "of": 10,
+      "text": "Rarity: RARE\nCataclysm Braid\nOnyx Amulet\nItem Level: 85\nImplicits: 1\n+15 to all Attributes\n+44 to Intelligence\n+113 to maximum Life\n+14% to all Elemental Resistances\n+35% to Cold Resistance"
+     },
+     {
+      "name": "Torment Braid",
+      "base": "Citrine Amulet",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+21 to Strength and Dexterity"
+       },
+       {
+        "type": "explicit",
+        "text": "+43 to Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "+110 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+48% to Fire Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+44% to Cold Resistance"
+       }
+      ],
+      "pseudo": {
+       "intelligence": 43.0,
+       "life": 120.5,
+       "ele_res": 92.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "dexterity": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 3.0,
+      "rank": 4,
+      "of": 10,
+      "text": "Rarity: RARE\nTorment Braid\nCitrine Amulet\nItem Level: 85\nImplicits: 1\n+21 to Strength and Dexterity\n+43 to Intelligence\n+110 to maximum Life\n+48% to Fire Resistance\n+44% to Cold Resistance"
+     },
+     {
+      "name": "Morbid Locket",
+      "base": "Agate Amulet",
+      "item_level": 83,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+24 to Strength and Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "+33 to Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 7 to 13 Physical Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "21% increased maximum Energy Shield"
+       },
+       {
+        "type": "explicit",
+        "text": "+115 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+43% to Lightning Resistance"
+       },
+       {
+        "type": "crafted",
+        "text": "+28% to Fire Resistance"
+       }
+      ],
+      "pseudo": {
+       "intelligence": 57.0,
+       "life": 127.0,
+       "ele_res": 71.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "dexterity": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 5,
+      "of": 10,
+      "text": "Rarity: RARE\nMorbid Locket\nAgate Amulet\nItem Level: 83\nImplicits: 1\n+24 to Strength and Intelligence\n+33 to Intelligence\nAdds 7 to 13 Physical Damage to Attacks\n21% increased maximum Energy Shield\n+115 to maximum Life\n+43% to Lightning Resistance\n{crafted}+28% to Fire Resistance"
+     },
+     {
+      "name": "Corpse Heart",
+      "base": "Turquoise Amulet",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+16 to Dexterity and Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "+36 to Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "+111 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+15% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+46% to Cold Resistance"
+       }
+      ],
+      "pseudo": {
+       "intelligence": 52.0,
+       "life": 111.0,
+       "ele_res": 91.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "dexterity": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 6,
+      "of": 10,
+      "text": "Rarity: RARE\nCorpse Heart\nTurquoise Amulet\nItem Level: 85\nImplicits: 1\n+16 to Dexterity and Intelligence\n+36 to Intelligence\n+111 to maximum Life\n+15% to all Elemental Resistances\n+46% to Cold Resistance"
+     },
+     {
+      "name": "Cataclysm Pendant",
+      "base": "Agate Amulet",
+      "item_level": 79,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+18 to Strength and Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "+34 to Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 12 to 20 Fire Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+6 to maximum Energy Shield"
+       },
+       {
+        "type": "explicit",
+        "text": "+121 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+13% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+32% to Lightning Resistance"
+       }
+      ],
+      "pseudo": {
+       "intelligence": 52.0,
+       "life": 130.0,
+       "ele_res": 71.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "dexterity": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 5.0,
+      "rank": 7,
+      "of": 10,
+      "text": "Rarity: RARE\nCataclysm Pendant\nAgate Amulet\nItem Level: 79\nImplicits: 1\n+18 to Strength and Intelligence\n+34 to Intelligence\nAdds 12 to 20 Fire Damage to Attacks\n+6 to maximum Energy Shield\n+121 to maximum Life\n+13% to all Elemental Resistances\n+32% to Lightning Resistance"
+     },
+     {
+      "name": "Dread Medallion",
+      "base": "Amber Amulet",
+      "item_level": 86,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+20 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "+45 to Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 12 to 26 Physical Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "Adds 3 to 60 Lightning Damage to Attacks"
+       },
+       {
+        "type": "explicit",
+        "text": "+99 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+18% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+45% to Fire Resistance"
+       }
+      ],
+      "pseudo": {
+       "intelligence": 45.0,
+       "life": 109.0,
+       "ele_res": 99.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "dexterity": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 8,
+      "of": 10,
+      "text": "Rarity: RARE\nDread Medallion\nAmber Amulet\nItem Level: 86\nImplicits: 1\n+20 to Strength\n+45 to Intelligence\nAdds 12 to 26 Physical Damage to Attacks\nAdds 3 to 60 Lightning Damage to Attacks\n+99 to maximum Life\n+18% to all Elemental Resistances\n+45% to Fire Resistance"
+     },
+     {
+      "name": "Grim Idol",
+      "base": "Agate Amulet",
+      "item_level": 75,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+21 to Strength and Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "21% increased Spell Damage"
+       },
+       {
+        "type": "explicit",
+        "text": "+114 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+43% to Fire Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+31% to Lightning Resistance"
+       },
+       {
+        "type": "crafted",
+        "text": "+30 to Intelligence"
+       }
+      ],
+      "pseudo": {
+       "intelligence": 51.0,
+       "life": 124.5,
+       "ele_res": 74.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "dexterity": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 10.0,
+      "rank": 9,
+      "of": 10,
+      "text": "Rarity: RARE\nGrim Idol\nAgate Amulet\nItem Level: 75\nImplicits: 1\n+21 to Strength and Intelligence\n21% increased Spell Damage\n+114 to maximum Life\n+43% to Fire Resistance\n+31% to Lightning Resistance\n{crafted}+30 to Intelligence"
+     },
+     {
+      "name": "Gloom Noose",
+      "base": "Agate Amulet",
+      "item_level": 79,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+22 to Strength and Intelligence"
+       },
+       {
+        "type": "explicit",
+        "text": "21% increased Spell Damage"
+       },
+       {
+        "type": "explicit",
+        "text": "15% increased Armour"
+       },
+       {
+        "type": "explicit",
+        "text": "+110 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+13% to all Elemental Resistances"
+       },
+       {
+        "type": "explicit",
+        "text": "+38% to Lightning Resistance"
+       },
+       {
+        "type": "crafted",
+        "text": "+20 to Intelligence"
+       }
+      ],
+      "pseudo": {
+       "intelligence": 42.0,
+       "life": 121.0,
+       "ele_res": 77.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "strength": 0,
+       "dexterity": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 9.0,
+      "rank": 10,
+      "of": 10,
+      "text": "Rarity: RARE\nGloom Noose\nAgate Amulet\nItem Level: 79\nImplicits: 1\n+22 to Strength and Intelligence\n21% increased Spell Damage\n15% increased Armour\n+110 to maximum Life\n+13% to all Elemental Resistances\n+38% to Lightning Resistance\n{crafted}+20 to Intelligence"
+     }
+    ]
    }
   },
   "Belt": {
@@ -9427,6 +14234,516 @@
       "rank": 10,
       "of": 10,
       "text": "Rarity: RARE\nDragon Thread\nHeavy Belt\nItem Level: 72\nImplicits: 1\n+29 to Strength\n+24 to maximum Energy Shield\n+128 to maximum Life\n+33 to maximum Mana\n+22% to Fire Resistance\n+37% to Cold Resistance\n+44% to Lightning Resistance"
+     }
+    ]
+   },
+   "strength": {
+    "name": "Entropy Shackle",
+    "base": "Studded Belt",
+    "item_level": 84,
+    "quality": 0,
+    "mods": [
+     {
+      "type": "implicit",
+      "text": "27% increased Stun Duration on Enemies"
+     },
+     {
+      "type": "explicit",
+      "text": "+43 to Strength"
+     },
+     {
+      "type": "explicit",
+      "text": "+249 to Armour"
+     },
+     {
+      "type": "explicit",
+      "text": "+141 to maximum Life"
+     },
+     {
+      "type": "explicit",
+      "text": "+43% to Fire Resistance"
+     },
+     {
+      "type": "explicit",
+      "text": "+47% to Cold Resistance"
+     },
+     {
+      "type": "crafted",
+      "text": "31% increased Elemental Damage with Attack Skills"
+     }
+    ],
+    "pseudo": {
+     "life": 162.5,
+     "strength": 43.0,
+     "ele_res": 90.0,
+     "chaos_res": 0,
+     "accuracy": 0,
+     "crit_multi": 0,
+     "dexterity": 0,
+     "intelligence": 0
+    },
+    "defence_shown": null,
+    "price_chaos": 7.0,
+    "rank": 5,
+    "of": 10,
+    "text": "Rarity: RARE\nEntropy Shackle\nStudded Belt\nItem Level: 84\nImplicits: 1\n27% increased Stun Duration on Enemies\n+43 to Strength\n+249 to Armour\n+141 to maximum Life\n+43% to Fire Resistance\n+47% to Cold Resistance\n{crafted}31% increased Elemental Damage with Attack Skills",
+    "thresholds": {
+     "pseudo_total_life": 110,
+     "pseudo_total_elemental_resistance": 90,
+     "pseudo_total_strength": 40
+    },
+    "key_mod": "strength",
+    "from": "2026-11-28-rC/belt.json",
+    "candidates": [
+     {
+      "name": "Empyrean Bind",
+      "base": "Heavy Belt",
+      "item_level": 84,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+33 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "+33 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "+144 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+47% to Cold Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+47% to Lightning Resistance"
+       }
+      ],
+      "pseudo": {
+       "life": 177.0,
+       "strength": 66.0,
+       "ele_res": 94.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 4.0,
+      "rank": 1,
+      "of": 10,
+      "text": "Rarity: RARE\nEmpyrean Bind\nHeavy Belt\nItem Level: 84\nImplicits: 1\n+33 to Strength\n+33 to Strength\n+144 to maximum Life\n+47% to Cold Resistance\n+47% to Lightning Resistance"
+     },
+     {
+      "name": "Nemesis Bind",
+      "base": "Cloth Belt",
+      "item_level": 84,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "22% increased Stun and Block Recovery"
+       },
+       {
+        "type": "explicit",
+        "text": "+43 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "+144 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+42% to Cold Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+48% to Lightning Resistance"
+       }
+      ],
+      "pseudo": {
+       "life": 165.5,
+       "strength": 43.0,
+       "ele_res": 90.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 8.0,
+      "rank": 2,
+      "of": 10,
+      "text": "Rarity: RARE\nNemesis Bind\nCloth Belt\nItem Level: 84\nImplicits: 1\n22% increased Stun and Block Recovery\n+43 to Strength\n+144 to maximum Life\n+42% to Cold Resistance\n+48% to Lightning Resistance"
+     },
+     {
+      "name": "Morbid Lash",
+      "base": "Studded Belt",
+      "item_level": 86,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "28% increased Stun Duration on Enemies"
+       },
+       {
+        "type": "explicit",
+        "text": "+50 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "+129 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+48% to Cold Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+45% to Lightning Resistance"
+       }
+      ],
+      "pseudo": {
+       "life": 154.0,
+       "strength": 50.0,
+       "ele_res": 93.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 5.0,
+      "rank": 3,
+      "of": 10,
+      "text": "Rarity: RARE\nMorbid Lash\nStudded Belt\nItem Level: 86\nImplicits: 1\n28% increased Stun Duration on Enemies\n+50 to Strength\n+129 to maximum Life\n+48% to Cold Resistance\n+45% to Lightning Resistance"
+     },
+     {
+      "name": "Wrath Tether",
+      "base": "Leather Belt",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+32 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+46 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "+101 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+59 to maximum Mana"
+       },
+       {
+        "type": "explicit",
+        "text": "+48% to Cold Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+47% to Lightning Resistance"
+       }
+      ],
+      "pseudo": {
+       "life": 156.0,
+       "strength": 46.0,
+       "ele_res": 95.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 5.0,
+      "rank": 4,
+      "of": 10,
+      "text": "Rarity: RARE\nWrath Tether\nLeather Belt\nItem Level: 85\nImplicits: 1\n+32 to maximum Life\n+46 to Strength\n+101 to maximum Life\n+59 to maximum Mana\n+48% to Cold Resistance\n+47% to Lightning Resistance"
+     },
+     {
+      "name": "Entropy Shackle",
+      "base": "Studded Belt",
+      "item_level": 84,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "27% increased Stun Duration on Enemies"
+       },
+       {
+        "type": "explicit",
+        "text": "+43 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "+249 to Armour"
+       },
+       {
+        "type": "explicit",
+        "text": "+141 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+43% to Fire Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+47% to Cold Resistance"
+       },
+       {
+        "type": "crafted",
+        "text": "31% increased Elemental Damage with Attack Skills"
+       }
+      ],
+      "pseudo": {
+       "life": 162.5,
+       "strength": 43.0,
+       "ele_res": 90.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 7.0,
+      "rank": 5,
+      "of": 10,
+      "text": "Rarity: RARE\nEntropy Shackle\nStudded Belt\nItem Level: 84\nImplicits: 1\n27% increased Stun Duration on Enemies\n+43 to Strength\n+249 to Armour\n+141 to maximum Life\n+43% to Fire Resistance\n+47% to Cold Resistance\n{crafted}31% increased Elemental Damage with Attack Skills"
+     },
+     {
+      "name": "Hate Leash",
+      "base": "Rustic Sash",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "16% increased Global Physical Damage"
+       },
+       {
+        "type": "explicit",
+        "text": "+47 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "+129 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+46 to maximum Mana"
+       },
+       {
+        "type": "explicit",
+        "text": "+47% to Fire Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+48% to Cold Resistance"
+       }
+      ],
+      "pseudo": {
+       "life": 152.5,
+       "strength": 47.0,
+       "ele_res": 95.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 1.0,
+      "rank": 6,
+      "of": 10,
+      "text": "Rarity: RARE\nHate Leash\nRustic Sash\nItem Level: 85\nImplicits: 1\n16% increased Global Physical Damage\n+47 to Strength\n+129 to maximum Life\n+46 to maximum Mana\n+47% to Fire Resistance\n+48% to Cold Resistance"
+     },
+     {
+      "name": "Blight Locket",
+      "base": "Heavy Belt",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+29 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "+29 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "+113 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+44% to Fire Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+48% to Lightning Resistance"
+       }
+      ],
+      "pseudo": {
+       "life": 142.0,
+       "strength": 58.0,
+       "ele_res": 92.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 1.0,
+      "rank": 7,
+      "of": 10,
+      "text": "Rarity: RARE\nBlight Locket\nHeavy Belt\nItem Level: 85\nImplicits: 1\n+29 to Strength\n+29 to Strength\n+113 to maximum Life\n+44% to Fire Resistance\n+48% to Lightning Resistance"
+     },
+     {
+      "name": "Domination Buckle",
+      "base": "Leather Belt",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "+32 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+52 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "+87 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+45% to Fire Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+47% to Lightning Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "38% increased Flask Life Recovery rate"
+       }
+      ],
+      "pseudo": {
+       "life": 145.0,
+       "strength": 52.0,
+       "ele_res": 92.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 5.0,
+      "rank": 8,
+      "of": 10,
+      "text": "Rarity: RARE\nDomination Buckle\nLeather Belt\nItem Level: 85\nImplicits: 1\n+32 to maximum Life\n+52 to Strength\n+87 to maximum Life\n+45% to Fire Resistance\n+47% to Lightning Resistance\n38% increased Flask Life Recovery rate"
+     },
+     {
+      "name": "Nemesis Tether",
+      "base": "Studded Belt",
+      "item_level": 84,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "25% increased Stun Duration on Enemies"
+       },
+       {
+        "type": "explicit",
+        "text": "+48 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "+122 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+48% to Fire Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+43% to Cold Resistance"
+       }
+      ],
+      "pseudo": {
+       "life": 146.0,
+       "strength": 48.0,
+       "ele_res": 91.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 8.0,
+      "rank": 9,
+      "of": 10,
+      "text": "Rarity: RARE\nNemesis Tether\nStudded Belt\nItem Level: 84\nImplicits: 1\n25% increased Stun Duration on Enemies\n+48 to Strength\n+122 to maximum Life\n+48% to Fire Resistance\n+43% to Cold Resistance"
+     },
+     {
+      "name": "Gloom Clasp",
+      "base": "Cloth Belt",
+      "item_level": 85,
+      "quality": 0,
+      "mods": [
+       {
+        "type": "implicit",
+        "text": "16% increased Stun and Block Recovery"
+       },
+       {
+        "type": "explicit",
+        "text": "+51 to Strength"
+       },
+       {
+        "type": "explicit",
+        "text": "+112 to maximum Life"
+       },
+       {
+        "type": "explicit",
+        "text": "+48% to Fire Resistance"
+       },
+       {
+        "type": "explicit",
+        "text": "+42% to Lightning Resistance"
+       }
+      ],
+      "pseudo": {
+       "life": 137.5,
+       "strength": 51.0,
+       "ele_res": 90.0,
+       "chaos_res": 0,
+       "accuracy": 0,
+       "crit_multi": 0,
+       "dexterity": 0,
+       "intelligence": 0
+      },
+      "defence_shown": null,
+      "price_chaos": 5.0,
+      "rank": 10,
+      "of": 10,
+      "text": "Rarity: RARE\nGloom Clasp\nCloth Belt\nItem Level: 85\nImplicits: 1\n16% increased Stun and Block Recovery\n+51 to Strength\n+112 to maximum Life\n+48% to Fire Resistance\n+42% to Lightning Resistance"
      }
     ]
    }

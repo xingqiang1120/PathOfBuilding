@@ -13,9 +13,11 @@ Slots and groups (decision 2026-11-28, tools/TASKS.zh-TW.md T7):
   Body Armour: life + resistances, per base type (armour / evasion / energy_shield)
   Boots:       life + resistances + movement speed >= 25%, per base type
   Helmet, Gloves: life + resistances + accuracy, per base type
-  Ring 1 / Ring 2: life + resistances + accuracy (5th and 6th, so the two rings differ); chaos_res kept for later
-  Amulet:      life_res (life + resistances) or crit_multi (life + resistances + global crit multiplier)
-  Belt:        life_res
+  Ring 1 / Ring 2: life + resistances + accuracy (5th and 6th, so the two rings differ) to start with; chaos_res,
+               strength, dexterity, intelligence (round C) are the groups the gear fill step (v26) may swap to
+  Amulet:      life_res (life + resistances) or crit_multi (life + resistances + global crit multiplier) to start with;
+               strength, dexterity, intelligence for the gear fill
+  Belt:        life_res to start with; strength for the gear fill
 """
 import json
 import os
@@ -27,16 +29,21 @@ import labdata  # noqa: E402
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "gear_templates.json")
 MARKET = os.path.join(labdata.DATA, "inputs", "gear", "market", "intl-Covens")
 RANK = 5
-# slot -> (round folder, pool file, {group key in this file: template key in the pool})
+# slot -> {group key in this file: (round folder, pool file, template key in the pool)}
+ARMOUR = {"armour": "armour", "evasion": "evasion", "energy_shield": "energy_shield"}
+ATTR = {"strength": "strength", "dexterity": "dexterity", "intelligence": "intelligence"}  # v26: round C pools
 SOURCES = {
-    "Body Armour": ("2026-11-28-r2", "chest", {"armour": "armour", "evasion": "evasion", "energy_shield": "energy_shield"}),
-    "Helmet": ("2026-11-28-r3", "helmet", {"armour": "armour", "evasion": "evasion", "energy_shield": "energy_shield"}),
-    "Gloves": ("2026-11-28-r3", "gloves", {"armour": "armour", "evasion": "evasion", "energy_shield": "energy_shield"}),
-    "Boots": ("2026-11-28-r3", "boots", {"armour": "armour", "evasion": "evasion", "energy_shield": "energy_shield"}),
-    "Ring 1": ("2026-11-28-rB", "ring", {"accuracy": "accuracy", "chaos_res": "chaos_res"}),
-    "Ring 2": ("2026-11-28-rB", "ring", {"accuracy": "accuracy", "chaos_res": "chaos_res"}),
-    "Amulet": ("2026-11-28-rB", "amulet", {"life_res": "life_res", "crit_multi": "crit_multi"}),
-    "Belt": ("2026-11-28-rB", "belt", {"life_res": "life_res"}),
+    "Body Armour": {g: ("2026-11-28-r2", "chest", k) for g, k in ARMOUR.items()},
+    "Helmet": {g: ("2026-11-28-r3", "helmet", k) for g, k in ARMOUR.items()},
+    "Gloves": {g: ("2026-11-28-r3", "gloves", k) for g, k in ARMOUR.items()},
+    "Boots": {g: ("2026-11-28-r3", "boots", k) for g, k in ARMOUR.items()},
+    "Ring 1": {"accuracy": ("2026-11-28-rB", "ring", "accuracy"), "chaos_res": ("2026-11-28-rB", "ring", "chaos_res"),
+               **{g: ("2026-11-28-rC", "ring", k) for g, k in ATTR.items()}},
+    "Ring 2": {"accuracy": ("2026-11-28-rB", "ring", "accuracy"), "chaos_res": ("2026-11-28-rB", "ring", "chaos_res"),
+               **{g: ("2026-11-28-rC", "ring", k) for g, k in ATTR.items()}},
+    "Amulet": {"life_res": ("2026-11-28-rB", "amulet", "life_res"), "crit_multi": ("2026-11-28-rB", "amulet", "crit_multi"),
+               **{g: ("2026-11-28-rC", "amulet", k) for g, k in ATTR.items()}},
+    "Belt": {"life_res": ("2026-11-28-rB", "belt", "life_res"), "strength": ("2026-11-28-rC", "belt", "strength")},
 }
 RANKS = {"Ring 2": RANK + 1}  # the second ring is the next listing, so the two rings are not the same item
 PREFIX = {"crafted": "{crafted}", "fractured": "{fractured}"}
@@ -79,11 +86,15 @@ def entry(pool, key, rank, src):
 
 def build():
     slots = {}
-    for slot, (folder, part, groups) in SOURCES.items():
-        path = os.path.join(MARKET, folder, f"{part}.json")
-        with open(path, encoding="utf-8") as f:
-            pool = json.load(f)
-        slots[slot] = {g: entry(pool, k, RANKS.get(slot, RANK), f"{folder}/{part}.json") for g, k in groups.items()}
+    pools = {}
+    for slot, groups in SOURCES.items():
+        slots[slot] = {}
+        for g, (folder, part, k) in groups.items():
+            path = os.path.join(MARKET, folder, f"{part}.json")
+            if path not in pools:
+                with open(path, encoding="utf-8") as f:
+                    pools[path] = json.load(f)
+            slots[slot][g] = entry(pools[path], k, RANKS.get(slot, RANK), f"{folder}/{part}.json")
     data = {"_about": __doc__.strip().splitlines()[0] + " Built by tools/gear_templates.py from the private market pool; "
                       "item lines, base, item level, quality, league and date only - no seller.",
             "server": "intl", "league": "Covens", "date": "2026-11-28", "price_cap": "10 chaos", "rank": RANK,

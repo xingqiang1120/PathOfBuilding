@@ -254,6 +254,37 @@ class GenerateTest(unittest.TestCase):
         finally:
             del os.environ["POB_WEAPON_ATTRIBUTES"]
 
+    def test_gear_fill_candidates_cover_the_market_groups(self):
+        # v26: every accessory slot has its round-C attribute groups; the fill candidates keep the amulet's anoint and
+        # skip the rings a build-around profile rewrote
+        slots = generate.GEAR_TEMPLATES["slots"]
+        for slot in ("Ring 1", "Ring 2", "Amulet"):
+            for group in ("strength", "dexterity", "intelligence"):
+                self.assertIn(group, slots[slot], slot)
+        self.assertIn("strength", slots["Belt"])
+        self.assertNotEqual(slots["Ring 1"]["strength"]["text"], slots["Ring 2"]["strength"]["text"])
+        g = generate.Generator("Cleave", "Slayer")
+        armour, _ = generate.armour_set("Str")
+        g.state = [{"type": "item_equip", "slot": s, "raw": raw} for s, raw in armour.items()]
+        g.state.append({"type": "item_equip", "slot": "Amulet", "raw": generate.with_enchant(armour["Amulet"], "Allocates Eagle Eye")})
+        cands = g.fill_candidates()
+        by_slot = {}
+        for slot, group, move in cands:
+            by_slot.setdefault(slot, set()).add(group)
+            self.assertEqual(move[0]["slot"], slot)
+        self.assertEqual(set(by_slot), set(generate.FILL_SLOTS))
+        self.assertEqual(by_slot["Ring 1"], {"chaos_res", "strength", "dexterity", "intelligence"})  # not the worn accuracy ring
+        self.assertEqual(by_slot["Belt"], {"strength"})
+        for slot, group, move in cands:
+            if slot == "Amulet":
+                self.assertIn("{enchant}Allocates Eagle Eye", move[0]["raw"], group)
+        d = generate.Generator("Storm Call", "Assassin", build_around="Doryani's Prototype")
+        d.state = list(g.state)
+        self.assertEqual({slot for slot, _, _ in d.fill_candidates()}, {"Amulet", "Belt"})  # the rewritten rings stay
+        self.assertEqual(generate.gear_attributes(g.state)["Str"], 0)
+        self.assertEqual(generate.gear_attributes([{"type": "item_equip", "slot": "Ring 1", "raw": "Rarity: RARE\nx\ny\nImplicits: 1\n+10 to all Attributes\n+40 to Strength\n{crafted}+5 to Strength and Dexterity"}]),
+                         {"Str": 55, "Dex": 15, "Int": 10})
+
     def test_crit_archetype_gear(self):
         hybrid = generate.weapon_options(self.new["skillInfo"], "Int")[0][1][0]["raw"]
         crit = generate.weapon_options(self.new["skillInfo"], "Int", "crit")[0][1][0]["raw"]

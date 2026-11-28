@@ -717,9 +717,13 @@ class Generator:
     def pick_weapon(self):
         self.step = "weapon"
         options = weapon_options(self.info, self.attribute, self.archetype)
+        # experiment (v24 probe, opt-in): weapons compared without the attribute shortfall penalty, which the market gear
+        # (no attribute lines) otherwise turns into a bias for low-requirement weapons before the tree can buy attributes
+        later, self.attributes_later = self.attributes_later, os.environ.get("POB_WEAPON_ATTRIBUTES") == "later" or self.attributes_later
         res = self.try_all([changes for _, changes in options])
         ranked = sorted(((self.score(r["metrics"]), label, changes, r["metrics"]) for (label, changes), r in zip(options, res)
                          if "metrics" in r), key=lambda x: -x[0])
+        self.attributes_later = later  # the penalty is part of score(), so it stays off until the weapons are ranked
         if not options:  # a block archetype for a skill with no shield setup (two-handed, dual wield)
             self.weapon = None
             return

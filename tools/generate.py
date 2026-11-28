@@ -1257,6 +1257,7 @@ class Generator:
         """Every added group placed in a real item's sockets (group_slot), the movement skill reserved (a disabled
         group), and the plan recorded for the report. Raises if the budget is exceeded - the exam must never see that."""
         self.step = "sockets"
+        before = self.score(self.current)
         cap, info = self.socket_capacity()
         groups = self.skill_groups()
         plan = {slot: [] for slot in SOCKET_SLOTS}
@@ -1269,28 +1270,41 @@ class Generator:
         if move_slot:
             plan[move_slot] = plan[move_slot] + [g + " (movement, reserved)" for g in MOVEMENT_GEMS]
             free[move_slot] -= len(MOVEMENT_GEMS)
+        # each group goes to the free slot where PoB scores it best (ties: SOCKET_FILL_ORDER). The item matters: a gem in
+        # a socket of its colour gains quality, "+1 to Level of Socketed AoE Gems" helps an aura, "Socketed Gems are
+        # Supported by Added Lightning Damage" (Thunderfist) makes an aura reserve more, and resistance per empty socket is
+        # lost (both seen on the authors' items in the v27 exam, -5.8 and -1.9 before this choice).
+        placement = []
         for g in groups:
-            slot = next((s for s in SOCKET_FILL_ORDER if free[s] >= 1), None)
-            if slot is None:
+            slots = [s for s in SOCKET_FILL_ORDER if free[s] >= 1]
+            if not slots:
                 raise RuntimeError(f"socket budget exceeded: no socket left for {g} (capacity {cap})")
+            res = self.try_all([[{"type": "group_slot", "gem": g, "slot": s}] for s in slots])
+            scored = [(self.score(r["metrics"]), s, r["metrics"]) for s, r in zip(slots, res) if "metrics" in r]
+            if not scored:
+                raise RuntimeError(f"placing {g}: " + "; ".join(r.get("error", "") for r in res))
+            best = max(scored, key=lambda x: x[0])  # the first slot of the order wins a tie (max keeps the first maximum)
+            score_now, slot, metrics = best
+            placement.append({"gem": g, "slot": slot, "shift": round(score_now - self.score(self.current), 4),
+                              "alternatives": {s: round(sc - score_now, 4) for sc, s, _ in scored if s != slot}})
             plan[slot].append(g)
             free[slot] -= 1
             self.state.append({"type": "group_slot", "gem": g, "slot": slot})
+            self.current = metrics
         if move_slot:
             self.state.append({"type": "group_add", "gems": MOVEMENT_GEMS, "slot": move_slot, "enabled": False,
                                "label": "movement (reserved, not calculated)"})
         keys_used = 1 + MOVEMENT_KEYS + sum(key_cost(g) for g in groups)
         if keys_used > KEYS_TOTAL:
             raise RuntimeError(f"key budget exceeded: {keys_used} > {KEYS_TOTAL}")
-        # a group's slot can change PoB's numbers (curse priority follows the slot when more curses are cast than the limit
-        # allows): the build is measured again so the score reported is the exported build's, and the shift is recorded
-        before = self.score(self.current)
+        # the exported build is measured once more (a replay of every change), so the score reported is the build's
         self.current = self.try_all([[]])[0]["metrics"]
         self.sockets = {"capacity": cap, "items": {s: (info.get(s) or {}).get("name") for s in SOCKET_SLOTS},
                         "types": {s: (info.get(s) or {}).get("type") for s in SOCKET_SLOTS}, "plan": plan, "free": free,
                         "keys_used": keys_used, "keys": KEYS_TOTAL, "movement_slot": move_slot, "blocked": self.blocked,
-                        "score_shift": round(self.score(self.current) - before, 4)}
+                        "placement": placement, "score_shift": round(self.score(self.current) - before, 4)}
         log(f"  [sockets] " + "; ".join(f"{s} {len(plan[s])}/{cap[s]}" for s in SOCKET_SLOTS if cap[s]) + f"; keys {keys_used}/{KEYS_TOTAL}"
+            + f"; score {before:.3f} -> {self.score(self.current):.3f} once placed"
             + (f"; blocked: {', '.join(b['skill'] + ' (+' + str(b['gain']) + ')' for b in self.blocked)}" if self.blocked else ""))
 
     def flasks_in(self):
@@ -1631,6 +1645,13 @@ class Generator:
                 if s["capacity"].get(slot) or s["plan"].get(slot):
                     lines.append(f"| {slot} | {s['items'].get(slot) or '-'} | {len(s['plan'][slot])} / {s['capacity'][slot]} | "
                                  f"{', '.join(s['plan'][slot]) or '-'} |")
+            moved = [p for p in s.get("placement", []) if abs(p["shift"]) >= 0.0005 or any(abs(d) >= 0.0005 for d in p["alternatives"].values())]
+            if moved:
+                lines += ["", "Each group is placed in the free slot where PoB scores it best (the item's socket colours and mods act on "
+                          "its gems). Where the slot mattered (score change on placing; the other slots relative to the chosen one):", ""]
+                lines += [f"- {p['gem']} -> {p['slot']} ({p['shift']:+.3f}; " + ", ".join(f"{k} {v:+.3f}" for k, v in p["alternatives"].items()) + ")"
+                          for p in moved]
+            lines.append(f"Score once every group is placed: {s.get('score_shift', 0):+.3f} against the search's last measurement.")
             if s["blocked"]:
                 lines += ["", "Kept out by the budget (the best blocked skill of each step and the score it would have added; a swap "
                           "for a placed skill was still tried):", ""] + [f"- {b['step']}: {b['skill']} +{b['gain']:.3f} ({b['reason']} full)" for b in s["blocked"]]

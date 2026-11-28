@@ -292,7 +292,9 @@ class GenerateTest(unittest.TestCase):
             self.assertLessEqual(len(gems), g.sockets["capacity"][slot], slot)
         self.assertEqual(g.sockets["plan"]["Body Armour"][:1], ["Cyclone"])
         self.assertEqual(g.sockets["movement_slot"], "Boots")
-        self.assertEqual([len(g.sockets["plan"][s]) for s in ("Helmet", "Gloves", "Boots", "Weapon 1")], [4, 4, 4, 0])
+        self.assertEqual(sum(len(g.sockets["plan"][s]) for s in ("Helmet", "Gloves", "Boots", "Weapon 1")), 10 + 2)  # 10 groups, movement 2
+        self.assertEqual([p["gem"] for p in g.sockets["placement"]], skills)  # each group placed where PoB scores it best
+        self.assertTrue(all(p["slot"] in generate.SOCKET_SLOTS and all(d <= 1e-9 for d in p["alternatives"].values()) for p in g.sockets["placement"]))
         self.assertLessEqual(g.sockets["keys_used"], generate.KEYS_TOTAL)
         self.assertEqual(sum(1 for c in g.state if c["type"] == "group_slot"), 10)
         # placing a gem in an item changes what PoB calculates (a gem in a socket of its colour gets quality, this helmet

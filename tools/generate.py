@@ -97,11 +97,18 @@ FOCUS = {"damage": 0.5, "balanced": 1.0, "defence": 2.0}
 #     Inoculation) instead of rewriting life lines; the evasion archetype no longer swaps attribute lines for spell
 #     suppression (there are none). Shield and weapons are still template rares. Benchmark scores change with the
 #     gear, so "no regression" starts again from this version.
-GENERATOR_VERSION = 24
+# 25: the weapon setups are ranked without the attribute shortfall penalty (it is back on from the next step): with
+#     market gear carrying no attributes, the penalty (0.02 a point) made Cyclone / Slayer take a one-handed axe and
+#     Glacial Hammer / Champion (crit) a one-handed mace in v24, although the tree buys the attributes later; the v24
+#     probe with the penalty deferred took the two-handers and scored 25.57 / 26.12 (v24 25.23 / 25.62).
+#     POB_WEAPON_ATTRIBUTES=penalty keeps the v24 behaviour for comparison. A build-around profile may name lines to
+#     avoid (avoidLines): per slot the pool listing with the least of them is worn instead of the 5th (Doryani's
+#     Prototype: the other slots' lightning resistance offset the rings' -130% in v24, -160 -> -116).
+GENERATOR_VERSION = 25
 # Results of older versions from STILL_VALID_FROM on still count as done in self-play, except for the skills a later
 # version changed (changed_since_valid). Version 9 only changed minion skills (the minion's skill is now chosen),
 # unarmed attacks (empty main hand) and spells that need a staff.
-STILL_VALID_FROM = 24
+STILL_VALID_FROM = 25
 
 
 def changed_since_valid(skill, info):
@@ -145,22 +152,49 @@ BASE_KIND = {"Str": "armour", "Dex": "evasion", "Int": "energy_shield"}
 ARMOUR_SLOTS = ("Helmet", "Body Armour", "Gloves", "Boots")
 
 
-def market_item(slot, group):
-    """PoB item text of the market template worn in slot (group: a base kind or an accessory variant)."""
-    return GEAR_TEMPLATES["slots"][slot][group]["text"]
+def line_total(text, pattern):
+    """Sum of the numbers in the item lines matching pattern (e.g. the lightning resistance an item carries, counting
+    '+N% to all Elemental Resistances' and '+N% to Fire and Lightning Resistances' lines too)."""
+    total = 0
+    for x in text.splitlines():
+        if x.startswith(("Rarity", "Item Level", "Implicits", "Quality")) or not re.search(pattern, x):
+            continue
+        m = re.search(r"[+-]?\d+", x)
+        total += int(m.group(0)) if m else 0
+    return total
 
 
-def armour_set(attribute, archetype=None):
-    """{slot: PoB item text} of the rare gear a build starts with, and the shield; attribute picks the base kind."""
+def market_item(slot, group, avoid=None, choices=None):
+    """PoB item text of the market template worn in slot (group: a base kind or an accessory variant). With avoid (a
+    line pattern, v25), the pool listing carrying the least of it is worn instead of the 5th (ties: the better ranked);
+    choices, if given, records {slot: (rank, name, amount avoided)}."""
+    g = GEAR_TEMPLATES["slots"][slot][group]
+    if avoid:
+        pick = min(g["candidates"], key=lambda c: (line_total(c["text"], avoid), c["rank"]))
+        if choices is not None:
+            choices[slot] = (pick["rank"], pick["name"], line_total(pick["text"], avoid), line_total(g["text"], avoid))
+        return pick["text"]
+    return g["text"]
+
+
+def weapon_penalty_deferred():
+    """v25 default: weapons are ranked without the attribute shortfall penalty; POB_WEAPON_ATTRIBUTES=penalty is v24's way."""
+    return os.environ.get("POB_WEAPON_ATTRIBUTES", "later") != "penalty"
+
+
+def armour_set(attribute, archetype=None, avoid=None, choices=None):
+    """{slot: PoB item text} of the rare gear a build starts with, and the shield; attribute picks the base kind.
+    avoid (v25, from a build-around profile): a line pattern the armour pieces, amulet and belt should carry as little as
+    possible; the rings keep their 5th / 6th listing (a profile rewrites a ring line, and needs it there)."""
     if archetype in DEFENCES:
-        armour, shield = armour_set(DEFENCES[archetype].get("bases") or attribute)
+        armour, shield = armour_set(DEFENCES[archetype].get("bases") or attribute, avoid=avoid, choices=choices)
         return {slot: defend(slot, raw, archetype) for slot, raw in armour.items()}, defend("Shield", shield, archetype)
     kind = BASE_KIND[attribute]
-    armour = {slot: market_item(slot, kind) for slot in ARMOUR_SLOTS}
-    armour["Amulet"] = market_item("Amulet", "crit_multi" if archetype == "crit" else "life_res")
+    armour = {slot: market_item(slot, kind, avoid, choices) for slot in ARMOUR_SLOTS}
+    armour["Amulet"] = market_item("Amulet", "crit_multi" if archetype == "crit" else "life_res", avoid, choices)
     armour["Ring 1"] = market_item("Ring 1", "accuracy")
     armour["Ring 2"] = market_item("Ring 2", "accuracy")
-    armour["Belt"] = market_item("Belt", "life_res")
+    armour["Belt"] = market_item("Belt", "life_res", avoid, choices)
     b = ARMOUR_BASES[attribute]
     local, _ = DEFENCE[attribute]
     return armour, item("Template Shield", b["Shield"], "+120 to maximum Life", f"70% increased {local}", "+40% to Fire Resistance",
@@ -680,7 +714,15 @@ class Generator:
         bases = (self.profile or {}).get("armourBases") or self.attribute  # a build-around unique may ask for armour
         if self.archetype in DEFENCES:
             bases = DEFENCES[self.archetype].get("bases") or bases
-        armour, _ = armour_set(bases, self.archetype)
+        # v25: a build-around profile may name lines its other slots should avoid (Doryani's Prototype: lightning
+        # resistance, which would offset the rings' -130%); the body armour is the unique itself, so its pick is dropped
+        self.gear_choices = {}
+        armour, _ = armour_set(bases, self.archetype, avoid=(self.profile or {}).get("avoidLines"), choices=self.gear_choices)
+        if self.profile:
+            self.gear_choices.pop(self.profile["slot"], None)
+            if self.gear_choices:
+                log("  gear chosen for " + str(self.around) + ": " + ", ".join(
+                    f"{s} #{r} ({a} instead of the 5th's {d})" for s, (r, _, a, d) in self.gear_choices.items()))
         self.xml = r["xml"]
         self.state = [{"type": "item_equip", "slot": slot, "raw": raw} for slot, raw in armour.items()]
         if self.profile:
@@ -717,9 +759,10 @@ class Generator:
     def pick_weapon(self):
         self.step = "weapon"
         options = weapon_options(self.info, self.attribute, self.archetype)
-        # experiment (v24 probe, opt-in): weapons compared without the attribute shortfall penalty, which the market gear
-        # (no attribute lines) otherwise turns into a bias for low-requirement weapons before the tree can buy attributes
-        later, self.attributes_later = self.attributes_later, os.environ.get("POB_WEAPON_ATTRIBUTES") == "later" or self.attributes_later
+        # v25: weapons compared without the attribute shortfall penalty, which the market gear (no attribute lines)
+        # otherwise turns into a bias for low-requirement weapons before the tree can buy attributes (v24: Cyclone took a
+        # one-handed axe, Glacial Hammer crit a one-handed mace). POB_WEAPON_ATTRIBUTES=penalty keeps v24's ranking.
+        later, self.attributes_later = self.attributes_later, weapon_penalty_deferred() or self.attributes_later
         res = self.try_all([changes for _, changes in options])
         ranked = sorted(((self.score(r["metrics"]), label, changes, r["metrics"]) for (label, changes), r in zip(options, res)
                          if "metrics" in r), key=lambda x: -x[0])
@@ -1296,6 +1339,12 @@ class Generator:
             "Curses, marks and exposure count as always applied (how they are applied is not modelled).",
             (f"Built around {self.around}: " + " ".join(self.profile.get("why", [])) +
              f" Gear changed for it: {json.dumps(self.profile.get('gear', {}))}." if self.profile else ""),
+            (f"Market listings worn for {self.around} with the least '{self.profile.get('avoidLines')}' instead of the 5th: " + "; ".join(
+                f"{s} #{r} {n} ({a}, the 5th has {d})" for s, (r, n, a, d) in self.gear_choices.items()) + "."
+             if getattr(self, "gear_choices", None) else ""),
+            ("Weapons ranked without the attribute shortfall penalty (the tree buys the attributes later); the penalty is on "
+             "from the first support." if weapon_penalty_deferred() else
+             "POB_WEAPON_ATTRIBUTES=penalty: weapons ranked with the attribute shortfall penalty (v24's way)."),
             "Utility flasks (quality 20, no mods) count as always on; flask slot 1 is left for a life flask.",
             "A guard skill counts as up when hit; a golem's buff counts; warcries count averaged over their cooldown. "
             "Immortal Call and movement skills are not used.",

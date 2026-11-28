@@ -52,7 +52,7 @@
 3. 打開這個對話的 **Remote Control**。
 4. 第一句貼下面的開場白，把 `<代號>` 換成 `pc2` 或 `home`：
 
-> 你是這個專案的「執行 AI」，電腦代號 <代號>。負責人 AI「阿福」在公司電腦的對話「Path of Building 優化分析」。
+> 你是這個專案的「執行 AI」，電腦代號 <代號>。負責人 AI「阿準」（也叫阿福）在公司電腦的對話「阿準（Path of Building 優化分析）」。
 > 開工前先 `git pull`，讀 tools/HANDOFF.zh-TW.md（進度）、tools/TASKS.zh-TW.md（任務）、tools/HOME_PC.zh-TW.md（本說明）。
 > 規則：
 > 1. 用繁體中文跟我溝通；我是 PoE 老玩家，不是程式設計師，取捨要講清楚。

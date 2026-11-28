@@ -237,7 +237,9 @@ class GenerateTest(unittest.TestCase):
         crit = generate.weapon_options(self.new["skillInfo"], "Int", "crit")[0][1][0]["raw"]
         self.assertIn("37% increased Critical Strike Chance", crit)
         self.assertNotIn("38% increased Critical Strike Chance", hybrid)
-        self.assertIn("Global Critical Strike Chance", generate.armour_set("Int", "crit")[0]["Amulet"])
+        # v24: the crit archetype wears the market crit-multiplier amulet; the others the life + resistances one
+        self.assertIn("Global Critical Strike Multiplier", generate.armour_set("Int", "crit")[0]["Amulet"])
+        self.assertNotIn("Global Critical Strike Multiplier", generate.armour_set("Int")[0]["Amulet"])
         self.assertEqual(generate.gear_label("crit"), "template crit")
 
     def test_flasks_count_when_equipped_and_undo(self):
@@ -275,18 +277,34 @@ class GenerateTest(unittest.TestCase):
 
     def test_unique_keeps_the_rares_resistances(self):
         armour, _ = generate.armour_set("Str")
-        self.assertEqual(generate.moved_lines(generate.with_enchant(armour["Helmet"], "40% increased Cleave Damage")),
-                         ["40% increased Cleave Damage", "+40% to Fire Resistance", "+40% to Cold Resistance",
-                          "+35 to Intelligence"])
+        # v24: the market helmet's resistance lines (whatever they are) and the enchant move; its life and accuracy do not
+        moved = generate.moved_lines(generate.with_enchant(armour["Helmet"], "40% increased Cleave Damage"))
+        self.assertEqual(moved[0], "40% increased Cleave Damage")
+        self.assertEqual(moved[1:], [x for x in armour["Helmet"].splitlines() if "Resistance" in x])
+        self.assertTrue(all("Resistance" in x for x in moved[1:]) and len(moved) >= 3)
         c = WORKER.call("candidates", {"xml": self.new["xml"], "name": "t", "changes": self.gear(self.new, "Int")})
         self.assertNotIn("Natural Hierarchy", c["uniques"]["Amulet"])  # Talisman league only
         self.assertTrue(all(n for n in c["uniques"]["Weapon 1"]))
 
     def test_defence_archetype_gear(self):
-        es, _ = generate.armour_set("Str", "es")
-        self.assertIn("Vaal Regalia", es["Body Armour"])  # energy shield bases whatever the class
-        self.assertNotIn("to maximum Life", es["Body Armour"])
-        self.assertIn("+95 to maximum Energy Shield", es["Body Armour"])
+        es, es_shield = generate.armour_set("Str", "es")
+        # v24: energy-shield-base market items as they are, whatever the class (their life stays; the template shield
+        # still trades its life for energy shield)
+        self.assertEqual(es["Body Armour"], generate.market_item("Body Armour", "energy_shield"))
+        self.assertIn("Energy Shield", es["Body Armour"])
+        self.assertNotIn("to maximum Life", es_shield)
+        self.assertIn("+80 to maximum Energy Shield", es_shield)
+        # every market slot is real item text with a base and no attribute line (v24: attributes come from the tree)
+        for attribute in ("Str", "Dex", "Int"):
+            worn, _ = generate.armour_set(attribute)
+            self.assertEqual(sorted(worn), sorted(["Helmet", "Body Armour", "Gloves", "Boots", "Amulet", "Ring 1", "Ring 2", "Belt"]))
+            for slot in ("Helmet", "Gloves", "Ring 1", "Ring 2"):
+                self.assertIn("to Accuracy Rating", worn[slot], slot)
+            self.assertIn("increased Movement Speed", worn["Boots"])
+            self.assertNotEqual(worn["Ring 1"], worn["Ring 2"])
+            for slot, raw in worn.items():
+                self.assertEqual(raw.splitlines()[0], "Rarity: RARE", slot)
+                self.assertNotRegex(raw, r"^\+\d+ to (Strength|Dexterity|Intelligence)$", slot)
         _, shield = generate.armour_set("Int", "block")
         self.assertIn("Mirrored Spiked Shield", shield)  # a spirit shield cannot roll block
         self.assertIn("+14% Chance to Block", shield)

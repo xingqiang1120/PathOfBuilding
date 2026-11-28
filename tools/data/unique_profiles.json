@@ -1,5 +1,5 @@
 {
-  "_about": "Build-around profiles for unique items (tools/generate.py --build-around). Each says what the unique asks of the rest of the build, with where that comes from. 'gear': lines of the template rares to replace (template line -> new line). 'ignoreResistPenalty': resistances the score should not require at 75% because the unique makes them irrelevant for damage taken. 'skillTags': gem tags the main skill should have. 'armourBases': attribute whose armour bases the template gear uses (Str = armour), when the unique asks for a defence the class's own bases lack.",
+  "_about": "Build-around profiles for unique items (tools/generate.py --build-around). Each says what the unique asks of the rest of the build, with where that comes from. 'gear': lines of the template rares to replace (template line -> new line). 'ignoreResistPenalty': resistances the score should not require at 75% because the unique makes them irrelevant for damage taken. 'skillTags': gem tags the main skill should have. 'armourBases': attribute whose armour bases the template gear uses (Str = armour), when the unique asks for a defence the class's own bases lack. 'avoidLines' (v25): a line pattern; in every slot but the rings and the unique's own, the market pool listing carrying the least of it is worn instead of the 5th.",
   "Doryani's Prototype": {
     "slot": "Body Armour",
     "skillTags": [
@@ -26,6 +26,7 @@
       "7 builds from poe.ninja, collected by hand 2026-11-25 (library tag \"doryani's prototype\"): all at -170% to -200% own lightning resistance, from rare rings with -67% to -140% lightning resistance (5 of 7 with Kalandra's Touch, several Thread of Hope); armour 20-33k except two block Gladiators.",
       "PoB check on the Storm Call Assassin build: lightning resistance back to +73% costs 89% of its DPS, EHP unchanged."
     ],
-    "armourBases": "Str"
+    "armourBases": "Str",
+    "avoidLines": "Lightning Resistance|Lightning and \\w+ Resistances|and Lightning Resistances|all Elemental Resistances"
   }
 }

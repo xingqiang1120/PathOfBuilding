@@ -232,6 +232,28 @@ class GenerateTest(unittest.TestCase):
         res = WORKER.call("try", {"xml": self.new["xml"], "name": "t", "candidates": [[{"type": "group_add", "gems": [g]}] for g in names]})
         self.assertEqual([n for n, r in zip(names, res) if "metrics" not in r], [])
 
+    def test_profile_avoids_lines_in_the_other_slots(self):
+        # v25: Doryani's Prototype wants as little lightning resistance as possible outside the rings (they flip theirs
+        # to -130%); per slot the pool listing with the least of it is worn, the rings keep their 5th / 6th listing
+        pattern = generate.unique_profile("Doryani's Prototype")["avoidLines"]
+        plain, _ = generate.armour_set("Str")
+        choices = {}
+        avoiding, _ = generate.armour_set("Str", avoid=pattern, choices=choices)
+        for slot in ("Helmet", "Gloves", "Boots", "Amulet", "Belt"):
+            self.assertLessEqual(generate.line_total(avoiding[slot], pattern), generate.line_total(plain[slot], pattern), slot)
+            self.assertIn(slot, choices)
+        self.assertEqual(generate.line_total(avoiding["Helmet"], pattern), 0)
+        self.assertEqual(avoiding["Ring 1"], plain["Ring 1"])
+        self.assertEqual(avoiding["Ring 2"], plain["Ring 2"])
+        self.assertEqual(generate.line_total("Implicits: 1\n+16% to Fire and Lightning Resistances\n+40% to Lightning Resistance\n+30% to Cold Resistance",
+                                             pattern), 56)
+        self.assertTrue(generate.weapon_penalty_deferred())  # v25 default
+        os.environ["POB_WEAPON_ATTRIBUTES"] = "penalty"
+        try:
+            self.assertFalse(generate.weapon_penalty_deferred())
+        finally:
+            del os.environ["POB_WEAPON_ATTRIBUTES"]
+
     def test_crit_archetype_gear(self):
         hybrid = generate.weapon_options(self.new["skillInfo"], "Int")[0][1][0]["raw"]
         crit = generate.weapon_options(self.new["skillInfo"], "Int", "crit")[0][1][0]["raw"]

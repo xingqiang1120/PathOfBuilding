@@ -5,8 +5,9 @@
 
 The market pool (pob-lab-data/inputs/gear/market/intl-Covens/<date>-r2, -r3, -rB) holds, per slot and base type (or
 per accessory variant), the 10 best listings under 10 chaos on the official trade site, sorted by the pool's own rule.
-The generator wears the 5th of each (a mid-pack 10c item, not the best one): this file keeps only the item's lines,
-base, item level and quality, the league and the date - never the seller.
+The generator wears the 5th of each (a mid-pack 10c item, not the best one); the other nine stay in the file as
+candidates, for a build-around profile that prefers another one (v25). The file keeps only the items' lines, base,
+item level and quality, the league and the date - never the seller.
 
 Slots and groups (decision 2026-11-28, tools/TASKS.zh-TW.md T7):
   Body Armour: life + resistances, per base type (armour / evasion / energy_shield)
@@ -54,17 +55,25 @@ def pob_text(it):
     return "\n".join(lines)
 
 
-def entry(pool, key, rank, src):
-    t = pool["templates"][key]
-    best = t["best10"]
-    i = best[min(rank, len(best)) - 1]
+def listing(i, rank, n):
     props = i.get("properties", {})
     q = props.get("Quality", "")
     quality = int("".join(c for c in q if c.isdigit()) or 0) if q else 0
     it = {"name": i["name"], "base": i["base"], "item_level": int(i.get("item_level") or 86), "quality": quality,
           "mods": i["mods"], "pseudo": i.get("pseudo", {}), "defence_shown": i.get("defence_shown"), "price_chaos": (i.get("price") or {}).get("amount"),
-          "rank": min(rank, len(best)), "of": len(best), "thresholds": t["thresholds"], "key_mod": t.get("key_mod"), "from": src}
+          "rank": rank, "of": n}
     it["text"] = pob_text(it)
+    return it
+
+
+def entry(pool, key, rank, src):
+    """The worn listing (rank) of one pool, plus every listing of the pool as candidates (v25: a build-around profile may
+    prefer another one, e.g. the least lightning resistance for Doryani's Prototype)."""
+    t = pool["templates"][key]
+    best = t["best10"]
+    it = dict(listing(best[min(rank, len(best)) - 1], min(rank, len(best)), len(best)),
+              thresholds=t["thresholds"], key_mod=t.get("key_mod"), **{"from": src})
+    it["candidates"] = [listing(x, k + 1, len(best)) for k, x in enumerate(best)]
     return it
 
 

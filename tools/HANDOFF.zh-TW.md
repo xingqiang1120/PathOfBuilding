@@ -61,7 +61,13 @@
 2. **暴擊流和非暴擊流要先分**：一般玩家一開始就決定走暴擊，還是走直擊（Precise Technique：命中值高於生命時攻擊傷害 40% more、
    不會暴擊；或 Resolute Technique、Elemental Overload）。兩條路的裝備、天賦完全不同。現在只有 Glacial Hammer 有 crit 這一組，
    其他技能都是混合武器。方向：每個技能都跑兩條路線（暴擊／非暴擊，裝備和可選的 keystone 各自分開），兩條都交出來，再標出哪條高。
-3. 中文化：使用者想用 PoeCharm2，要裝在另一個資料夾，不能動我們的 checkout。
+3. **影片線索（NK不上課〈專家防禦・恢復概論〉3.30，影片說的、尚未證實）**：恢復要跟「每秒受到的傷害」比；4,000 生命大約
+   每秒 500 的自然再生，用活力、巨石魔像、理石護身符和兩枚戒指就能便宜做到，要更高就得拿裝備詞綴去換（那些詞綴本來可以補抗性、屬性）。
+   對照生成器：樣板裝沒有任何生命再生，所以 Life Gain on Hit 這類回復的邊際價值被高估（`recovery()` 取 log，起點越低、加一點越值錢），
+   這可能就是 Smite／Gladiator 用 Volatility 換 Life Gain on Hit 的原因；換上真實裝之後要重看。`sustain()` 沒算藥劑回復和能量護盾充能，
+   藥娘（Master Surgeon、藥劑天賦）會被低估。機制區分（Pious Path 讓再生也回能盾；Zealot's Oath 是改成回能盾、不是兩邊都回）
+   要先查 PoB 有沒有算對。
+4. 中文化：使用者想用 PoeCharm2，要裝在另一個資料夾，不能動我們的 checkout。
 
 ## 已知的下一批問題（依優先，第 13 版差距報告）
 1. 輔助性技能：作者有的 Righteous Fire 類、Vaal 技能（Vaal Arctic Armour 防禦 +1.17）、Pact of Beidat，生成器都沒選。

@@ -88,6 +88,10 @@ python tools/labdata.py push --pc <代號>
 - **給使用者看的 build**：放在這台 PoB 的 `src\Builds\AI 試算 v<版號>\`（每版一個資料夾，附報告 .md 和 README），
   開 `Path of Building.exe` 的 Builds 清單就看得到。`src/Builds` 被 git 忽略，不提交；要給別台的話，同一份放私人庫
   `results/v<版號>/<代號>/builds/`。
+- **中文版（home，2026-11-28）**：PoeCharm2 裝在 `C:\Users\root\PoeCharm2`，用 junction `PathOfBuilding-AI` 指向 repo 的 `src\`，
+  中英文兩版共用 `src\Settings.xml`（共享裝備）和 `src\Builds`。為了讓 PoeCharm 跑，`src\` 補了 `lua`、`SimpleGraphic`
+  （junction）、`manifest.xml`、`Path of Building.exe`，都寫在 `.git/info/exclude`（只在本機忽略）。說明在
+  `C:\Users\root\PoeCharm2\說明.md`。PoeCharm 是第三方程式，開過之後要確認 `git status` 乾淨；裝備原文要是英文，生成器才讀得懂。
 - 推私人庫的 commit 要簽你自己的模型名稱：`python tools/labdata.py --model "Claude Fable 5.1" push --pc home`，
   或先設環境變數 `POB_MODEL`（沒給就簽 Claude Opus 5.5，那是 office 的）。
 - `labdata.py pull` 會順便把別台的舊版結果放進 `library\benchmark\`，退步比較才有上一版可比。
